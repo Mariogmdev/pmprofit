@@ -65,44 +65,7 @@ export function useModules(): UseModulesReturn {
   const [categoryFilter, setCategoryFilter] = useState<ModuleCategory | null>(null);
   const [originFilter, setOriginFilter] = useState<FilterOrigin>('all');
 
-  // Seed system modules if they don't exist
-  const seedSystemModules = useCallback(async () => {
-    try {
-      const { count } = await supabase
-        .from('modules')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_system', true);
-
-      if (count === 0) {
-        const modulesToInsert = SYSTEM_MODULES.map((m) => ({
-          name: m.name,
-          category: m.category,
-          type: m.type,
-          default_config: JSON.parse(JSON.stringify({
-            ...m.default_config,
-            icon: m.icon,
-            description: m.description,
-          })),
-          is_public: m.is_public,
-          is_system: m.is_system,
-          usage_count: m.usage_count,
-          created_by: null,
-        }));
-
-        const { error: insertError } = await supabase
-          .from('modules')
-          .insert(modulesToInsert);
-
-        if (insertError) {
-          console.error('Error seeding modules:', insertError);
-        } else {
-          console.log('✅ System modules seeded successfully');
-        }
-      }
-    } catch (err) {
-      console.error('Error checking/seeding modules:', err);
-    }
-  }, []);
+  // System modules are pre-seeded via SQL, no need to seed from client
 
   // Fetch all modules
   const fetchModules = useCallback(async () => {
@@ -110,8 +73,6 @@ export function useModules(): UseModulesReturn {
     setError(null);
 
     try {
-      await seedSystemModules();
-
       const { data, error: fetchError } = await supabase
         .from('modules')
         .select('*')
@@ -131,7 +92,7 @@ export function useModules(): UseModulesReturn {
     } finally {
       setLoading(false);
     }
-  }, [seedSystemModules]);
+  }, []);
 
   useEffect(() => {
     fetchModules();
