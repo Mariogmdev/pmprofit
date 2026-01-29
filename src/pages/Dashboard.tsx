@@ -5,6 +5,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AppTabs from '@/components/layout/AppTabs';
 import ConfigurationTab from '@/components/tabs/ConfigurationTab';
+import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
 import PlaceholderTab from '@/components/tabs/PlaceholderTab';
 
 export default function Dashboard() {
@@ -16,10 +17,10 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'config':
         return <ConfigurationTab />;
-      case 'sports':
-        return <PlaceholderTab title="Deportes y Actividades - En Construcción" />;
-      case 'opex':
-        return <PlaceholderTab title="OPEX - En Construcción" />;
+      case 'constructor':
+        return <PlaceholderTab title="Constructor - En Construcción" />;
+      case 'modules':
+        return <ModuleCenterTab />;
       case 'summary':
         return <PlaceholderTab title="Resumen - En Construcción" />;
       default:

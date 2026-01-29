@@ -1,4 +1,4 @@
-import { Settings, Activity, TrendingUp, BarChart2 } from 'lucide-react';
+import { Settings, Hammer, Package, BarChart2 } from 'lucide-react';
 import { AppTab } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -9,8 +9,8 @@ interface AppTabsProps {
 
 const tabs: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'config', label: 'Configuración', icon: <Settings className="w-4 h-4" /> },
-  { id: 'sports', label: 'Deportes y Actividades', icon: <Activity className="w-4 h-4" /> },
-  { id: 'opex', label: 'OPEX', icon: <TrendingUp className="w-4 h-4" /> },
+  { id: 'constructor', label: 'Constructor', icon: <Hammer className="w-4 h-4" /> },
+  { id: 'modules', label: 'Central de Módulos', icon: <Package className="w-4 h-4" /> },
   { id: 'summary', label: 'Resumen', icon: <BarChart2 className="w-4 h-4" /> },
 ];
 
