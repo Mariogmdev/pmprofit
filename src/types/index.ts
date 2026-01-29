@@ -100,7 +100,7 @@ export type ProjectionYears = typeof PROJECTION_YEARS_OPTIONS[number];
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 // Tabs de la aplicación
-export type AppTab = 'config' | 'sports' | 'opex' | 'summary';
+export type AppTab = 'config' | 'constructor' | 'modules' | 'summary';
 
 export interface TabInfo {
   id: AppTab;
@@ -110,7 +110,82 @@ export interface TabInfo {
 
 export const APP_TABS: TabInfo[] = [
   { id: 'config', label: 'Configuración', icon: 'settings' },
-  { id: 'sports', label: 'Deportes y Actividades', icon: 'activity' },
-  { id: 'opex', label: 'OPEX', icon: 'trending-up' },
+  { id: 'constructor', label: 'Constructor', icon: 'activity' },
+  { id: 'modules', label: 'Central de Módulos', icon: 'package' },
   { id: 'summary', label: 'Resumen', icon: 'bar-chart-2' },
+];
+
+// Categorías de módulos
+export type ModuleCategory = 
+  | 'deportes-raqueta' 
+  | 'deportes-colectivos' 
+  | 'fitness' 
+  | 'wellness' 
+  | 'coworking' 
+  | 'f&b' 
+  | 'retail' 
+  | 'otros';
+
+export type ModuleType = 'actividad' | 'espacio' | 'servicio';
+
+export interface ModuleSchedule {
+  inicio: number;
+  fin: number;
+  nombre: string;
+  tarifa: number;
+  tipo: 'pico' | 'valle';
+}
+
+export interface ModuleRental {
+  item: string;
+  porcentaje: number;
+  precio: number;
+}
+
+export interface ModuleDefaultConfig {
+  cantidad: number;
+  duracionReserva?: number;
+  jugadoresPorReserva?: number;
+  tipoCubierta?: 'cubierta' | 'semicubierta' | 'aire-libre';
+  capexCubierta?: number;
+  capexSemicubierta?: number;
+  capexAireLibre?: number;
+  horarios?: ModuleSchedule[];
+  ocupacionMes1?: {
+    pico: number;
+    valle: number;
+  };
+  alquileres?: ModuleRental[];
+}
+
+export interface ModuleData {
+  id: string;
+  name: string;
+  category: ModuleCategory;
+  type: ModuleType;
+  icon: string;
+  description: string;
+  default_config: ModuleDefaultConfig;
+  created_by: string | null;
+  is_public: boolean;
+  is_system: boolean;
+  usage_count: number;
+  created_at: string;
+}
+
+export const MODULE_CATEGORIES: { id: ModuleCategory; label: string }[] = [
+  { id: 'deportes-raqueta', label: 'Deportes Raqueta' },
+  { id: 'deportes-colectivos', label: 'Deportes Colectivos' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'wellness', label: 'Wellness' },
+  { id: 'coworking', label: 'Coworking' },
+  { id: 'f&b', label: 'F&B' },
+  { id: 'retail', label: 'Retail' },
+  { id: 'otros', label: 'Otros' },
+];
+
+export const MODULE_TYPES: { id: ModuleType; label: string; description: string }[] = [
+  { id: 'actividad', label: 'Actividad', description: 'Genera ingresos por reserva/hora' },
+  { id: 'espacio', label: 'Espacio', description: 'Genera ingresos por uso' },
+  { id: 'servicio', label: 'Servicio', description: 'Genera ingresos variables' },
 ];
