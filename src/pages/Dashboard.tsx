@@ -5,6 +5,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AppTabs from '@/components/layout/AppTabs';
 import ConfigurationTab from '@/components/tabs/ConfigurationTab';
+import ConstructorTab from '@/components/tabs/ConstructorTab';
 import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
 import PlaceholderTab from '@/components/tabs/PlaceholderTab';
 
@@ -18,7 +19,7 @@ export default function Dashboard() {
       case 'config':
         return <ConfigurationTab />;
       case 'constructor':
-        return <PlaceholderTab title="Constructor - En Construcción" />;
+        return <ConstructorTab />;
       case 'modules':
         return <ModuleCenterTab />;
       case 'summary':
