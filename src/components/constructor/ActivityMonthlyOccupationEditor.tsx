@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ActivityConfig, OccupationMonth, OccupationYear } from '@/types/activity';
+import { Slider } from '@/components/ui/slider';
+import { ActivityConfig, OccupationMonth, OccupationYear, ActivitySchedule } from '@/types/activity';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types';
 
@@ -42,6 +43,39 @@ const DEFAULT_MONTHLY_OCCUPATION: OccupationMonth[] = [
   { mes: 12, pico: 80, valle: 50 },
 ];
 
+// Calculate average occupation by type (pico/valle) from schedules
+const calculateAverageOccupationByType = (horarios: ActivitySchedule[]) => {
+  let totalHorasPico = 0;
+  let totalHorasValle = 0;
+  let sumOcupacionPico = 0;
+  let sumOcupacionValle = 0;
+  
+  horarios.forEach(horario => {
+    const horas = Math.max(0, horario.fin - horario.inicio);
+    
+    if (horario.tipo === 'pico') {
+      totalHorasPico += horas;
+      sumOcupacionPico += horario.ocupacion * horas;
+    } else {
+      totalHorasValle += horas;
+      sumOcupacionValle += horario.ocupacion * horas;
+    }
+  });
+  
+  const totalHoras = totalHorasPico + totalHorasValle;
+  const ocupacionPromedioPico = totalHorasPico > 0 ? sumOcupacionPico / totalHorasPico : 50;
+  const ocupacionPromedioValle = totalHorasValle > 0 ? sumOcupacionValle / totalHorasValle : 30;
+  const ocupacionPromedioTotal = totalHoras > 0 
+    ? (sumOcupacionPico + sumOcupacionValle) / totalHoras 
+    : (ocupacionPromedioPico + ocupacionPromedioValle) / 2;
+  
+  return {
+    pico: Math.round(ocupacionPromedioPico),
+    valle: Math.round(ocupacionPromedioValle),
+    promedio: Math.round(ocupacionPromedioTotal)
+  };
+};
+
 export default function ActivityMonthlyOccupationEditor({ 
   config, 
   onUpdate,
@@ -54,23 +88,27 @@ export default function ActivityMonthlyOccupationEditor({
   horasValle = 0,
 }: ActivityMonthlyOccupationEditorProps) {
   const [curveType, setCurveType] = useState<CurveType>('lineal');
-  const [startPico, setStartPico] = useState(40);
-  const [startValle, setStartValle] = useState(20);
-  const [endPico, setEndPico] = useState(80);
-  const [endValle, setEndValle] = useState(50);
+  const [maduracionFactor, setMaduracionFactor] = useState(1.3); // 130% - Month 12 target
+  const [inicioFactor, setInicioFactor] = useState(0.7); // 70% - Month 1 start
   
   // Total hours for weighted average calculation
   const totalHoras = horasPico + horasValle;
   
   // Calculate weighted average for any pico/valle values
   const calculateWeightedAverage = (pico: number, valle: number): number => {
-    if (totalHoras === 0) return (pico + valle) / 2; // Fallback to simple average
+    if (totalHoras === 0) return (pico + valle) / 2;
     return (pico * horasPico + valle * horasValle) / totalHoras;
   };
   
   // Hours distribution percentage for display
   const porcentajePico = totalHoras > 0 ? (horasPico / totalHoras) * 100 : 50;
   const porcentajeValle = totalHoras > 0 ? (horasValle / totalHoras) * 100 : 50;
+  
+  // Base occupation from schedules
+  const ocupacionBase = useMemo(() => 
+    calculateAverageOccupationByType(config.horarios || []),
+    [config.horarios]
+  );
   
   // Check if Year 1 projection is realistic vs schedule occupancy
   const year1Avg = config.ocupacionAnual[0] 
@@ -124,7 +162,18 @@ export default function ActivityMonthlyOccupationEditor({
   };
 
   // Apply automatic curve
-  const applyCurve = () => {
+  // Generate monthly projection based on schedule base occupation and growth factors
+  const generateMonthlyProjection = () => {
+    const basePico = ocupacionBase.pico || calculatedPico || 50;
+    const baseValle = ocupacionBase.valle || calculatedValle || 30;
+    
+    // Month 1 starts at inicio factor of base
+    // Month 12 ends at maduracion factor of base
+    const startPico = Math.min(100, Math.round(basePico * inicioFactor));
+    const startValle = Math.min(100, Math.round(baseValle * inicioFactor));
+    const endPico = Math.min(100, Math.round(basePico * maduracionFactor));
+    const endValle = Math.min(100, Math.round(baseValle * maduracionFactor));
+    
     const newOccupation: OccupationMonth[] = [];
     
     for (let i = 0; i < 12; i++) {
@@ -382,108 +431,112 @@ export default function ActivityMonthlyOccupationEditor({
               </div>
             )}
           
-            {/* Curve Generator */}
-            <div className="p-4 border rounded-lg space-y-3 bg-muted/20">
-              <Label className="text-sm font-medium">📈 Aplicar Curva de Crecimiento Automática</Label>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Mes 1 - Pico</Label>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      className="h-8"
-                      value={startPico}
-                      onChange={(e) => setStartPico(parseInt(e.target.value) || 0)}
-                    />
-                    <span className="text-xs">%</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Mes 1 - Valle</Label>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      className="h-8"
-                      value={startValle}
-                      onChange={(e) => setStartValle(parseInt(e.target.value) || 0)}
-                    />
-                    <span className="text-xs">%</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Mes 12 - Pico</Label>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      className="h-8"
-                      value={endPico}
-                      onChange={(e) => setEndPico(parseInt(e.target.value) || 0)}
-                    />
-                    <span className="text-xs">%</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Mes 12 - Valle</Label>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      className="h-8"
-                      value={endValle}
-                      onChange={(e) => setEndValle(parseInt(e.target.value) || 0)}
-                    />
-                    <span className="text-xs">%</span>
-                  </div>
-                </div>
+            {/* Simplified Slider-Based Configuration */}
+            <div className="p-4 border rounded-lg space-y-5 bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-900/20 dark:to-blue-900/20">
+              <div>
+                <Label className="text-sm font-medium">📈 Configuración de Curva de Crecimiento</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Basado en tu ocupación promedio ponderada: <span className="font-medium">{ocupacionBase.promedio}%</span>
+                  {' '}(Pico: {ocupacionBase.pico}%, Valle: {ocupacionBase.valle}%)
+                </p>
               </div>
               
-              <div className="flex items-center gap-4">
-                <Label className="text-xs">Tipo curva:</Label>
+              {/* Curve Type */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Tipo de curva:</Label>
                 <RadioGroup
                   value={curveType}
                   onValueChange={(v: CurveType) => setCurveType(v)}
-                  className="flex gap-4"
+                  className="flex gap-6"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="lineal" id="curve-lineal" />
-                    <Label htmlFor="curve-lineal" className="text-xs cursor-pointer">Lineal</Label>
+                    <Label htmlFor="curve-lineal" className="text-sm cursor-pointer">
+                      Lineal (crecimiento constante)
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="s-curve" id="curve-s" />
-                    <Label htmlFor="curve-s" className="text-xs cursor-pointer">S-Curve</Label>
+                    <Label htmlFor="curve-s" className="text-sm cursor-pointer">
+                      S-Curve (lento inicio, rápido medio, lento final)
+                    </Label>
                   </div>
                 </RadioGroup>
-                
-                <Button size="sm" variant="outline" onClick={applyCurve}>
-                  Aplicar Curva
-                </Button>
               </div>
+
+              {/* Maturity Factor Slider */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    🎯 Madurez del proyecto (Mes 12): {Math.round(maduracionFactor * 100)}%
+                  </Label>
+                  <span className="text-sm font-medium text-primary">
+                    Pico {Math.min(100, Math.round(ocupacionBase.pico * maduracionFactor))}%, 
+                    Valle {Math.min(100, Math.round(ocupacionBase.valle * maduracionFactor))}%
+                  </span>
+                </div>
+                <Slider
+                  value={[maduracionFactor]}
+                  onValueChange={(v) => setMaduracionFactor(v[0])}
+                  min={0.8}
+                  max={1.8}
+                  step={0.05}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>80% (conservador)</span>
+                  <span>100% (igual a horarios)</span>
+                  <span>180% (optimista)</span>
+                </div>
+              </div>
+
+              {/* Start Factor Slider */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">
+                    🚀 Inicio del proyecto (Mes 1): {Math.round(inicioFactor * 100)}%
+                  </Label>
+                  <span className="text-sm font-medium text-amber-600">
+                    Pico {Math.round(ocupacionBase.pico * inicioFactor)}%, 
+                    Valle {Math.round(ocupacionBase.valle * inicioFactor)}%
+                  </span>
+                </div>
+                <Slider
+                  value={[inicioFactor]}
+                  onValueChange={(v) => setInicioFactor(v[0])}
+                  min={0.3}
+                  max={1.0}
+                  step={0.05}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>30% (arranque muy lento)</span>
+                  <span>70%</span>
+                  <span>100% (desde el inicio)</span>
+                </div>
+              </div>
+
+              <Button onClick={generateMonthlyProjection} className="w-full" size="lg">
+                Generar Proyección Mensual
+              </Button>
             </div>
 
-            {/* Monthly Table */}
+            {/* Monthly Table - Read Only */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
+                  <tr className="border-b bg-muted/30">
                     <th className="text-left py-2 px-2 font-medium">Mes</th>
                     <th className="text-center py-2 px-2 font-medium text-orange-600">
                       Pico (%)
                       <span className="text-xs font-normal text-muted-foreground ml-1">
-                        {porcentajePico.toFixed(0)}%
+                        ({porcentajePico.toFixed(0)}% hrs)
                       </span>
                     </th>
                     <th className="text-center py-2 px-2 font-medium text-blue-600">
                       Valle (%)
                       <span className="text-xs font-normal text-muted-foreground ml-1">
-                        {porcentajeValle.toFixed(0)}%
+                        ({porcentajeValle.toFixed(0)}% hrs)
                       </span>
                     </th>
                     <th className="text-center py-2 px-2 font-medium">
@@ -508,33 +561,18 @@ export default function ActivityMonthlyOccupationEditor({
                 </thead>
                 <tbody>
                   {ocupacionMensual.map((month, idx) => {
-                    // Use weighted average based on hours distribution
                     const promedio = calculateWeightedAverage(month.pico, month.valle);
                     const income = ingresosPerMonth[idx];
                     return (
-                      <tr key={month.mes} className="border-b">
+                      <tr key={month.mes} className="border-b hover:bg-muted/20">
                         <td className="py-2 px-2 font-medium">
                           {MONTH_NAMES[month.mes - 1]} (M{month.mes})
                         </td>
-                        <td className="py-1 px-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={month.pico}
-                            onChange={(e) => updateMonthlyOccupation(month.mes, 'pico', parseInt(e.target.value) || 0)}
-                            className="w-16 h-7 text-center mx-auto text-xs"
-                          />
+                        <td className="py-2 px-2 text-center text-orange-600 font-medium">
+                          {month.pico}%
                         </td>
-                        <td className="py-1 px-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={month.valle}
-                            onChange={(e) => updateMonthlyOccupation(month.mes, 'valle', parseInt(e.target.value) || 0)}
-                            className="w-16 h-7 text-center mx-auto text-xs"
-                          />
+                        <td className="py-2 px-2 text-center text-blue-600 font-medium">
+                          {month.valle}%
                         </td>
                         <td className="py-2 px-2 text-center text-muted-foreground">
                           {promedio.toFixed(0)}%
