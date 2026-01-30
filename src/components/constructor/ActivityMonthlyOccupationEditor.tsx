@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { TrendingUp, Calendar, LineChart } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { TrendingUp, Calendar, LineChart, Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ActivityConfig, OccupationMonth, OccupationYear } from '@/types/activity';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types';
@@ -67,6 +68,10 @@ export default function ActivityMonthlyOccupationEditor({
     return (pico * horasPico + valle * horasValle) / totalHoras;
   };
   
+  // Hours distribution percentage for display
+  const porcentajePico = totalHoras > 0 ? (horasPico / totalHoras) * 100 : 50;
+  const porcentajeValle = totalHoras > 0 ? (horasValle / totalHoras) * 100 : 50;
+  
   // Check if Year 1 projection is realistic vs schedule occupancy
   const year1Avg = config.ocupacionAnual[0] 
     ? calculateWeightedAverage(config.ocupacionAnual[0].pico, config.ocupacionAnual[0].valle)
@@ -76,6 +81,33 @@ export default function ActivityMonthlyOccupationEditor({
   const isPessimistic = occupancyDiff < -15;
 
   const ocupacionMensual = config.ocupacionMensual || DEFAULT_MONTHLY_OCCUPATION;
+
+  // Calculate Year 1 averages from monthly data
+  const year1MonthlyAverages = useMemo(() => {
+    const avgPico = Math.round(ocupacionMensual.reduce((sum, o) => sum + o.pico, 0) / 12);
+    const avgValle = Math.round(ocupacionMensual.reduce((sum, o) => sum + o.valle, 0) / 12);
+    return { pico: avgPico, valle: avgValle };
+  }, [ocupacionMensual]);
+
+  // Sync Year 1 in ocupacionAnual when monthly data changes (only in monthly mode)
+  useEffect(() => {
+    if (config.modoOcupacion === 'mensual') {
+      const currentYear1 = config.ocupacionAnual[0];
+      if (
+        currentYear1 &&
+        (currentYear1.pico !== year1MonthlyAverages.pico || 
+         currentYear1.valle !== year1MonthlyAverages.valle)
+      ) {
+        const updatedAnual = [...config.ocupacionAnual];
+        updatedAnual[0] = {
+          ...updatedAnual[0],
+          pico: year1MonthlyAverages.pico,
+          valle: year1MonthlyAverages.valle,
+        };
+        onUpdate({ ocupacionAnual: updatedAnual });
+      }
+    }
+  }, [config.modoOcupacion, year1MonthlyAverages, config.ocupacionAnual]);
 
   const updateMonthlyOccupation = (mes: number, field: 'pico' | 'valle', value: number) => {
     const updated = ocupacionMensual.map((o) =>
@@ -117,14 +149,20 @@ export default function ActivityMonthlyOccupationEditor({
   };
 
   // Calculate average occupation for Year 1 (monthly mode)
-  const avgPicoAno1 = Math.round(ocupacionMensual.reduce((sum, o) => sum + o.pico, 0) / 12);
-  const avgValleAno1 = Math.round(ocupacionMensual.reduce((sum, o) => sum + o.valle, 0) / 12);
+  const avgPicoAno1 = year1MonthlyAverages.pico;
+  const avgValleAno1 = year1MonthlyAverages.valle;
   // Use weighted average based on hours distribution
   const avgPromedioAno1 = Math.round(calculateWeightedAverage(avgPicoAno1, avgValleAno1));
 
-  // Calculate total annual income
+  // Calculate total annual income (sum of all 12 months)
   const ingresoAnualAno1 = ocupacionMensual.reduce((sum, o) => sum + monthlyIncome(o.pico, o.valle), 0);
   const ingresoMensualPromedioAno1 = ingresoAnualAno1 / 12;
+  
+  // Calculate income for each month individually
+  const ingresosPerMonth = useMemo(() => 
+    ocupacionMensual.map(o => monthlyIncome(o.pico, o.valle)),
+    [ocupacionMensual, monthlyIncome]
+  );
 
   return (
     <Card>
@@ -323,6 +361,27 @@ export default function ActivityMonthlyOccupationEditor({
         {/* MONTHLY MODE */}
         {config.modoOcupacion === 'mensual' && (
           <>
+            {/* Hours Distribution Info */}
+            {totalHoras > 0 && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="text-blue-700 dark:text-blue-300 font-medium">
+                      Distribución de horas para cálculo ponderado:
+                    </p>
+                    <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">
+                      Pico: {horasPico.toFixed(1)} hrs ({porcentajePico.toFixed(0)}%) • 
+                      Valle: {horasValle.toFixed(1)} hrs ({porcentajeValle.toFixed(0)}%)
+                    </p>
+                    <p className="text-blue-600/80 dark:text-blue-400/80 text-xs mt-1">
+                      El promedio de cada mes se calcula: (Pico × {porcentajePico.toFixed(0)}% + Valle × {porcentajeValle.toFixed(0)}%) 
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          
             {/* Curve Generator */}
             <div className="p-4 border rounded-lg space-y-3 bg-muted/20">
               <Label className="text-sm font-medium">📈 Aplicar Curva de Crecimiento Automática</Label>
@@ -415,17 +474,43 @@ export default function ActivityMonthlyOccupationEditor({
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2 px-2 font-medium">Mes</th>
-                    <th className="text-center py-2 px-2 font-medium text-orange-600">Pico (%)</th>
-                    <th className="text-center py-2 px-2 font-medium text-blue-600">Valle (%)</th>
-                    <th className="text-center py-2 px-2 font-medium">Promedio</th>
+                    <th className="text-center py-2 px-2 font-medium text-orange-600">
+                      Pico (%)
+                      <span className="text-xs font-normal text-muted-foreground ml-1">
+                        {porcentajePico.toFixed(0)}%
+                      </span>
+                    </th>
+                    <th className="text-center py-2 px-2 font-medium text-blue-600">
+                      Valle (%)
+                      <span className="text-xs font-normal text-muted-foreground ml-1">
+                        {porcentajeValle.toFixed(0)}%
+                      </span>
+                    </th>
+                    <th className="text-center py-2 px-2 font-medium">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help underline decoration-dotted">
+                              Promedio
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">
+                              Promedio ponderado:<br />
+                              (Pico × {horasPico.toFixed(1)}h + Valle × {horasValle.toFixed(1)}h) / {totalHoras.toFixed(1)}h
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </th>
                     <th className="text-right py-2 px-2 font-medium">Ingresos</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ocupacionMensual.map((month) => {
+                  {ocupacionMensual.map((month, idx) => {
                     // Use weighted average based on hours distribution
                     const promedio = calculateWeightedAverage(month.pico, month.valle);
-                    const income = monthlyIncome(month.pico, month.valle);
+                    const income = ingresosPerMonth[idx];
                     return (
                       <tr key={month.mes} className="border-b">
                         <td className="py-2 px-2 font-medium">
@@ -465,53 +550,78 @@ export default function ActivityMonthlyOccupationEditor({
             </div>
 
             {/* Year 1 Summary */}
-            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Promedio Año 1:</span>
-                <span className="font-medium">
-                  Pico {avgPicoAno1}% | Valle {avgValleAno1}% | Promedio {avgPromedioAno1}%
-                </span>
+            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-medium">Promedio Año 1 (de 12 meses):</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pico: {avgPicoAno1}% • Valle: {avgValleAno1}% • 
+                    <span className="font-medium ml-1">Promedio ponderado: {avgPromedioAno1}%</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Ingreso Año 1</p>
+                  <p className="text-lg font-bold text-primary">
+                    {formatCurrency(ingresoAnualAno1, currency as CurrencyCode)}
+                  </p>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Ingresos promedio/mes Año 1:</span>
-                <span className="font-semibold text-primary">
+              
+              <div className="flex justify-between text-sm pt-2 border-t">
+                <span className="text-muted-foreground">Ingresos promedio/mes:</span>
+                <span className="font-semibold">
                   {formatCurrency(ingresoMensualPromedioAno1, currency as CurrencyCode)}
                 </span>
               </div>
+              
+              <p className="text-xs text-muted-foreground italic">
+                ✓ Estos promedios se sincronizan automáticamente con el Año 1 de la proyección anual
+              </p>
             </div>
 
             {/* Years 2-5 Projection */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Proyección Años 2-5:</Label>
+              <Label className="text-sm font-medium">Proyección Años 2-5 (simplificado):</Label>
+              <p className="text-xs text-muted-foreground">
+                Ingresa los valores de ocupación proyectados. El promedio del Año 1 ({avgPicoAno1}%/{avgValleAno1}%) 
+                se calcula automáticamente desde los datos mensuales.
+              </p>
               <div className="grid grid-cols-4 gap-2">
-                {config.ocupacionAnual.slice(1).map((year) => (
-                  <div key={year.ano} className="p-2 border rounded-lg space-y-1">
-                    <Label className="text-xs block text-center">Año {year.ano}</Label>
-                    <div className="flex gap-1">
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={year.pico}
-                        onChange={(e) => updateAnnualOccupation(year.ano, 'pico', parseInt(e.target.value) || 0)}
-                        className="w-full h-7 text-xs text-center"
-                        placeholder="Pico"
-                      />
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={year.valle}
-                        onChange={(e) => updateAnnualOccupation(year.ano, 'valle', parseInt(e.target.value) || 0)}
-                        className="w-full h-7 text-xs text-center"
-                        placeholder="Valle"
-                      />
+                {config.ocupacionAnual.slice(1).map((year) => {
+                  const yearPromedio = calculateWeightedAverage(year.pico, year.valle);
+                  return (
+                    <div key={year.ano} className="p-2 border rounded-lg space-y-1">
+                      <Label className="text-xs block text-center font-medium">Año {year.ano}</Label>
+                      <div className="flex gap-1">
+                        <div className="flex-1">
+                          <Label className="text-[10px] text-orange-600">Pico</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={year.pico}
+                            onChange={(e) => updateAnnualOccupation(year.ano, 'pico', parseInt(e.target.value) || 0)}
+                            className="w-full h-7 text-xs text-center"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-[10px] text-blue-600">Valle</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={year.valle}
+                            onChange={(e) => updateAnnualOccupation(year.ano, 'valle', parseInt(e.target.value) || 0)}
+                            className="w-full h-7 text-xs text-center"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-center text-muted-foreground">
+                        Prom: {yearPromedio.toFixed(0)}%
+                      </p>
                     </div>
-                    <p className="text-xs text-center text-muted-foreground">
-                      P:{year.pico}% V:{year.valle}%
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </>
