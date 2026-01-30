@@ -97,26 +97,62 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
         {/* Additional Info */}
         <div className="mt-4 pt-4 border-t border-primary/20">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Ingresos por reservas:</span>
-              <span className="ml-2 font-medium">
-                {formatCurrency(calculations.ingresosHorarios, currency as CurrencyCode)}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Ingresos complementarios:</span>
-              <span className="ml-2 font-medium">
-                {formatCurrency(calculations.ingresosComplementarios, currency as CurrencyCode)}
-              </span>
-            </div>
+            {calculations.ingresosHorarios > 0 && (
+              <div>
+                <span className="text-muted-foreground">Ingresos reservas:</span>
+                <span className="ml-2 font-medium">
+                  {formatCurrency(calculations.ingresosHorarios, currency as CurrencyCode)}
+                </span>
+              </div>
+            )}
+            {calculations.ingresosMembresiasPases > 0 && (
+              <div>
+                <span className="text-muted-foreground">Membresías/Pases:</span>
+                <span className="ml-2 font-medium">
+                  {formatCurrency(calculations.ingresosMembresiasPases, currency as CurrencyCode)}
+                </span>
+              </div>
+            )}
+            {calculations.ingresosTrafico > 0 && (
+              <div>
+                <span className="text-muted-foreground">Ingresos tráfico:</span>
+                <span className="ml-2 font-medium">
+                  {formatCurrency(calculations.ingresosTrafico, currency as CurrencyCode)}
+                </span>
+              </div>
+            )}
+            {calculations.ingresosClases > 0 && (
+              <div>
+                <span className="text-muted-foreground">Ingresos clases:</span>
+                <span className="ml-2 font-medium text-green-600">
+                  {formatCurrency(calculations.ingresosClases, currency as CurrencyCode)}
+                </span>
+              </div>
+            )}
+            {calculations.ingresosComplementarios > 0 && (
+              <div>
+                <span className="text-muted-foreground">Complementarios:</span>
+                <span className="ml-2 font-medium">
+                  {formatCurrency(calculations.ingresosComplementarios, currency as CurrencyCode)}
+                </span>
+              </div>
+            )}
             <div>
               <span className="text-muted-foreground">Usuarios/mes:</span>
               <span className="ml-2 font-medium">
                 {Math.round(calculations.totalUsuariosMes).toLocaleString()}
               </span>
             </div>
+            {calculations.opexProfesores > 0 && (
+              <div>
+                <span className="text-muted-foreground">Costo profesores:</span>
+                <span className="ml-2 font-medium text-orange-600">
+                  {formatCurrency(calculations.opexProfesores, currency as CurrencyCode)}
+                </span>
+              </div>
+            )}
             <div>
-              <span className="text-muted-foreground">Ingresos anuales (Año 1):</span>
+              <span className="text-muted-foreground">Ingresos anuales:</span>
               <span className="ml-2 font-medium">
                 {formatCurrency(calculations.ingresosMensualesAno1 * 12, currency as CurrencyCode)}
               </span>

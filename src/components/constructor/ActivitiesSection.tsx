@@ -271,7 +271,32 @@ export default function ActivitiesSection() {
                 onUpdate={(updates) => updateActivity(activity.id, updates)}
                 onDelete={() => deleteActivity(activity.id)}
                 onDuplicate={() => duplicateActivity(activity.id)}
+                onSave={async () => {
+                  // The updateActivity already saves to DB, so this is a no-op
+                  // but required for explicit save triggers from the card
+                }}
                 currency={currency}
+                totalClubUsers={activities.reduce((sum, a) => {
+                  // Calculate total users from all other activities for traffic model
+                  if (a.id !== activity.id && a.config.modeloIngreso === 'reserva') {
+                    const schedules = a.config.horarios || [];
+                    const cantidad = a.config.cantidad || 1;
+                    const duracion = a.config.duracionReserva || 1.5;
+                    const jugadores = a.config.jugadoresPorReserva || 4;
+                    const daysPerMonth = 30;
+                    
+                    let users = 0;
+                    schedules.forEach((s) => {
+                      const hoursPerDay = Math.max(0, s.fin - s.inicio);
+                      const reservasPerDay = hoursPerDay / duracion;
+                      const ocupacion = s.ocupacion / 100;
+                      const reservasPerMonth = reservasPerDay * cantidad * ocupacion * daysPerMonth;
+                      users += reservasPerMonth * jugadores;
+                    });
+                    return sum + users;
+                  }
+                  return sum;
+                }, 0)}
               />
             ))}
           </div>

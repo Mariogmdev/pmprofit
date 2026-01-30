@@ -610,8 +610,8 @@ export default function CreateModuleWizard({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             Crear Nuevo Módulo - Paso {step} de {totalSteps}
           </DialogTitle>
@@ -626,15 +626,19 @@ export default function CreateModuleWizard({
 
         {renderStepIndicator()}
 
-        <ScrollArea className="max-h-[50vh] pr-4">
-          {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-          {step === 4 && renderStep4()}
-          {step === 5 && renderStep5()}
-        </ScrollArea>
+        <div className="flex-1 overflow-y-auto min-h-0 pr-2 -mr-2">
+          <ScrollArea className="h-full max-h-[calc(90vh-250px)]">
+            <div className="pr-4">
+              {step === 1 && renderStep1()}
+              {step === 2 && renderStep2()}
+              {step === 3 && renderStep3()}
+              {step === 4 && renderStep4()}
+              {step === 5 && renderStep5()}
+            </div>
+          </ScrollArea>
+        </div>
 
-        <div className="flex justify-between gap-3 pt-4 border-t">
+        <div className="flex-shrink-0 flex justify-between gap-3 pt-4 border-t bg-background">
           {step > 1 ? (
             <Button variant="outline" onClick={handlePrevious}>
               <ChevronLeft className="h-4 w-4 mr-1" />
