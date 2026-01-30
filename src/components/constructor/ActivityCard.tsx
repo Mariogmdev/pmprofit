@@ -328,6 +328,7 @@ export default function ActivityCard({
                 onUpdate={handleConfigUpdate}
                 currency={currency}
                 monthlyIncome={calculateMonthlyIncome}
+                calculatedOccupancy={calculations.ocupacionPromedio}
               />
             )}
 

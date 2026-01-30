@@ -115,8 +115,8 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
             )}
             {calculations.ingresosTrafico > 0 && (
               <div>
-                <span className="text-muted-foreground">Ingresos tráfico:</span>
-                <span className="ml-2 font-medium">
+                <span className="text-muted-foreground">Ingresos tráfico (neto):</span>
+                <span className="ml-2 font-medium text-green-600">
                   {formatCurrency(calculations.ingresosTrafico, currency as CurrencyCode)}
                 </span>
               </div>

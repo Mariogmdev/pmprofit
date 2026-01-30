@@ -88,17 +88,27 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
     // Traffic model calculations
     if (config.modeloIngreso === 'trafico') {
       const trafficConfig = config.trafficConfig || DEFAULT_TRAFFIC_CONFIG;
-      const usuariosDeportivos = 0; // This would need to be passed from parent
+      
+      // Calculate club users based on percentage - this uses totalUsuariosMes from other activities
+      // For now, use the external visitors calculation  
+      const usuariosDeportivos = Math.round(totalUsuariosMes * (trafficConfig.porcentajeUsuariosClub / 100));
       const usuariosExternos = trafficConfig.visitantesExternosDia * daysPerMonth;
       const traficoTotal = usuariosDeportivos + usuariosExternos;
       
+      console.log('Traffic Calculation:', { usuariosDeportivos, usuariosExternos, traficoTotal });
+      
       if (trafficConfig.modeloOperacion === 'propia') {
         const ingresosBrutos = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
-        ingresosTrafico = ingresosBrutos;
+        // For own operation: income is NET of cost of sales (margen bruto)
         opexCostoVentas = ingresosBrutos * (trafficConfig.costoVentas / 100);
+        ingresosTrafico = ingresosBrutos - opexCostoVentas; // This matches the UI calculation
       } else {
+        // For concession: income is commission on operator sales
         ingresosTrafico = trafficConfig.ventasOperador * (trafficConfig.comisionConcesion / 100);
+        opexCostoVentas = 0; // No cost of sales for concession
       }
+      
+      console.log('Traffic Income:', { ingresosTrafico, opexCostoVentas });
       
       totalUsuariosMes += traficoTotal;
     }
@@ -167,7 +177,9 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
     // Estimate reposition (consumables replenishment)
     const opexReposicion = capexConsumibles * 0.3 / 12; // 30% annual reposition
     
-    const opexMensual = opexPersonal + opexMantenimiento + opexReposicion + opexProfesores + opexCostoVentas;
+    // Note: For traffic model with own operation, opexCostoVentas is already deducted from ingresosTrafico
+    // So we don't add it to opexMensual to avoid double-counting
+    const opexMensual = opexPersonal + opexMantenimiento + opexReposicion + opexProfesores;
 
     // Calculate metrics
     const margen = ingresosMensualesAno1 - opexMensual;
