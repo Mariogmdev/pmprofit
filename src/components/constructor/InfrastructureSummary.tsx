@@ -38,22 +38,17 @@ export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSum
     return obraCivil?.capex_obra_civil_total || 0;
   }, [obraCivil]);
 
-  // Calcular CAPEX de actividades (del proyecto actual)
+  // Calcular CAPEX de actividades - Equipment only (NO construction)
+  // Construction costs are already in Section B: Obra Civil
   const capexActividades = useMemo(() => {
     return activities.reduce((sum, activity) => {
       const config: ActivityConfig = activity.config;
-      const cantidad = config.cantidad || 1;
       
-      // CAPEX de infraestructura según tipo cubierta
-      let capexInfra = 0;
-      const tipoCubierta = config.tipoCubierta || 'cubierta';
-      if (tipoCubierta === 'cubierta') {
-        capexInfra = (config.capexCubierta || 0) * cantidad;
-      } else if (tipoCubierta === 'semicubierta') {
-        capexInfra = (config.capexSemicubierta || 0) * cantidad;
-      } else {
-        capexInfra = (config.capexAireLibre || 0) * cantidad;
-      }
+      // Activity-specific equipment only (NOT construction)
+      const equipamientoTotal = (config.equipamientoEspecifico || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)),
+        0
+      );
       
       // CAPEX de consumibles
       const consumiblesTotal = (config.consumibles || []).reduce(
@@ -67,7 +62,8 @@ export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSum
         0
       );
       
-      return sum + capexInfra + consumiblesTotal + mobiliarioTotal;
+      // NO incluir construcción (tipoCubierta/capexCubierta) - eso está en Obra Civil
+      return sum + equipamientoTotal + consumiblesTotal + mobiliarioTotal;
     }, 0);
   }, [activities]);
 
@@ -83,49 +79,49 @@ export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSum
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Espacios Comunes */}
+          {/* Espacios Comunes - Equipment/furniture */}
           <Card className="bg-white/80 dark:bg-background/80">
             <CardContent className="pt-6">
               <div className="text-center">
                 <Building2 className="w-8 h-8 mx-auto text-purple-600 dark:text-purple-400 mb-2" />
-                <p className="text-sm text-muted-foreground">Espacios Comunes</p>
+                <p className="text-sm text-muted-foreground">Equipamiento Espacios</p>
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                   {formatCurrency(capexEspacios, currency)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {spaces.length} espacios
+                  {spaces.length} espacios (mobiliario, equipos)
                 </p>
               </div>
             </CardContent>
           </Card>
           
-          {/* Obra Civil */}
+          {/* Obra Civil - Construction of entire project */}
           <Card className="bg-white/80 dark:bg-background/80">
             <CardContent className="pt-6">
               <div className="text-center">
                 <HardHat className="w-8 h-8 mx-auto text-orange-600 dark:text-orange-400 mb-2" />
-                <p className="text-sm text-muted-foreground">Obra Civil</p>
+                <p className="text-sm text-muted-foreground">Obra Civil y Construcción</p>
                 <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                   {formatCurrency(capexObraCivil, currency)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Construcción + adicionales
+                  Construcción total del proyecto
                 </p>
               </div>
             </CardContent>
           </Card>
           
-          {/* Actividades */}
+          {/* Actividades - Equipment only */}
           <Card className="bg-white/80 dark:bg-background/80">
             <CardContent className="pt-6">
               <div className="text-center">
                 <Zap className="w-8 h-8 mx-auto text-blue-600 dark:text-blue-400 mb-2" />
-                <p className="text-sm text-muted-foreground">Actividades</p>
+                <p className="text-sm text-muted-foreground">Equipamiento Actividades</p>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {formatCurrency(capexActividades, currency)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {activities.length} actividades (Sección A)
+                  {activities.length} actividades (equipos, consumibles)
                 </p>
               </div>
             </CardContent>
@@ -141,7 +137,7 @@ export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSum
               <p className="text-muted-foreground mb-1 font-semibold">CAPEX TOTAL DEL PROYECTO</p>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Info className="w-3 h-3" />
-                Espacios + Obra Civil + Actividades
+                Equipamiento + Construcción (sin doble conteo)
               </p>
             </div>
             <div className="text-right">

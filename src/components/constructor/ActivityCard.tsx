@@ -353,12 +353,13 @@ export default function ActivityCard({
               />
             )}
 
-            {/* 7. CAPEX */}
+            {/* 5. CAPEX */}
             <ActivityCapexEditor
               config={activity.config}
               onUpdate={handleConfigUpdate}
               currency={currency}
               calculations={calculations}
+              activityName={activity.name}
             />
 
             {/* 8. OPEX */}
