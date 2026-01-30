@@ -18,6 +18,8 @@ interface ActivityMonthlyOccupationEditorProps {
   calculatedOccupancy?: number; // Weighted average occupancy from schedules
   calculatedPico?: number;      // Weighted average of PICO schedules
   calculatedValle?: number;     // Weighted average of VALLE schedules
+  horasPico?: number;           // Total hours of PICO schedules
+  horasValle?: number;          // Total hours of VALLE schedules
 }
 
 type CurveType = 'lineal' | 's-curve';
@@ -47,6 +49,8 @@ export default function ActivityMonthlyOccupationEditor({
   calculatedOccupancy = 0,
   calculatedPico = 0,
   calculatedValle = 0,
+  horasPico = 0,
+  horasValle = 0,
 }: ActivityMonthlyOccupationEditorProps) {
   const [curveType, setCurveType] = useState<CurveType>('lineal');
   const [startPico, setStartPico] = useState(40);
@@ -54,9 +58,18 @@ export default function ActivityMonthlyOccupationEditor({
   const [endPico, setEndPico] = useState(80);
   const [endValle, setEndValle] = useState(50);
   
+  // Total hours for weighted average calculation
+  const totalHoras = horasPico + horasValle;
+  
+  // Calculate weighted average for any pico/valle values
+  const calculateWeightedAverage = (pico: number, valle: number): number => {
+    if (totalHoras === 0) return (pico + valle) / 2; // Fallback to simple average
+    return (pico * horasPico + valle * horasValle) / totalHoras;
+  };
+  
   // Check if Year 1 projection is realistic vs schedule occupancy
   const year1Avg = config.ocupacionAnual[0] 
-    ? (config.ocupacionAnual[0].pico + config.ocupacionAnual[0].valle) / 2 
+    ? calculateWeightedAverage(config.ocupacionAnual[0].pico, config.ocupacionAnual[0].valle)
     : 0;
   const occupancyDiff = calculatedOccupancy > 0 ? year1Avg - calculatedOccupancy : 0;
   const isOptimistic = occupancyDiff > 15;
@@ -103,10 +116,11 @@ export default function ActivityMonthlyOccupationEditor({
     onUpdate({ ocupacionMensual: newOccupation });
   };
 
-  // Calculate average occupation for Year 1
+  // Calculate average occupation for Year 1 (monthly mode)
   const avgPicoAno1 = Math.round(ocupacionMensual.reduce((sum, o) => sum + o.pico, 0) / 12);
   const avgValleAno1 = Math.round(ocupacionMensual.reduce((sum, o) => sum + o.valle, 0) / 12);
-  const avgPromedioAno1 = Math.round((avgPicoAno1 + avgValleAno1) / 2);
+  // Use weighted average based on hours distribution
+  const avgPromedioAno1 = Math.round(calculateWeightedAverage(avgPicoAno1, avgValleAno1));
 
   // Calculate total annual income
   const ingresoAnualAno1 = ocupacionMensual.reduce((sum, o) => sum + monthlyIncome(o.pico, o.valle), 0);
@@ -267,7 +281,8 @@ export default function ActivityMonthlyOccupationEditor({
                 </thead>
                 <tbody>
                   {config.ocupacionAnual.map((year) => {
-                    const promedio = (year.pico + year.valle) / 2;
+                    // Use weighted average based on hours distribution
+                    const promedio = calculateWeightedAverage(year.pico, year.valle);
                     return (
                       <tr key={year.ano} className="border-b">
                         <td className="py-2 px-3 font-medium">Año {year.ano}</td>
@@ -408,7 +423,8 @@ export default function ActivityMonthlyOccupationEditor({
                 </thead>
                 <tbody>
                   {ocupacionMensual.map((month) => {
-                    const promedio = (month.pico + month.valle) / 2;
+                    // Use weighted average based on hours distribution
+                    const promedio = calculateWeightedAverage(month.pico, month.valle);
                     const income = monthlyIncome(month.pico, month.valle);
                     return (
                       <tr key={month.mes} className="border-b">
