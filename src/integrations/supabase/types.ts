@@ -61,6 +61,65 @@ export type Database = {
           },
         ]
       }
+      obra_civil: {
+        Row: {
+          area_total_proyecto: number | null
+          capex_construccion: number | null
+          capex_obra_civil_total: number | null
+          costo_construccion_por_m2: number | null
+          estudios_disenos: number | null
+          id: string
+          imprevistos_porcentaje: number | null
+          imprevistos_valor: number | null
+          interventoria: number | null
+          interventoria_porcentaje: number | null
+          paisajismo: number | null
+          permisos_licencias: number | null
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          area_total_proyecto?: number | null
+          capex_construccion?: number | null
+          capex_obra_civil_total?: number | null
+          costo_construccion_por_m2?: number | null
+          estudios_disenos?: number | null
+          id?: string
+          imprevistos_porcentaje?: number | null
+          imprevistos_valor?: number | null
+          interventoria?: number | null
+          interventoria_porcentaje?: number | null
+          paisajismo?: number | null
+          permisos_licencias?: number | null
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          area_total_proyecto?: number | null
+          capex_construccion?: number | null
+          capex_obra_civil_total?: number | null
+          costo_construccion_por_m2?: number | null
+          estudios_disenos?: number | null
+          id?: string
+          imprevistos_porcentaje?: number | null
+          imprevistos_valor?: number | null
+          interventoria?: number | null
+          interventoria_porcentaje?: number | null
+          paisajismo?: number | null
+          permisos_licencias?: number | null
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obra_civil_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -134,6 +193,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "project_activities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_spaces: {
+        Row: {
+          area: number | null
+          breakdown: Json | null
+          capex_por_m2: number | null
+          configuracion_ingresos: Json | null
+          created_at: string | null
+          genera_ingresos: boolean | null
+          id: string
+          name: string
+          order_index: number | null
+          project_id: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          area?: number | null
+          breakdown?: Json | null
+          capex_por_m2?: number | null
+          configuracion_ingresos?: Json | null
+          created_at?: string | null
+          genera_ingresos?: boolean | null
+          id?: string
+          name: string
+          order_index?: number | null
+          project_id: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          area?: number | null
+          breakdown?: Json | null
+          capex_por_m2?: number | null
+          configuracion_ingresos?: Json | null
+          created_at?: string | null
+          genera_ingresos?: boolean | null
+          id?: string
+          name?: string
+          order_index?: number | null
+          project_id?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_spaces_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
