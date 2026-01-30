@@ -239,9 +239,9 @@ export default function ActivityScheduleEditor({
 
         {/* Summary */}
         {config.horarios.length > 0 && (
-          <div className="bg-muted/50 rounded-lg p-4 mt-4">
-            <h4 className="font-medium text-sm text-muted-foreground mb-3">
-              📊 Resumen de Horarios
+          <div className="bg-muted/50 rounded-lg p-4 mt-4 space-y-3">
+            <h4 className="font-medium text-sm text-muted-foreground">
+              📊 Resumen Automático
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
@@ -263,17 +263,24 @@ export default function ActivityScheduleEditor({
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">Ocupación Promedio:</span>
-                <span className="ml-2 font-medium">
-                  {calculations.ocupacionPromedio.toFixed(0)}%
-                </span>
-              </div>
-              <div>
                 <span className="text-muted-foreground">Turnos por día:</span>
                 <span className="ml-2 font-medium">
                   {calculations.turnosPorDia.toFixed(1)}
                 </span>
               </div>
+            </div>
+            
+            {/* CRITICAL: Weighted average occupation - the key metric */}
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Ocupación Promedio Ponderada:</span>
+                <span className="text-lg font-bold text-primary">
+                  {calculations.ocupacionPromedio.toFixed(0)}%
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                ✨ Esta ocupación será el punto de partida para tu proyección anual.
+              </p>
             </div>
           </div>
         )}

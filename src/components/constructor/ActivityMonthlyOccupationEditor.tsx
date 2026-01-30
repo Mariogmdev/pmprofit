@@ -15,6 +15,7 @@ interface ActivityMonthlyOccupationEditorProps {
   onUpdate: (updates: Partial<ActivityConfig>) => void;
   currency: string;
   monthlyIncome: (pico: number, valle: number) => number; // Function to calculate income for given occupation
+  calculatedOccupancy?: number; // Weighted average occupancy from schedules
 }
 
 type CurveType = 'lineal' | 's-curve';
@@ -41,12 +42,21 @@ export default function ActivityMonthlyOccupationEditor({
   onUpdate,
   currency,
   monthlyIncome,
+  calculatedOccupancy = 0,
 }: ActivityMonthlyOccupationEditorProps) {
   const [curveType, setCurveType] = useState<CurveType>('lineal');
   const [startPico, setStartPico] = useState(40);
   const [startValle, setStartValle] = useState(20);
   const [endPico, setEndPico] = useState(80);
   const [endValle, setEndValle] = useState(50);
+  
+  // Check if Year 1 projection is realistic vs schedule occupancy
+  const year1Avg = config.ocupacionAnual[0] 
+    ? (config.ocupacionAnual[0].pico + config.ocupacionAnual[0].valle) / 2 
+    : 0;
+  const occupancyDiff = calculatedOccupancy > 0 ? year1Avg - calculatedOccupancy : 0;
+  const isOptimistic = occupancyDiff > 15;
+  const isPessimistic = occupancyDiff < -15;
 
   const ocupacionMensual = config.ocupacionMensual || DEFAULT_MONTHLY_OCCUPATION;
 
@@ -141,6 +151,53 @@ export default function ActivityMonthlyOccupationEditor({
         {/* ANNUAL MODE */}
         {config.modoOcupacion !== 'mensual' && (
           <>
+            {/* Calculated Occupancy Reference */}
+            {calculatedOccupancy > 0 && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      💡 Basado en tus horarios, la ocupación promedio calculada es {calculatedOccupancy.toFixed(0)}%
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      Usa esto como punto de partida realista para Año 1
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Apply calculated occupancy to Year 1
+                      const updated = [...config.ocupacionAnual];
+                      // Calculate pico and valle based on the same ratio
+                      const ratio = calculatedOccupancy / 100;
+                      updated[0] = { 
+                        ...updated[0], 
+                        pico: Math.round(calculatedOccupancy * 1.3), // Pico ~30% higher than average
+                        valle: Math.round(calculatedOccupancy * 0.7)  // Valle ~30% lower than average
+                      };
+                      onUpdate({ ocupacionAnual: updated });
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Aplicar {calculatedOccupancy.toFixed(0)}%
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Warning if projection differs too much from schedule */}
+            {calculatedOccupancy > 0 && (isOptimistic || isPessimistic) && (
+              <div className={`p-3 rounded-lg border ${isOptimistic ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'}`}>
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <span>⚠️</span>
+                  {isOptimistic 
+                    ? `Tu proyección Año 1 (${year1Avg.toFixed(0)}%) es ${occupancyDiff.toFixed(0)}% mayor que tu ocupación de horarios (${calculatedOccupancy.toFixed(0)}%). Esto puede ser optimista.`
+                    : `Tu proyección Año 1 (${year1Avg.toFixed(0)}%) es ${Math.abs(occupancyDiff).toFixed(0)}% menor que tu ocupación de horarios (${calculatedOccupancy.toFixed(0)}%). Esto puede ser conservador.`
+                  }
+                </p>
+              </div>
+            )}
+          
             {/* Auto Growth Toggle */}
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-3">

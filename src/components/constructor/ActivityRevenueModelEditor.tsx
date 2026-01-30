@@ -153,30 +153,61 @@ export default function ActivityRevenueModelEditor({
           <div className="p-4 border rounded-lg space-y-4 bg-muted/20">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" />
-              <h4 className="font-medium">Configuración Membresía</h4>
+              <h4 className="font-medium">
+                {config.modeloIngreso === 'mixto' ? '💳 Membresías' : 'Configuración Membresía'}
+              </h4>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Capacity Section */}
+            <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+              <Label className="text-sm font-medium">🏋️ Capacidad del Espacio</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Capacidad máxima simultánea</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={membershipConfig.capacidadMaxima}
+                    onChange={(e) => updateMembership({ capacidadMaxima: parseInt(e.target.value) || 1 })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Cuántas personas pueden estar al mismo tiempo
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Área total (m²)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={config.areaPorUnidad * config.cantidad}
+                    onChange={(e) => onUpdate({ areaPorUnidad: (parseFloat(e.target.value) || 0) / config.cantidad })}
+                  />
+                  {membershipConfig.capacidadMaxima > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      → Densidad: {((config.areaPorUnidad * config.cantidad) / membershipConfig.capacidadMaxima).toFixed(1)} m²/persona
+                      {((config.areaPorUnidad * config.cantidad) / membershipConfig.capacidadMaxima) < 5 && (
+                        <span className="text-amber-600 ml-1">(recomendado: 5-8 m²/persona)</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Membership Pricing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs">Precio Membresía/mes</Label>
+                <Label className="text-xs">Precio membresía mensual</Label>
                 <Input
                   type="number"
                   min={0}
                   value={membershipConfig.precioMembresia}
                   onChange={(e) => updateMembership({ precioMembresia: parseFloat(e.target.value) || 0 })}
                 />
+                <p className="text-xs text-muted-foreground">/mes por persona</p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Capacidad Máxima Simultánea</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={membershipConfig.capacidadMaxima}
-                  onChange={(e) => updateMembership({ capacidadMaxima: parseInt(e.target.value) || 1 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Miembros Año 1</Label>
+                <Label className="text-xs">Miembros activos Año 1</Label>
                 <Input
                   type="number"
                   min={0}
@@ -188,13 +219,37 @@ export default function ActivityRevenueModelEditor({
                     updateMembership({ miembrosProyectados: newProyection });
                   }}
                 />
+                <p className="text-xs text-muted-foreground">que pagan mensualmente</p>
               </div>
             </div>
+            
+            {/* Rotation Ratio Indicator */}
+            {membershipConfig.capacidadMaxima > 0 && membershipConfig.miembrosProyectados[0] > 0 && (
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">📈 Ratio de Rotación:</span>
+                  <span className={`font-medium ${
+                    membershipConfig.miembrosProyectados[0] / membershipConfig.capacidadMaxima > 6 
+                      ? 'text-amber-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {(membershipConfig.miembrosProyectados[0] / membershipConfig.capacidadMaxima).toFixed(1)}×
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {membershipConfig.miembrosProyectados[0]} miembros / {membershipConfig.capacidadMaxima} capacidad = {(membershipConfig.miembrosProyectados[0] / membershipConfig.capacidadMaxima).toFixed(1)}×
+                  {membershipConfig.miembrosProyectados[0] / membershipConfig.capacidadMaxima > 6 
+                    ? ' ⚠️ Ratio alto, puede haber saturación'
+                    : ' ✓ Realista (típico: 3-6×)'
+                  }
+                </p>
+              </div>
+            )}
 
             {/* Growth Projection */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm">Proyección Crecimiento Miembros</Label>
+                <Label className="text-sm">📊 Proyección Miembros (5 años)</Label>
                 <div className="flex items-center gap-2">
                   <Switch
                     id="crecimiento-membresia"
@@ -202,7 +257,6 @@ export default function ActivityRevenueModelEditor({
                     onCheckedChange={(checked) => {
                       updateMembership({ crecimientoAutomatico: checked });
                       if (checked) {
-                        // Apply auto growth
                         const base = membershipConfig.miembrosProyectados[0];
                         const rate = membershipConfig.tasaCrecimiento / 100;
                         const max = membershipConfig.maximoMiembros;
@@ -271,11 +325,17 @@ export default function ActivityRevenueModelEditor({
             </div>
 
             {/* Membership Summary */}
-            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Ingresos Mensuales Año 1:</span>
                 <span className="font-semibold text-primary">
                   {membershipConfig.miembrosProyectados[0]} × {formatCurrency(membershipConfig.precioMembresia, currency as CurrencyCode)} = {formatCurrency(ingresosMembresiaAno1, currency as CurrencyCode)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Ingresos Anuales Año 1:</span>
+                <span className="font-medium">
+                  {formatCurrency(ingresosMembresiaAno1 * 12, currency as CurrencyCode)}/año
                 </span>
               </div>
             </div>
@@ -285,7 +345,9 @@ export default function ActivityRevenueModelEditor({
         {/* DAILY PASS CONFIG */}
         {(config.modeloIngreso === 'pase-diario' || config.modeloIngreso === 'mixto') && (
           <div className="p-4 border rounded-lg space-y-4 bg-muted/20">
-            <h4 className="font-medium">Configuración Pase Diario</h4>
+            <h4 className="font-medium flex items-center gap-2">
+              🎟️ {config.modeloIngreso === 'mixto' ? 'Pases Diarios' : 'Configuración Pase Diario'}
+            </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -296,9 +358,10 @@ export default function ActivityRevenueModelEditor({
                   value={dailyPassConfig.precioPase}
                   onChange={(e) => updateDailyPass({ precioPase: parseFloat(e.target.value) || 0 })}
                 />
+                <p className="text-xs text-muted-foreground">/día por persona</p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Capacidad Máxima</Label>
+                <Label className="text-xs">Capacidad Máxima Simultánea</Label>
                 <Input
                   type="number"
                   min={1}
@@ -307,7 +370,7 @@ export default function ActivityRevenueModelEditor({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Pases Proyectados/día</Label>
+                <Label className="text-xs">Pases vendidos/día</Label>
                 <Input
                   type="number"
                   min={0}
@@ -318,11 +381,14 @@ export default function ActivityRevenueModelEditor({
             </div>
 
             {/* Daily Pass Summary */}
-            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
+              <div className="text-sm text-muted-foreground mb-1">
+                {dailyPassConfig.pasesProyectadosDia} pases × {daysPerMonth} días × {formatCurrency(dailyPassConfig.precioPase, currency as CurrencyCode)}
+              </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Ingresos Mensuales:</span>
+                <span className="text-sm font-medium">→ Ingresos Pases/mes:</span>
                 <span className="font-semibold text-primary">
-                  {dailyPassConfig.pasesProyectadosDia} × {daysPerMonth} días × {formatCurrency(dailyPassConfig.precioPase, currency as CurrencyCode)} = {formatCurrency(ingresosPasesAno1, currency as CurrencyCode)}
+                  {formatCurrency(ingresosPasesAno1, currency as CurrencyCode)}
                 </span>
               </div>
             </div>
@@ -537,12 +603,30 @@ export default function ActivityRevenueModelEditor({
 
         {/* Mixed Model Summary */}
         {config.modeloIngreso === 'mixto' && (
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Ingresos Mixto/mes:</span>
-              <span className="font-semibold text-green-600">
-                {formatCurrency(ingresosMixto, currency as CurrencyCode)}
-              </span>
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-3">
+            <h4 className="font-medium text-green-700 dark:text-green-300">📊 Resumen Ingresos Mixto</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Membresías:</span>
+                <span className="font-medium">{formatCurrency(ingresosMembresiaAno1, currency as CurrencyCode)}/mes</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Pases Diarios:</span>
+                <span className="font-medium">{formatCurrency(ingresosPasesAno1, currency as CurrencyCode)}/mes</span>
+              </div>
+              <div className="border-t border-green-200 dark:border-green-700 pt-2 flex justify-between items-center">
+                <span className="font-medium">TOTAL:</span>
+                <span className="font-bold text-green-600 text-lg">
+                  {formatCurrency(ingresosMixto, currency as CurrencyCode)}/mes
+                </span>
+              </div>
+            </div>
+            {/* Distribution */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Distribución:</span>
+              <span className="font-medium">{ingresosMixto > 0 ? ((ingresosMembresiaAno1 / ingresosMixto) * 100).toFixed(0) : 0}% membresías</span>
+              <span>•</span>
+              <span className="font-medium">{ingresosMixto > 0 ? ((ingresosPasesAno1 / ingresosMixto) * 100).toFixed(0) : 0}% pases</span>
             </div>
           </div>
         )}
