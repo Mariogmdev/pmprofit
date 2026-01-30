@@ -91,12 +91,15 @@ export function useProjectActivities() {
       alquileres: (dbConfig.alquileres as ActivityConfig['alquileres']) || DEFAULT_ACTIVITY_CONFIG.alquileres,
       tieneClases: (dbConfig.tieneClases as boolean) ?? DEFAULT_ACTIVITY_CONFIG.tieneClases,
       configuracionClases: dbConfig.configuracionClases as ActivityConfig['configuracionClases'],
-      tipoCubierta: (dbConfig.tipoCubierta as ActivityConfig['tipoCubierta']) || DEFAULT_ACTIVITY_CONFIG.tipoCubierta,
-      capexCubierta: (dbConfig.capexCubierta as number) || DEFAULT_ACTIVITY_CONFIG.capexCubierta,
-      capexSemicubierta: (dbConfig.capexSemicubierta as number) || DEFAULT_ACTIVITY_CONFIG.capexSemicubierta,
-      capexAireLibre: (dbConfig.capexAireLibre as number) || DEFAULT_ACTIVITY_CONFIG.capexAireLibre,
+      // Equipment only - construction is now in Section B: Obra Civil
+      equipamientoEspecifico: (dbConfig.equipamientoEspecifico as ActivityConfig['equipamientoEspecifico']) || DEFAULT_ACTIVITY_CONFIG.equipamientoEspecifico,
       consumibles: (dbConfig.consumibles as ActivityConfig['consumibles']) || DEFAULT_ACTIVITY_CONFIG.consumibles,
       mobiliario: (dbConfig.mobiliario as ActivityConfig['mobiliario']) || DEFAULT_ACTIVITY_CONFIG.mobiliario,
+      // DEPRECATED - kept for migration from old data
+      tipoCubierta: dbConfig.tipoCubierta as ActivityConfig['tipoCubierta'],
+      capexCubierta: dbConfig.capexCubierta as number,
+      capexSemicubierta: dbConfig.capexSemicubierta as number,
+      capexAireLibre: dbConfig.capexAireLibre as number,
       personal: (dbConfig.personal as ActivityConfig['personal']) || DEFAULT_ACTIVITY_CONFIG.personal,
       mantenimiento: (dbConfig.mantenimiento as ActivityConfig['mantenimiento']) || DEFAULT_ACTIVITY_CONFIG.mantenimiento,
     };
@@ -109,10 +112,8 @@ export function useProjectActivities() {
       cantidad: moduleConfig.cantidad || 1,
       duracionReserva: moduleConfig.duracionReserva || 1.5,
       jugadoresPorReserva: moduleConfig.jugadoresPorReserva || 4,
-      tipoCubierta: moduleConfig.tipoCubierta || 'cubierta',
-      capexCubierta: moduleConfig.capexCubierta || 0,
-      capexSemicubierta: moduleConfig.capexSemicubierta || 0,
-      capexAireLibre: moduleConfig.capexAireLibre || 0,
+      // Equipment only - construction is now in Section B
+      equipamientoEspecifico: [],
       horarios: (moduleConfig.horarios || []).map((h) => ({
         ...h,
         id: generateId(),
