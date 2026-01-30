@@ -72,7 +72,6 @@ export default function ConstructorTab() {
       <InfrastructureSection 
         projectId={currentProject.id}
         currency={currentProject.currency as CurrencyCode}
-        projectConfig={projectConfig}
       />
 
       {/* Section C: Detailed OPEX (Placeholder) */}
