@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 interface CreateModuleWizardProps {
   open: boolean;
@@ -438,70 +438,70 @@ export default function CreateModuleWizard({
         Define horarios típicos para este tipo de actividad (opcional):
       </p>
 
-      <ScrollArea className="max-h-[300px] pr-4">
-        <div className="space-y-4">
-          {formData.horarios.map((horario, index) => (
-            <div key={index} className="p-4 border border-border rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Horario {index + 1}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeSchedule(index)}
-                  className="h-8 w-8 text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+      <div className="space-y-4">
+        {formData.horarios.map((horario, index) => (
+          <div key={index} className="p-4 border border-border rounded-lg space-y-3 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Horario {index + 1}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeSchedule(index)}
+                className="h-8 w-8 text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
 
+            <div>
+              <Label>Nombre</Label>
+              <Input
+                value={horario.nombre}
+                onChange={(e) => updateSchedule(index, 'nombre', e.target.value)}
+                placeholder="Ej: Madrugada, Mañana, Noche..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Nombre</Label>
-                <Input
-                  value={horario.nombre}
-                  onChange={(e) => updateSchedule(index, 'nombre', e.target.value)}
-                  placeholder="Ej: Madrugada, Mañana, Noche..."
-                />
+                <Label>Inicio</Label>
+                <Select
+                  value={horario.inicio.toString()}
+                  onValueChange={(value) => updateSchedule(index, 'inicio', parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {i.toString().padStart(2, '0')}:00
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Inicio</Label>
-                  <Select
-                    value={horario.inicio.toString()}
-                    onValueChange={(value) => updateSchedule(index, 'inicio', parseInt(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }, (_, i) => (
-                        <SelectItem key={i} value={i.toString()}>
-                          {i.toString().padStart(2, '0')}:00
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Fin</Label>
-                  <Select
-                    value={horario.fin.toString()}
-                    onValueChange={(value) => updateSchedule(index, 'fin', parseInt(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }, (_, i) => (
-                        <SelectItem key={i} value={i.toString()}>
-                          {i.toString().padStart(2, '0')}:00
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label>Fin</Label>
+                <Select
+                  value={horario.fin.toString()}
+                  onValueChange={(value) => updateSchedule(index, 'fin', parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {i.toString().padStart(2, '0')}:00
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Tarifa</Label>
                 <Input
@@ -512,13 +512,12 @@ export default function CreateModuleWizard({
                   placeholder="0"
                 />
               </div>
-
               <div>
                 <Label>Tipo</Label>
                 <RadioGroup
                   value={horario.tipo}
                   onValueChange={(value) => updateSchedule(index, 'tipo', value as 'pico' | 'valle')}
-                  className="flex gap-4 mt-1"
+                  className="flex gap-4 mt-2"
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="pico" id={`tipo-pico-${index}`} />
@@ -531,9 +530,9 @@ export default function CreateModuleWizard({
                 </RadioGroup>
               </div>
             </div>
-          ))}
-        </div>
-      </ScrollArea>
+          </div>
+        ))}
+      </div>
 
       <Button variant="outline" onClick={addSchedule} className="w-full">
         <Plus className="h-4 w-4 mr-2" />
@@ -610,7 +609,7 @@ export default function CreateModuleWizard({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             Crear Nuevo Módulo - Paso {step} de {totalSteps}
@@ -626,18 +625,18 @@ export default function CreateModuleWizard({
 
         {renderStepIndicator()}
 
-        <div className="flex-1 overflow-y-auto min-h-0 pr-2 -mr-2">
-          <ScrollArea className="h-full max-h-[calc(90vh-250px)]">
-            <div className="pr-4">
-              {step === 1 && renderStep1()}
-              {step === 2 && renderStep2()}
-              {step === 3 && renderStep3()}
-              {step === 4 && renderStep4()}
-              {step === 5 && renderStep5()}
-            </div>
-          </ScrollArea>
+        {/* Contenido con scroll - área principal scrolleable */}
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2 scrollbar-thin">
+          <div className="pb-2">
+            {step === 1 && renderStep1()}
+            {step === 2 && renderStep2()}
+            {step === 3 && renderStep3()}
+            {step === 4 && renderStep4()}
+            {step === 5 && renderStep5()}
+          </div>
         </div>
 
+        {/* Footer fijo */}
         <div className="flex-shrink-0 flex justify-between gap-3 pt-4 border-t bg-background">
           {step > 1 ? (
             <Button variant="outline" onClick={handlePrevious}>
