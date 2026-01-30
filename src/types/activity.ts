@@ -166,6 +166,8 @@ export interface ActivityCalculations {
   porcentajeValle: number;
   tarifaPromedio: number;
   ocupacionPromedio: number;
+  ocupacionPromedioPico: number;   // Weighted average of PICO schedules only
+  ocupacionPromedioValle: number;  // Weighted average of VALLE schedules only
   turnosPorDia: number;
   
   // Income

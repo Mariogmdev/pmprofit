@@ -25,6 +25,8 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
     let totalHorasValle = 0;
     let weightedTarifa = 0;
     let weightedOcupacion = 0;
+    let weightedOcupacionPico = 0;   // Sum of (ocupacion * hours) for pico schedules
+    let weightedOcupacionValle = 0;  // Sum of (ocupacion * hours) for valle schedules
     let ingresosHorarios = 0;
     let ingresosComplementarios = 0;
     let ingresosClases = 0;
@@ -42,8 +44,10 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
         const hours = Math.max(0, s.fin - s.inicio);
         if (s.tipo === 'pico') {
           totalHorasPico += hours;
+          weightedOcupacionPico += s.ocupacion * hours;
         } else {
           totalHorasValle += hours;
+          weightedOcupacionValle += s.ocupacion * hours;
         }
         weightedTarifa += s.tarifa * hours;
         weightedOcupacion += s.ocupacion * hours;
@@ -139,6 +143,9 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
     const porcentajeValle = totalHours > 0 ? (totalHorasValle / totalHours) * 100 : 0;
     const tarifaPromedio = totalHours > 0 ? weightedTarifa / totalHours : 0;
     const ocupacionPromedio = totalHours > 0 ? weightedOcupacion / totalHours : 0;
+    // Separate pico/valle weighted averages for accurate projection
+    const ocupacionPromedioPico = totalHorasPico > 0 ? weightedOcupacionPico / totalHorasPico : 0;
+    const ocupacionPromedioValle = totalHorasValle > 0 ? weightedOcupacionValle / totalHorasValle : 0;
     const turnosPorDia = duracion > 0 ? totalHours / duracion : 0;
 
     // Total monthly income Year 1
@@ -195,6 +202,8 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
       porcentajeValle,
       tarifaPromedio,
       ocupacionPromedio,
+      ocupacionPromedioPico,
+      ocupacionPromedioValle,
       turnosPorDia,
       ingresosMensualesAno1,
       ingresosHorarios,

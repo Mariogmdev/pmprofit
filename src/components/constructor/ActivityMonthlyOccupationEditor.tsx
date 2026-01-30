@@ -16,6 +16,8 @@ interface ActivityMonthlyOccupationEditorProps {
   currency: string;
   monthlyIncome: (pico: number, valle: number) => number; // Function to calculate income for given occupation
   calculatedOccupancy?: number; // Weighted average occupancy from schedules
+  calculatedPico?: number;      // Weighted average of PICO schedules
+  calculatedValle?: number;     // Weighted average of VALLE schedules
 }
 
 type CurveType = 'lineal' | 's-curve';
@@ -43,6 +45,8 @@ export default function ActivityMonthlyOccupationEditor({
   currency,
   monthlyIncome,
   calculatedOccupancy = 0,
+  calculatedPico = 0,
+  calculatedValle = 0,
 }: ActivityMonthlyOccupationEditorProps) {
   const [curveType, setCurveType] = useState<CurveType>('lineal');
   const [startPico, setStartPico] = useState(40);
@@ -154,32 +158,32 @@ export default function ActivityMonthlyOccupationEditor({
             {/* Calculated Occupancy Reference */}
             {calculatedOccupancy > 0 && (
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
                       💡 Basado en tus horarios, la ocupación promedio calculada es {calculatedOccupancy.toFixed(0)}%
                     </p>
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      Usa esto como punto de partida realista para Año 1
+                      Pico: {calculatedPico.toFixed(0)}% • Valle: {calculatedValle.toFixed(0)}%
+                      <br />
+                      Usa estos valores como punto de partida realista para Año 1
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      // Apply calculated occupancy to Year 1
+                      // Apply the ACTUAL calculated pico and valle values from schedules
                       const updated = [...config.ocupacionAnual];
-                      // Calculate pico and valle based on the same ratio
-                      const ratio = calculatedOccupancy / 100;
                       updated[0] = { 
                         ...updated[0], 
-                        pico: Math.round(calculatedOccupancy * 1.3), // Pico ~30% higher than average
-                        valle: Math.round(calculatedOccupancy * 0.7)  // Valle ~30% lower than average
+                        pico: Math.round(calculatedPico),
+                        valle: Math.round(calculatedValle)
                       };
                       onUpdate({ ocupacionAnual: updated });
                     }}
-                    className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
                   >
-                    Aplicar {calculatedOccupancy.toFixed(0)}%
+                    Aplicar {calculatedPico.toFixed(0)}%/{calculatedValle.toFixed(0)}%
                   </button>
                 </div>
               </div>
