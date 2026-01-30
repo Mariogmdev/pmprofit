@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { ChevronDown, ChevronUp, MoreVertical, Trash2, Copy, Save } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { ChevronDown, ChevronUp, MoreVertical, Trash2, Copy, Save, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -21,13 +21,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ProjectActivity, ActivityConfig } from '@/types/activity';
 import { CurrencyCode } from '@/types';
+import { useProject } from '@/contexts/ProjectContext';
 import { useActivityCalculations } from '@/hooks/useActivityCalculations';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import ActivityBasicConfig from './ActivityBasicConfig';
+import ActivityRevenueModelEditor from './ActivityRevenueModelEditor';
 import ActivityScheduleEditor from './ActivityScheduleEditor';
-import ActivityOccupationEditor from './ActivityOccupationEditor';
+import ActivityMonthlyOccupationEditor from './ActivityMonthlyOccupationEditor';
 import ActivityRentalsEditor from './ActivityRentalsEditor';
+import ActivityClassesEditor from './ActivityClassesEditor';
 import ActivityCapexEditor from './ActivityCapexEditor';
 import ActivityOpexEditor from './ActivityOpexEditor';
 import ActivityFinancialSummary from './ActivityFinancialSummary';
@@ -39,7 +42,9 @@ interface ActivityCardProps {
   onUpdate: (updates: Partial<ProjectActivity>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSave: () => Promise<void>;
   currency: string;
+  totalClubUsers?: number;
 }
 
 export default function ActivityCard({
@@ -49,18 +54,75 @@ export default function ActivityCard({
   onUpdate,
   onDelete,
   onDuplicate,
+  onSave,
   currency,
+  totalClubUsers = 0,
 }: ActivityCardProps) {
+  const { currentProject } = useProject();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [localName, setLocalName] = useState(activity.name);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasChangesRef = useRef(false);
   
   const calculations = useActivityCalculations(activity.config);
+  const daysPerMonth = currentProject?.days_per_month || 30;
 
-  const handleNameBlur = () => {
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Debounced save with 3 second delay - only when no input is focused
+  const triggerDebouncedSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(async () => {
+      // Don't save if an input is focused
+      const activeElement = document.activeElement;
+      if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+        // Retry later
+        saveTimeoutRef.current = setTimeout(() => triggerDebouncedSave(), 1000);
+        return;
+      }
+      
+      if (hasChangesRef.current) {
+        setIsSaving(true);
+        try {
+          await onSave();
+          setLastSaved(new Date());
+          hasChangesRef.current = false;
+        } catch (error) {
+          console.error('Error saving:', error);
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    }, 3000);
+  }, [onSave]);
+
+  const handleNameBlur = async () => {
     setEditingName(false);
     if (localName !== activity.name && localName.trim()) {
       onUpdate({ name: localName.trim() });
+      hasChangesRef.current = true;
+      // Save immediately on blur
+      setIsSaving(true);
+      try {
+        await onSave();
+        setLastSaved(new Date());
+        hasChangesRef.current = false;
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -68,7 +130,9 @@ export default function ActivityCard({
     onUpdate({
       config: { ...activity.config, ...updates },
     });
-  }, [activity.config, onUpdate]);
+    hasChangesRef.current = true;
+    triggerDebouncedSave();
+  }, [activity.config, onUpdate, triggerDebouncedSave]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -78,6 +142,27 @@ export default function ActivityCard({
       setEditingName(false);
     }
   };
+
+  // Calculate monthly income for occupation editor
+  const calculateMonthlyIncome = useCallback((pico: number, valle: number) => {
+    const schedules = activity.config.horarios || [];
+    const cantidad = activity.config.cantidad || 1;
+    const duracion = activity.config.duracionReserva || 1.5;
+    
+    let income = 0;
+    schedules.forEach((s) => {
+      const hoursPerDay = Math.max(0, s.fin - s.inicio);
+      const reservasPerDay = hoursPerDay / duracion;
+      const ocupacion = s.tipo === 'pico' ? pico / 100 : valle / 100;
+      const reservasPerMonth = reservasPerDay * cantidad * ocupacion * daysPerMonth;
+      income += reservasPerMonth * s.tarifa;
+    });
+    
+    return income;
+  }, [activity.config, daysPerMonth]);
+
+  // Show schedule/occupation only for reservation model
+  const showSchedules = activity.config.modeloIngreso === 'reserva';
 
   return (
     <>
@@ -95,7 +180,6 @@ export default function ActivityCard({
             expanded && "border-b"
           )}
           onClick={(e) => {
-            // Prevent toggle when clicking on inputs or buttons
             if ((e.target as HTMLElement).closest('input, button')) return;
             onToggleExpand();
           }}
@@ -126,12 +210,32 @@ export default function ActivityCard({
                     {activity.name}
                   </h3>
                 )}
+                
+                {/* Save Indicator */}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {isSaving && (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  )}
+                  {!isSaving && lastSaved && (
+                    <>
+                      <Check className="h-3 w-3 text-green-600" />
+                      <span className="text-green-600">Guardado</span>
+                    </>
+                  )}
+                </div>
               </div>
               
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
                 <span>{activity.config.cantidad} {activity.config.tipoUnidad || 'unidades'}</span>
-                <span>•</span>
-                <span>{activity.config.duracionReserva} hrs</span>
+                {showSchedules && (
+                  <>
+                    <span>•</span>
+                    <span>{activity.config.duracionReserva} hrs</span>
+                  </>
+                )}
                 <span>•</span>
                 <span>{formatCurrency(calculations.capexTotal, currency as CurrencyCode)} CAPEX</span>
                 <span>•</span>
@@ -198,28 +302,53 @@ export default function ActivityCard({
               onUpdate={handleConfigUpdate}
             />
 
-            {/* 2. Schedules and Rates */}
-            <ActivityScheduleEditor
+            {/* 2. Revenue Model */}
+            <ActivityRevenueModelEditor
               config={activity.config}
               onUpdate={handleConfigUpdate}
               currency={currency}
-              calculations={calculations}
+              daysPerMonth={daysPerMonth}
+              totalClubUsers={totalClubUsers}
             />
 
-            {/* 3. Occupation Projection */}
-            <ActivityOccupationEditor
-              config={activity.config}
-              onUpdate={handleConfigUpdate}
-            />
+            {/* 3. Schedules and Rates (only for reservation model) */}
+            {showSchedules && (
+              <ActivityScheduleEditor
+                config={activity.config}
+                onUpdate={handleConfigUpdate}
+                currency={currency}
+                calculations={calculations}
+              />
+            )}
 
-            {/* 4. Complementary Income */}
+            {/* 4. Occupation Projection (only for reservation model) */}
+            {showSchedules && (
+              <ActivityMonthlyOccupationEditor
+                config={activity.config}
+                onUpdate={handleConfigUpdate}
+                currency={currency}
+                monthlyIncome={calculateMonthlyIncome}
+              />
+            )}
+
+            {/* 5. Equipment Rentals (only for reservation model) */}
             <ActivityRentalsEditor
               config={activity.config}
               onUpdate={handleConfigUpdate}
               currency={currency}
             />
 
-            {/* 5. CAPEX */}
+            {/* 6. Classes/Training (only for reservation model) */}
+            {showSchedules && (
+              <ActivityClassesEditor
+                config={activity.config}
+                onUpdate={handleConfigUpdate}
+                currency={currency}
+                daysPerMonth={daysPerMonth}
+              />
+            )}
+
+            {/* 7. CAPEX */}
             <ActivityCapexEditor
               config={activity.config}
               onUpdate={handleConfigUpdate}
@@ -227,7 +356,7 @@ export default function ActivityCard({
               calculations={calculations}
             />
 
-            {/* 6. OPEX */}
+            {/* 8. OPEX */}
             <ActivityOpexEditor
               config={activity.config}
               onUpdate={handleConfigUpdate}
@@ -235,7 +364,7 @@ export default function ActivityCard({
               calculations={calculations}
             />
 
-            {/* 7. Financial Summary */}
+            {/* 9. Financial Summary */}
             <ActivityFinancialSummary
               calculations={calculations}
               currency={currency}
