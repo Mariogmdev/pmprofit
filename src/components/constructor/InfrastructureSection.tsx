@@ -9,14 +9,9 @@ import { Building2, ChevronUp, ChevronDown } from 'lucide-react';
 interface InfrastructureSectionProps {
   projectId: string;
   currency: CurrencyCode;
-  projectConfig: {
-    opening_hour: number;
-    closing_hour: number;
-    days_per_month: number;
-  };
 }
 
-export const InfrastructureSection = ({ projectId, currency, projectConfig }: InfrastructureSectionProps) => {
+export const InfrastructureSection = ({ projectId, currency }: InfrastructureSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
@@ -55,7 +50,6 @@ export const InfrastructureSection = ({ projectId, currency, projectConfig }: In
           <InfrastructureSummary 
             projectId={projectId} 
             currency={currency}
-            projectConfig={projectConfig}
           />
         </CardContent>
       )}
