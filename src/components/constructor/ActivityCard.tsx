@@ -331,6 +331,8 @@ export default function ActivityCard({
                 calculatedOccupancy={calculations.ocupacionPromedio}
                 calculatedPico={calculations.ocupacionPromedioPico}
                 calculatedValle={calculations.ocupacionPromedioValle}
+                horasPico={calculations.totalHorasPico}
+                horasValle={calculations.totalHorasValle}
               />
             )}
 
