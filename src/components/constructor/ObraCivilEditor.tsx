@@ -1,14 +1,15 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useObraCivil } from '@/hooks/useObraCivil';
 import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useProjectActivities } from '@/hooks/useProjectActivities';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types/index';
-import { HardHat, Loader2 } from 'lucide-react';
+import { HardHat, Loader2, Building2, Zap, Route, AlertTriangle } from 'lucide-react';
 
 interface ObraCivilEditorProps {
   projectId: string;
@@ -22,21 +23,41 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
   
   const lastCalculosRef = useRef<string>('');
 
-  // Calcular área total automáticamente
-  const areaTotalCalculada = useMemo(() => {
+  // Calculate areas - activities are built in Section A, NOT here
+  const areas = useMemo(() => {
+    // Area of activities (informational only - built in Section A)
     const areaActividades = activities.reduce((sum, act) => {
       const config = act.config;
       const areaPorUnidad = config.areaPorUnidad || 0;
       const cantidad = config.cantidad || 1;
       return sum + (cantidad * areaPorUnidad);
     }, 0);
-    const areaEspacios = spaces.reduce((sum, sp) => sum + sp.area, 0);
-    return areaActividades + areaEspacios;
+    
+    // Area of common spaces
+    const areaEspacios = spaces.reduce((sum, sp) => sum + (sp.area || 0), 0);
+    
+    // Circulation area (estimated 30% of common spaces)
+    const areaCirculaciones = Math.round(areaEspacios * 0.3);
+    
+    // Area to be built in Obra Civil (spaces + circulations only)
+    const areaObraCivil = areaEspacios + areaCirculaciones;
+    
+    // Total project area (informational)
+    const areaTotal = areaActividades + areaObraCivil;
+    
+    return {
+      areaActividades,
+      areaEspacios,
+      areaCirculaciones,
+      areaObraCivil,
+      areaTotal
+    };
   }, [activities, spaces]);
 
-  // Cálculos automáticos
+  // Automatic calculations
   const calculos = useMemo(() => {
-    const capexConstruccion = areaTotalCalculada * (obraCivil?.costo_construccion_por_m2 || 0);
+    // Construction ONLY for common areas + circulations (NOT activities)
+    const capexConstruccion = areas.areaObraCivil * (obraCivil?.costo_construccion_por_m2 || 0);
     const interventoria = capexConstruccion * ((obraCivil?.interventoria_porcentaje || 5) / 100);
     
     const subtotal = capexConstruccion +
@@ -49,14 +70,15 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
     const capexTotal = subtotal + imprevistosValor;
 
     return { capexConstruccion, interventoria, imprevistosValor, capexTotal };
-  }, [areaTotalCalculada, obraCivil]);
+  }, [areas.areaObraCivil, obraCivil]);
 
-  // Auto-update cálculos en DB (con debounce para evitar loops)
+  // Auto-update calculations in DB (with debounce to avoid loops)
   useEffect(() => {
     if (!obraCivil) return;
     
     const calculosKey = JSON.stringify({
-      areaTotalCalculada,
+      areaObraCivil: areas.areaObraCivil,
+      areaTotal: areas.areaTotal,
       ...calculos
     });
     
@@ -65,7 +87,7 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
 
     const timer = setTimeout(() => {
       updateObraCivil({
-        area_total_proyecto: areaTotalCalculada,
+        area_total_proyecto: areas.areaTotal,
         capex_construccion: calculos.capexConstruccion,
         interventoria: calculos.interventoria,
         imprevistos_valor: calculos.imprevistosValor,
@@ -74,7 +96,7 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [areaTotalCalculada, calculos, obraCivil, updateObraCivil]);
+  }, [areas, calculos, obraCivil, updateObraCivil]);
 
   if (loading) {
     return (
@@ -89,24 +111,89 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
       <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30">
         <CardTitle className="flex items-center gap-2">
           <HardHat className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-          Obra Civil y Construcción
+          Obra Civil (Solo Áreas Comunes)
         </CardTitle>
+        <CardDescription>
+          La construcción de las actividades (canchas, salas, etc) se calcula en Sección A.
+          Aquí solo se incluye construcción de espacios comunes y circulaciones.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        {/* Área total */}
-        <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-          <Label className="text-sm text-muted-foreground">Área Total del Proyecto</Label>
-          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-            {areaTotalCalculada.toLocaleString()} m²
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            (Auto-calculado: actividades + espacios comunes)
-          </p>
+        {/* Area breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <CardContent className="pt-4 text-center">
+              <Zap className="w-6 h-6 mx-auto text-blue-600 dark:text-blue-400 mb-2" />
+              <p className="text-xs text-muted-foreground">Área Actividades</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {areas.areaActividades.toLocaleString()} m²
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                (Construidas en Sección A)
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800">
+            <CardContent className="pt-4 text-center">
+              <Building2 className="w-6 h-6 mx-auto text-purple-600 dark:text-purple-400 mb-2" />
+              <p className="text-xs text-muted-foreground">Espacios Comunes</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {areas.areaEspacios.toLocaleString()} m²
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                (Recepción, vestuarios, etc)
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+            <CardContent className="pt-4 text-center">
+              <Route className="w-6 h-6 mx-auto text-green-600 dark:text-green-400 mb-2" />
+              <p className="text-xs text-muted-foreground">Circulaciones</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {areas.areaCirculaciones.toLocaleString()} m²
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                (Pasillos, accesos - 30%)
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Costo construcción */}
+        {/* Area to build in Obra Civil */}
+        <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 border-orange-200 dark:border-orange-800">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Área a Construir en Obra Civil</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Espacios comunes ({areas.areaEspacios} m²) + Circulaciones ({areas.areaCirculaciones} m²)
+                </p>
+              </div>
+              <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                {areas.areaObraCivil.toLocaleString()} m²
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
+          <AlertDescription className="text-amber-700 dark:text-amber-400">
+            <strong>Área Total del Proyecto:</strong> {areas.areaTotal.toLocaleString()} m²
+            <br />
+            • Actividades: {areas.areaActividades.toLocaleString()} m² (construidas en Sección A)
+            <br />
+            • Obra Civil: {areas.areaObraCivil.toLocaleString()} m² (construidas aquí)
+          </AlertDescription>
+        </Alert>
+
+        <Separator />
+
+        {/* Construction cost */}
         <div>
-          <Label>Costo de Construcción por m²</Label>
+          <Label>Costo de Construcción por m² (espacios comunes)</Label>
           <Input
             type="number"
             value={obraCivil?.costo_construccion_por_m2 || 0}
@@ -116,11 +203,14 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
           <p className="text-sm text-muted-foreground mt-1">
             → CAPEX Construcción: {formatCurrency(calculos.capexConstruccion, currency)}
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            ({areas.areaObraCivil} m² × {formatCurrency(obraCivil?.costo_construccion_por_m2 || 0, currency)}/m²)
+          </p>
         </div>
 
         <Separator />
 
-        {/* Adicionales */}
+        {/* Additions */}
         <div className="space-y-4">
           <Label className="text-lg font-semibold">Adicionales</Label>
           
@@ -177,7 +267,7 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
 
         <Separator />
 
-        {/* Imprevistos */}
+        {/* Contingencies */}
         <div>
           <Label>Imprevistos ({obraCivil?.imprevistos_porcentaje || 10}%)</Label>
           <div className="flex gap-2">
@@ -207,7 +297,12 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
         <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 border-orange-300 dark:border-orange-700">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <span className="text-xl font-semibold">CAPEX Obra Civil Total:</span>
+              <div>
+                <span className="text-xl font-semibold">CAPEX Obra Civil Total:</span>
+                <p className="text-xs text-muted-foreground">
+                  (Solo espacios comunes + circulaciones)
+                </p>
+              </div>
               <span className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                 {formatCurrency(calculos.capexTotal, currency)}
               </span>

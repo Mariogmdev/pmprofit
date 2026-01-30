@@ -147,8 +147,18 @@ export function useActivityCalculations(config: ActivityConfig, totalClubUsersFr
     // Total monthly income Year 1
     const ingresosMensualesAno1 = ingresosHorarios + ingresosComplementarios + ingresosClases + ingresosMembresiasPases + ingresosTrafico;
 
-    // Calculate CAPEX - Equipment only (construction is in Section B: Obra Civil)
-    // Activity-specific equipment (NOT construction costs)
+    // Calculate CAPEX - Activity construction + equipment
+    const tipoCubierta = config.tipoCubierta || 'cubierta';
+    const capexPorUnidad = tipoCubierta === 'cubierta' 
+      ? (config.capexCubierta || 0)
+      : tipoCubierta === 'semicubierta'
+        ? (config.capexSemicubierta || 0)
+        : (config.capexAireLibre || 0);
+    
+    // Construction cost for this activity
+    const capexConstruccion = capexPorUnidad * cantidad;
+    
+    // Additional equipment beyond basic construction
     const capexEquipamiento = (config.equipamientoEspecifico || []).reduce(
       (sum, e) => sum + (e.cantidad * e.precioUnitario), 0
     );
@@ -161,8 +171,8 @@ export function useActivityCalculations(config: ActivityConfig, totalClubUsersFr
       (sum, m) => sum + (m.cantidad * m.precioUnitario), 0
     );
     
-    // Total CAPEX does NOT include construction (that's in Section B)
-    const capexTotal = capexEquipamiento + capexConsumibles + capexMobiliario;
+    // Total CAPEX includes construction + equipment + consumables + furniture
+    const capexTotal = capexConstruccion + capexEquipamiento + capexConsumibles + capexMobiliario;
 
     // Calculate OPEX
     const opexPersonal = (config.personal || []).reduce(
@@ -205,6 +215,7 @@ export function useActivityCalculations(config: ActivityConfig, totalClubUsersFr
       ingresosMembresiasPases,
       ingresosTrafico,
       totalUsuariosMes,
+      capexConstruccion,
       capexEquipamiento,
       capexConsumibles,
       capexMobiliario,
