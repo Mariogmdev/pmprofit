@@ -9,7 +9,7 @@ import {
   DEFAULT_CLASSES_CONFIG,
 } from '@/types/activity';
 
-export function useActivityCalculations(config: ActivityConfig): ActivityCalculations {
+export function useActivityCalculations(config: ActivityConfig, totalClubUsersFromProject: number = 0): ActivityCalculations {
   const { currentProject } = useProject();
   
   // Get project operation days per month (default 30)
@@ -93,13 +93,11 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
     if (config.modeloIngreso === 'trafico') {
       const trafficConfig = config.trafficConfig || DEFAULT_TRAFFIC_CONFIG;
       
-      // Calculate club users based on percentage - this uses totalUsuariosMes from other activities
-      // For now, use the external visitors calculation  
-      const usuariosDeportivos = Math.round(totalUsuariosMes * (trafficConfig.porcentajeUsuariosClub / 100));
+      // Use totalClubUsersFromProject instead of totalUsuariosMes for traffic calculation
+      // This is the sum of all users from OTHER activities in the project
+      const usuariosDeportivos = Math.round(totalClubUsersFromProject * (trafficConfig.porcentajeUsuariosClub / 100));
       const usuariosExternos = trafficConfig.visitantesExternosDia * daysPerMonth;
       const traficoTotal = usuariosDeportivos + usuariosExternos;
-      
-      console.log('Traffic Calculation:', { usuariosDeportivos, usuariosExternos, traficoTotal });
       
       if (trafficConfig.modeloOperacion === 'propia') {
         const ingresosBrutos = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
@@ -111,8 +109,6 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
         ingresosTrafico = trafficConfig.ventasOperador * (trafficConfig.comisionConcesion / 100);
         opexCostoVentas = 0; // No cost of sales for concession
       }
-      
-      console.log('Traffic Income:', { ingresosTrafico, opexCostoVentas });
       
       totalUsuariosMes += traficoTotal;
     }
@@ -226,5 +222,5 @@ export function useActivityCalculations(config: ActivityConfig): ActivityCalcula
       margenPorcentaje,
       payback,
     };
-  }, [config, daysPerMonth]);
+  }, [config, daysPerMonth, totalClubUsersFromProject]);
 }

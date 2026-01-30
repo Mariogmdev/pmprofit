@@ -67,7 +67,7 @@ export default function ActivityCard({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasChangesRef = useRef(false);
   
-  const calculations = useActivityCalculations(activity.config);
+  const calculations = useActivityCalculations(activity.config, totalClubUsers);
   const daysPerMonth = currentProject?.days_per_month || 30;
 
   // Clear timeout on unmount
