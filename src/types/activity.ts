@@ -133,16 +133,14 @@ export interface ActivityConfig {
   tieneClases: boolean;
   configuracionClases?: ClassesConfig;
   
-  // CAPEX - Equipment only (construction is in Section B: Obra Civil)
-  equipamientoEspecifico: ActivityConsumable[]; // Activity-specific equipment (NOT construction)
+  // CAPEX - Activity construction + equipment
+  tipoCubierta: CoverType;  // Construction type for this activity
+  capexCubierta: number;     // Cost per unit for covered construction
+  capexSemicubierta: number; // Cost per unit for semi-covered
+  capexAireLibre: number;    // Cost per unit for open-air
+  equipamientoEspecifico: ActivityConsumable[]; // Additional equipment beyond basic construction
   consumibles: ActivityConsumable[];
   mobiliario: ActivityConsumable[];
-  
-  // DEPRECATED - kept for migration, construction now in Section B
-  tipoCubierta?: CoverType;
-  capexCubierta?: number;
-  capexSemicubierta?: number;
-  capexAireLibre?: number;
   
   // OPEX
   personal: ActivityStaff[];
@@ -182,7 +180,8 @@ export interface ActivityCalculations {
   ingresosTrafico: number;
   totalUsuariosMes: number;
   
-  // CAPEX (Equipment only - construction in Section B)
+  // CAPEX (Activity construction + equipment)
+  capexConstruccion: number;  // Construction of this activity
   capexEquipamiento: number;  // Activity-specific equipment
   capexConsumibles: number;
   capexMobiliario: number;
@@ -240,7 +239,11 @@ export const DEFAULT_ACTIVITY_CONFIG: ActivityConfig = {
   tasaCrecimiento: 15,
   alquileres: [],
   tieneClases: false,
-  // Equipment only - construction is in Section B
+  // CAPEX - Construction + equipment for this activity
+  tipoCubierta: 'cubierta',
+  capexCubierta: 0,
+  capexSemicubierta: 0,
+  capexAireLibre: 0,
   equipamientoEspecifico: [],
   consumibles: [],
   mobiliario: [],
