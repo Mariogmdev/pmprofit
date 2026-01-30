@@ -329,6 +329,8 @@ export default function ActivityCard({
                 currency={currency}
                 monthlyIncome={calculateMonthlyIncome}
                 calculatedOccupancy={calculations.ocupacionPromedio}
+                calculatedPico={calculations.ocupacionPromedioPico}
+                calculatedValle={calculations.ocupacionPromedioValle}
               />
             )}
 
