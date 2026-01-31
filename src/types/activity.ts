@@ -170,6 +170,7 @@ export interface ActivityCalculations {
   ocupacionPromedioPico: number;   // Weighted average of PICO schedules only
   ocupacionPromedioValle: number;  // Weighted average of VALLE schedules only
   turnosPorDia: number;
+  ocupacionTarget?: number;        // Target occupancy based on schedule types
   
   // Income
   ingresosMensualesAno1: number;
