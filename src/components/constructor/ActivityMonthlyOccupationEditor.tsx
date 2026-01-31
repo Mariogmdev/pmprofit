@@ -222,6 +222,36 @@ export default function ActivityMonthlyOccupationEditor({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Educational Context Card */}
+        <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+          <h4 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 mb-2">
+            📊 Entendiendo las Proyecciones
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="p-2 bg-white/60 dark:bg-black/20 rounded">
+              <span className="font-medium text-emerald-700 dark:text-emerald-300">Ocupación Objetivo:</span>
+              <span className="ml-1 font-bold text-emerald-800 dark:text-emerald-200">{calculatedOccupancy.toFixed(0)}%</span>
+              <p className="text-emerald-600 dark:text-emerald-400 mt-0.5">
+                De tus horarios (100% madurez)
+              </p>
+            </div>
+            <div className="p-2 bg-white/60 dark:bg-black/20 rounded">
+              <span className="font-medium text-emerald-700 dark:text-emerald-300">Ingresos Base:</span>
+              <span className="ml-1 font-bold text-emerald-800 dark:text-emerald-200">{formatCurrency(ingresoAnualAno1 / 12, currency as CurrencyCode)}/mes</span>
+              <p className="text-emerald-600 dark:text-emerald-400 mt-0.5">
+                Al {calculatedOccupancy.toFixed(0)}% ocupación
+              </p>
+            </div>
+            <div className="p-2 bg-white/60 dark:bg-black/20 rounded">
+              <span className="font-medium text-emerald-700 dark:text-emerald-300">Curva Año 1:</span>
+              <span className="ml-1 font-bold text-emerald-800 dark:text-emerald-200">{Math.round(inicioFactor * 100)}% → {Math.round(maduracionFactor * 100)}%</span>
+              <p className="text-emerald-600 dark:text-emerald-400 mt-0.5">
+                Proyecto arranca bajo, crece gradualmente
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Mode Toggle */}
         <div className="flex items-center justify-center gap-4 p-3 bg-muted/50 rounded-lg">
           <RadioGroup

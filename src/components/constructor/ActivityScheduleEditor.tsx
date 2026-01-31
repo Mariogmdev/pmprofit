@@ -268,6 +268,12 @@ export default function ActivityScheduleEditor({
                   {calculations.turnosPorDia.toFixed(1)}
                 </span>
               </div>
+              <div>
+                <span className="text-muted-foreground">Ingresos Base:</span>
+                <span className="ml-2 font-medium text-primary">
+                  {formatCurrency(calculations.ingresosMensualesAno1, currency as CurrencyCode)}/mes
+                </span>
+              </div>
             </div>
             
             {/* CRITICAL: Weighted average occupation - the key metric */}
@@ -279,7 +285,8 @@ export default function ActivityScheduleEditor({
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                ✨ Esta ocupación será el punto de partida para tu proyección anual.
+                ✨ Esta es tu ocupación <strong>OBJETIVO</strong> (100% madurez del proyecto).
+                En la proyección mensual verás cómo el proyecto arranca al 70% y crece hasta alcanzar este objetivo.
               </p>
             </div>
           </div>
