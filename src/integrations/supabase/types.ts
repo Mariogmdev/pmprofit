@@ -210,19 +210,33 @@ export type Database = {
           arrendamiento_modelo: string | null
           arrendamiento_variable_base: string | null
           arrendamiento_variable_porcentaje: number | null
+          comision_datafono_porcentaje: number | null
           comisiones: Json | null
+          comisiones_bancarias: Json | null
           depreciacion_anos: number | null
+          gastos_financieros: Json | null
           id: string
+          impuestos: Json | null
+          incluir_4x1000: boolean | null
+          incluir_comision_datafono: boolean | null
+          incluir_depreciacion: boolean | null
+          incluir_iva: boolean | null
+          incluir_retenciones: boolean | null
+          iva_pagado_estimado: number | null
           mantenimiento_general: Json | null
           marketing: Json | null
           nomina_administrativa: Json | null
           nomina_operativa: Json | null
           otros_gastos: Json | null
+          porcentaje_ingresos_iva: number | null
+          porcentaje_ventas_datafono: number | null
           prestaciones_porcentaje: number | null
           project_id: string
+          retenciones: Json | null
           seguridad: Json | null
           seguros: Json | null
           servicios_publicos: Json | null
+          tarifa_iva: number | null
           tecnologia: Json | null
           updated_at: string | null
         }
@@ -235,19 +249,33 @@ export type Database = {
           arrendamiento_modelo?: string | null
           arrendamiento_variable_base?: string | null
           arrendamiento_variable_porcentaje?: number | null
+          comision_datafono_porcentaje?: number | null
           comisiones?: Json | null
+          comisiones_bancarias?: Json | null
           depreciacion_anos?: number | null
+          gastos_financieros?: Json | null
           id?: string
+          impuestos?: Json | null
+          incluir_4x1000?: boolean | null
+          incluir_comision_datafono?: boolean | null
+          incluir_depreciacion?: boolean | null
+          incluir_iva?: boolean | null
+          incluir_retenciones?: boolean | null
+          iva_pagado_estimado?: number | null
           mantenimiento_general?: Json | null
           marketing?: Json | null
           nomina_administrativa?: Json | null
           nomina_operativa?: Json | null
           otros_gastos?: Json | null
+          porcentaje_ingresos_iva?: number | null
+          porcentaje_ventas_datafono?: number | null
           prestaciones_porcentaje?: number | null
           project_id: string
+          retenciones?: Json | null
           seguridad?: Json | null
           seguros?: Json | null
           servicios_publicos?: Json | null
+          tarifa_iva?: number | null
           tecnologia?: Json | null
           updated_at?: string | null
         }
@@ -260,19 +288,33 @@ export type Database = {
           arrendamiento_modelo?: string | null
           arrendamiento_variable_base?: string | null
           arrendamiento_variable_porcentaje?: number | null
+          comision_datafono_porcentaje?: number | null
           comisiones?: Json | null
+          comisiones_bancarias?: Json | null
           depreciacion_anos?: number | null
+          gastos_financieros?: Json | null
           id?: string
+          impuestos?: Json | null
+          incluir_4x1000?: boolean | null
+          incluir_comision_datafono?: boolean | null
+          incluir_depreciacion?: boolean | null
+          incluir_iva?: boolean | null
+          incluir_retenciones?: boolean | null
+          iva_pagado_estimado?: number | null
           mantenimiento_general?: Json | null
           marketing?: Json | null
           nomina_administrativa?: Json | null
           nomina_operativa?: Json | null
           otros_gastos?: Json | null
+          porcentaje_ingresos_iva?: number | null
+          porcentaje_ventas_datafono?: number | null
           prestaciones_porcentaje?: number | null
           project_id?: string
+          retenciones?: Json | null
           seguridad?: Json | null
           seguros?: Json | null
           servicios_publicos?: Json | null
+          tarifa_iva?: number | null
           tecnologia?: Json | null
           updated_at?: string | null
         }

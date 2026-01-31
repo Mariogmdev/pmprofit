@@ -53,6 +53,26 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
 
     const ingresosNetos = ingresosBrutos * 0.85; // 15% third-party costs
 
+    // === HELPER: Calculate reservations for specific activities ===
+    const calculateReservasForActivities = (actividadesIncluidas?: string[]) => {
+      const activitiesToInclude = actividadesIncluidas && actividadesIncluidas.length > 0
+        ? activities.filter(a => actividadesIncluidas.includes(a.id))
+        : activities;
+
+      return activitiesToInclude.reduce((sum, act) => {
+        const config: ActivityConfig = act.config;
+        const cantidad = config.cantidad || 1;
+        const horarios = config.horarios || [];
+        const ocupacionPromedio = horarios.length > 0
+          ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
+          : 0.5;
+        const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
+        const diasMes = 30;
+        const reservasPorDia = horasOperacion * ocupacionPromedio / (config.duracionReserva || 1.5);
+        return sum + (cantidad * reservasPorDia * diasMes);
+      }, 0);
+    };
+
     // === PAYROLL FROM ACTIVITIES ===
     const nominaActividades = activities.reduce((sum, act) => {
       const config: ActivityConfig = act.config;
@@ -103,16 +123,19 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
     const capexTotal = capexActividades + capexEspacios + capexObraCivil;
 
-    // === HELPER: Calculate category total with variable types ===
+    // === HELPER: Calculate category total with variable types (FIXED) ===
     const calculateCategoryTotal = (items: ServiceItem[]) => {
-      return (items || []).reduce((sum, item) => {
+      if (!items || items.length === 0) return 0;
+      return items.reduce((sum, item) => {
         const tipo = item.tipo || 'fijo';
         if (tipo === 'fijo') {
           return sum + (item.costoMensual || 0);
         } else if (tipo === 'porcentaje-facturacion') {
           return sum + (ingresosBrutos * ((item.porcentaje || 0) / 100));
         } else if (tipo === 'por-reserva') {
-          return sum + ((item.costoPorReserva || 0) * totalReservas);
+          const reservasAplicables = calculateReservasForActivities(item.actividadesIncluidas);
+          const reservasConPorcentaje = reservasAplicables * ((item.porcentajeReservas || 100) / 100);
+          return sum + ((item.costoPorReserva || 0) * reservasConPorcentaje);
         }
         return sum;
       }, 0);
@@ -129,7 +152,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     const prestaciones = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
     const totalNomina = nominaBase + prestaciones;
 
-    // === 2-10. CATEGORIES ===
+    // === 2-9. CATEGORIES (FIXED) ===
     const serviciosPublicos = calculateCategoryTotal(opex?.servicios_publicos || []);
     const marketing = calculateCategoryTotal(opex?.marketing || []);
     const tecnologia = calculateCategoryTotal(opex?.tecnologia || []);
@@ -139,14 +162,55 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     const administrativos = calculateCategoryTotal(opex?.administrativos || []);
     const otrosGastos = calculateCategoryTotal(opex?.otros_gastos || []);
 
-    // === DEPRECIATION ===
+    // === 10. FINANCIAL EXPENSES (NEW) ===
+    let gastosFinancieros = 0;
+    
+    // 4x1000
+    if (opex?.incluir_4x1000) {
+      gastosFinancieros += ingresosBrutos * 0.004;
+    }
+    
+    // Bank commissions
+    gastosFinancieros += (opex?.comisiones_bancarias || []).reduce(
+      (s, i) => s + (i.costoMensual || 0), 0
+    );
+    
+    // Dataphone commissions
+    if (opex?.incluir_comision_datafono !== false) {
+      gastosFinancieros += ingresosBrutos * 
+                          ((opex?.porcentaje_ventas_datafono ?? 70) / 100) * 
+                          ((opex?.comision_datafono_porcentaje ?? 2.5) / 100);
+    }
+
+    // === 11. TAXES (NEW) ===
+    let impuestos = 0;
+    
+    // IVA
+    if (opex?.incluir_iva) {
+      const ivaCobrado = ingresosBrutos * 
+                         ((opex?.porcentaje_ingresos_iva ?? 0) / 100) * 
+                         ((opex?.tarifa_iva ?? 19) / 100);
+      impuestos += Math.max(0, ivaCobrado - (opex?.iva_pagado_estimado ?? 0));
+    }
+    
+    // Retentions
+    if (opex?.incluir_retenciones) {
+      impuestos += (opex?.retenciones || []).reduce((s, i) => {
+        const base = i.base === 'ingresos' ? ingresosBrutos : ingresosBrutos * 0.3;
+        return s + (base * ((i.porcentaje || 0) / 100));
+      }, 0);
+    }
+
+    // === DEPRECIATION (OPTIONAL) ===
     const depreciacionAnos = opex?.depreciacion_anos || 10;
-    const depreciacion = capexTotal / depreciacionAnos / 12;
+    const depreciacion = (opex?.incluir_depreciacion !== false)
+      ? (capexTotal / depreciacionAnos / 12)
+      : 0;
 
     // === SUBTOTAL (without rent and commissions for calculating utilities) ===
     const opexSinArriendoNiComisiones = totalNomina + serviciosPublicos + marketing +
       tecnologia + seguridad + seguros + mantenimientoGeneral + mantenimientoActividades +
-      administrativos + otrosGastos + depreciacion;
+      administrativos + gastosFinancieros + impuestos + otrosGastos + depreciacion;
 
     // === HELPER: Calculate rent base ===
     const calculateRentBase = (base: RentCalculationBase): number => {
@@ -181,7 +245,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     // === UTILITIES BEFORE COMMISSIONS ===
     const utilidadesAntesComisiones = ingresosBrutos - opexSinArriendoNiComisiones - arrendamiento;
 
-    // === COMMISSIONS ===
+    // === COMMISSIONS (FIXED) ===
     const comisiones = (opex?.comisiones || []).reduce((sum, com) => {
       let base = ingresosBrutos;
       if (com.base === 'ingresos-netos') base = ingresosNetos;
@@ -213,6 +277,8 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       mantenimientoGeneral,
       mantenimientoActividades,
       administrativos,
+      gastosFinancieros,
+      impuestos,
       otrosGastos,
       comisiones,
       depreciacion,
@@ -223,7 +289,8 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       ebitdaMensual,
       margenEbitda,
       capexTotal,
-      depreciacionAnos
+      depreciacionAnos,
+      incluirDepreciacion: opex?.incluir_depreciacion !== false
     };
   }, [opex, activities, spaces, obraCivil]);
 
@@ -280,6 +347,14 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
             <span className="font-semibold">{formatCurrency(summary.administrativos, currency)}</span>
           </div>
           <div className="flex justify-between">
+            <span className="text-muted-foreground">Gastos Financieros:</span>
+            <span className="font-semibold">{formatCurrency(summary.gastosFinancieros, currency)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Impuestos:</span>
+            <span className="font-semibold">{formatCurrency(summary.impuestos, currency)}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-muted-foreground">Otros Gastos:</span>
             <span className="font-semibold">{formatCurrency(summary.otrosGastos, currency)}</span>
           </div>
@@ -289,7 +364,9 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Depreciación:</span>
-            <span className="font-semibold">{formatCurrency(summary.depreciacion, currency)}</span>
+            <span className={cn("font-semibold", !summary.incluirDepreciacion && "text-muted-foreground line-through")}>
+              {formatCurrency(summary.depreciacion, currency)}
+            </span>
           </div>
         </div>
         
@@ -349,13 +426,19 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
         </div>
         
         {/* Depreciation detail */}
-        <Card className="bg-muted/50">
+        <Card className={cn("bg-muted/50", !summary.incluirDepreciacion && "opacity-60")}>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                Depreciación: {formatCurrency(summary.capexTotal, currency)} ÷ {summary.depreciacionAnos} años ÷ 12 meses
+                {summary.incluirDepreciacion 
+                  ? `Depreciación: ${formatCurrency(summary.capexTotal, currency)} ÷ ${summary.depreciacionAnos} años ÷ 12 meses`
+                  : "Depreciación excluida del OPEX"}
               </span>
-              <span className="font-semibold">{formatCurrency(summary.depreciacion, currency)}/mes</span>
+              <span className="font-semibold">
+                {summary.incluirDepreciacion 
+                  ? `${formatCurrency(summary.depreciacion, currency)}/mes`
+                  : "—"}
+              </span>
             </div>
           </CardContent>
         </Card>

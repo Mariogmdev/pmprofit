@@ -14,6 +14,9 @@ export interface ServiceItem {
   costoMensual?: number;
   porcentaje?: number;
   costoPorReserva?: number;
+  // Enhanced "por-reserva" fields
+  porcentajeReservas?: number; // % of reservations to apply
+  actividadesIncluidas?: string[]; // Array of activity IDs to include
 }
 
 export type RentCalculationBase = 'ingresos-brutos' | 'ingresos-netos' | 'utilidades' | 'ingresos-operacionales';
@@ -21,6 +24,17 @@ export type RentCalculationBase = 'ingresos-brutos' | 'ingresos-netos' | 'utilid
 export interface ComisionItem {
   concepto: string;
   base: 'ingresos-brutos' | 'ingresos-netos' | 'utilidades';
+  porcentaje: number;
+}
+
+export interface BankCommissionItem {
+  concepto: string;
+  costoMensual: number;
+}
+
+export interface RetencionItem {
+  concepto: string;
+  base: 'ingresos' | 'compras';
   porcentaje: number;
 }
 
@@ -42,7 +56,7 @@ export interface ProjectOpex {
   arrendamiento_mixto_porcentaje: number;
   arrendamiento_mixto_base: RentCalculationBase;
   
-  // 3-10. Categories
+  // 3-9. Categories
   servicios_publicos: ServiceItem[];
   marketing: ServiceItem[];
   tecnologia: ServiceItem[];
@@ -50,12 +64,32 @@ export interface ProjectOpex {
   seguros: ServiceItem[];
   mantenimiento_general: ServiceItem[];
   administrativos: ServiceItem[];
+  
+  // 10. Financial Expenses (NEW)
+  incluir_4x1000?: boolean;
+  comisiones_bancarias?: BankCommissionItem[];
+  incluir_comision_datafono?: boolean;
+  comision_datafono_porcentaje?: number;
+  porcentaje_ventas_datafono?: number;
+  gastos_financieros?: ServiceItem[];
+  
+  // 11. Taxes (NEW)
+  incluir_iva?: boolean;
+  porcentaje_ingresos_iva?: number;
+  tarifa_iva?: number;
+  iva_pagado_estimado?: number;
+  incluir_retenciones?: boolean;
+  retenciones?: RetencionItem[];
+  impuestos?: ServiceItem[];
+  
+  // 12. Other
   otros_gastos: ServiceItem[];
   
-  // 11. Commissions
+  // 13. Commissions
   comisiones: ComisionItem[];
   
-  // 12. Depreciation
+  // 14. Depreciation
+  incluir_depreciacion?: boolean; // NEW - default true
   depreciacion_anos: number; // default 10
   
   updated_at: string;
@@ -78,6 +112,8 @@ export interface OpexSummary {
   mantenimientoGeneral: number;
   mantenimientoActividades: number; // from Section A
   administrativos: number;
+  gastosFinancieros: number; // NEW
+  impuestos: number; // NEW
   otrosGastos: number;
   comisiones: number;
   depreciacion: number;
