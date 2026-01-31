@@ -233,15 +233,97 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     }, 0);
   };
 
-  // Calculate commissions total
+  // Calculate OPEX without commissions (for calculating utility-based commissions)
+  const opexSinComisiones = useMemo(() => {
+    const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
+      (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
+    );
+    const nominaOperativo = (opex?.nomina_operativa || []).reduce(
+      (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
+    );
+    const nominaBase = nominaAdmin + nominaOperativo + nominaActividades;
+    const prestaciones = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
+    const totalNomina = nominaBase + prestaciones;
+    
+    const serviciosPublicos = calculateCategoryTotal(opex?.servicios_publicos || []);
+    const marketing = calculateCategoryTotal(opex?.marketing || []);
+    const tecnologia = calculateCategoryTotal(opex?.tecnologia || []);
+    const seguridad = calculateCategoryTotal(opex?.seguridad || []);
+    const seguros = calculateCategoryTotal(opex?.seguros || []);
+    const mantenimientoGeneral = calculateCategoryTotal(opex?.mantenimiento_general || []);
+    const administrativos = calculateCategoryTotal(opex?.administrativos || []);
+    const otrosGastos = calculateCategoryTotal(opex?.otros_gastos || []);
+    
+    // Financial expenses inline
+    let gastosFinancieros = 0;
+    if (opex?.incluir_4x1000) {
+      gastosFinancieros += ingresos.totalBruto * 0.004;
+    }
+    gastosFinancieros += (opex?.comisiones_bancarias || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
+    if (opex?.incluir_comision_datafono) {
+      gastosFinancieros += ingresos.totalBruto * 
+                 ((opex?.porcentaje_ventas_datafono || 70) / 100) * 
+                 ((opex?.comision_datafono_porcentaje || 2.5) / 100);
+    }
+    
+    // Taxes inline
+    let impuestos = 0;
+    if (opex?.incluir_iva) {
+      const ivaCobrado = ingresos.totalBruto * 
+                         ((opex?.porcentaje_ingresos_iva || 0) / 100) * 
+                         ((opex?.tarifa_iva || 19) / 100);
+      impuestos += Math.max(0, ivaCobrado - (opex?.iva_pagado_estimado || 0));
+    }
+    if (opex?.incluir_retenciones) {
+      impuestos += (opex?.retenciones || []).reduce((s, i) => {
+        const base = i.base === 'ingresos' ? ingresos.totalBruto : ingresos.totalBruto * 0.3;
+        return s + (base * ((i.porcentaje || 0) / 100));
+      }, 0);
+    }
+    
+    // Rent calculation
+    let arrendamiento = 0;
+    const modelo = opex?.arrendamiento_modelo || 'propio';
+    if (modelo === 'fijo') {
+      arrendamiento = opex?.arrendamiento_fijo || 0;
+    } else if (modelo === 'variable') {
+      arrendamiento = ingresos.totalBruto * ((opex?.arrendamiento_variable_porcentaje || 0) / 100);
+    } else if (modelo === 'mixto') {
+      arrendamiento = (opex?.arrendamiento_mixto_fijo || 0) + 
+                      ingresos.totalBruto * ((opex?.arrendamiento_mixto_porcentaje || 0) / 100);
+    }
+    
+    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad + 
+           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos + 
+           gastosFinancieros + impuestos + otrosGastos + arrendamiento;
+  }, [opex, nominaActividades, mantenimientoActividades, activities, ingresos]);
+
+  // Calculate utilities (for commission calculation)
+  const utilidadesParaComisiones = useMemo(() => {
+    return Math.max(0, ingresos.totalBruto - opexSinComisiones);
+  }, [ingresos.totalBruto, opexSinComisiones]);
+
+  // Calculate commissions total (FIXED - use real utilities)
   const calculateComisionesTotal = () => {
     const comisiones = opex?.comisiones || [];
     return comisiones.reduce((sum, com) => {
       let base = ingresos.totalBruto;
       if (com.base === 'ingresos-netos') base = ingresos.totalNeto;
-      if (com.base === 'utilidades') base = ingresos.totalBruto * 0.3;
+      if (com.base === 'utilidades') base = utilidadesParaComisiones;
       return sum + (base * ((com.porcentaje || 0) / 100));
     }, 0);
+  };
+
+  // Helper to get commission base value
+  const getComisionBaseValue = (base: string) => {
+    switch (base) {
+      case 'ingresos-netos':
+        return ingresos.totalNeto;
+      case 'utilidades':
+        return utilidadesParaComisiones;
+      default:
+        return ingresos.totalBruto;
+    }
   };
 
   // Calculate financial expenses
@@ -1611,9 +1693,7 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                     
                     <div className="col-span-2 text-right text-sm font-semibold text-rose-600 dark:text-rose-400">
                       {formatCurrency(
-                        (com.base === 'ingresos-netos' ? ingresos.totalNeto :
-                         com.base === 'utilidades' ? ingresos.totalBruto * 0.3 :
-                         ingresos.totalBruto) * ((com.porcentaje || 0) / 100),
+                        getComisionBaseValue(com.base) * ((com.porcentaje || 0) / 100),
                         currency
                       )}
                     </div>
