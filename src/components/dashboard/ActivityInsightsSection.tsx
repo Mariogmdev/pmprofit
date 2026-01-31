@@ -15,7 +15,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Lightbulb,
-  Info
+  Info,
+  Percent
 } from 'lucide-react';
 import { ActivityInsight } from '@/types/dashboard';
 import { formatCurrency } from '@/lib/currency';
@@ -26,6 +27,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ActivityInsightsSectionProps {
   activities: ActivityInsight[];
@@ -75,6 +81,35 @@ export const ActivityInsightsSection = ({
     }
   };
 
+  const getSortButtonStyles = (option: 'ingresos' | 'margen' | 'roi') => {
+    const isActive = sortBy === option;
+    const baseStyles = "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1.5";
+    
+    if (isActive) {
+      switch (option) {
+        case 'ingresos':
+          return cn(baseStyles, "bg-green-600 text-white shadow-sm");
+        case 'margen':
+          return cn(baseStyles, "bg-blue-600 text-white shadow-sm");
+        case 'roi':
+          return cn(baseStyles, "bg-purple-600 text-white shadow-sm");
+      }
+    }
+    
+    return cn(baseStyles, "text-muted-foreground hover:text-foreground hover:bg-muted/80");
+  };
+
+  const getSortIcon = (option: 'ingresos' | 'margen' | 'roi') => {
+    switch (option) {
+      case 'ingresos':
+        return <DollarSign className="w-3 h-3" />;
+      case 'margen':
+        return <Percent className="w-3 h-3" />;
+      case 'roi':
+        return <TrendingUp className="w-3 h-3" />;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -91,21 +126,17 @@ export const ActivityInsightsSection = ({
           </div>
         </div>
         
-        {/* Sort selector */}
+        {/* Sort selector with colored buttons */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Ordenar por:</span>
-          <div className="flex bg-muted rounded-lg p-1">
+          <div className="flex bg-muted rounded-lg p-1 gap-1">
             {(['ingresos', 'margen', 'roi'] as const).map((option) => (
               <button
                 key={option}
                 onClick={() => setSortBy(option)}
-                className={cn(
-                  "px-3 py-1 text-xs font-medium rounded-md transition-colors",
-                  sortBy === option 
-                    ? "bg-background text-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+                className={getSortButtonStyles(option)}
               >
+                {getSortIcon(option)}
                 {option === 'ingresos' ? 'Ingresos' : option === 'margen' ? 'Margen' : 'ROI'}
               </button>
             ))}
@@ -158,6 +189,45 @@ export const ActivityInsightsSection = ({
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-600" />
                 Requieren Atención
+                {/* Tooltip explaining criteria */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button className="ml-1 text-muted-foreground hover:text-foreground">
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs p-4">
+                    <div className="space-y-2">
+                      <p className="font-semibold text-sm">Criterios de Atención</p>
+                      <p className="text-xs text-muted-foreground">
+                        Una actividad aparece aquí si cumple alguno de estos criterios:
+                      </p>
+                      <div className="space-y-2 pt-1 border-t">
+                        <div>
+                          <p className="text-xs font-medium text-orange-600">⚠️ Margen bajo (&lt; 30%)</p>
+                          <p className="text-xs text-muted-foreground">
+                            Benchmark industria: 35-45% para centros deportivos
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-orange-600">⚠️ Baja ocupación (&lt; 70% del target)</p>
+                          <p className="text-xs text-muted-foreground">
+                            La ocupación real está muy por debajo de tu proyección
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-red-600">❌ EBITDA negativo</p>
+                          <p className="text-xs text-muted-foreground">
+                            La actividad no cubre sus costos operativos
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground italic pt-1 border-t">
+                        💡 Click en el ícono de editar para optimizar estos parámetros
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -179,6 +249,11 @@ export const ActivityInsightsSection = ({
                         {activity.ocupacionPromedio < activity.ocupacionTarget * 0.7 && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0 bg-red-100 text-red-700 border-red-200">
                             Baja ocupación
+                          </Badge>
+                        )}
+                        {activity.ebitdaMensual < 0 && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-red-100 text-red-700 border-red-200">
+                            EBITDA negativo
                           </Badge>
                         )}
                       </div>
@@ -222,11 +297,34 @@ export const ActivityInsightsSection = ({
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-2 font-medium">Actividad</th>
-                      <th className="text-right py-2 px-2 font-medium">Ingresos/mes</th>
+                      <th className="text-right py-2 px-2 font-medium">
+                        <span className={cn(
+                          "inline-flex items-center gap-1",
+                          sortBy === 'ingresos' && "text-green-600"
+                        )}>
+                          Ingresos/mes
+                          {sortBy === 'ingresos' && <TrendingDown className="w-3 h-3" />}
+                        </span>
+                      </th>
                       <th className="text-right py-2 px-2 font-medium">EBITDA</th>
-                      <th className="text-center py-2 px-2 font-medium">Margen</th>
+                      <th className="text-center py-2 px-2 font-medium">
+                        <span className={cn(
+                          "inline-flex items-center gap-1",
+                          sortBy === 'margen' && "text-blue-600"
+                        )}>
+                          Margen
+                          {sortBy === 'margen' && <TrendingDown className="w-3 h-3" />}
+                        </span>
+                      </th>
                       <th className="text-center py-2 px-2 font-medium">Ocupación</th>
-                      <th className="text-center py-2 px-2 font-medium">Payback</th>
+                      <th className="text-center py-2 px-2 font-medium">
+                        <span className={cn(
+                          "inline-flex items-center gap-1",
+                          sortBy === 'roi' && "text-purple-600"
+                        )}>
+                          Payback
+                        </span>
+                      </th>
                       <th className="text-right py-2 px-2 font-medium"></th>
                     </tr>
                   </thead>
