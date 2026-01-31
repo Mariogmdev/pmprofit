@@ -183,6 +183,24 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     return calculateNominaBase() + nominaActividades + calculatePrestaciones();
   };
 
+  // Calculate category total with variable expense types (MUST BE BEFORE useMemo that uses it)
+  const calculateCategoryTotal = (items: ServiceItem[]) => {
+    if (!items || items.length === 0) return 0;
+    return items.reduce((sum, item) => {
+      const tipo = item.tipo || 'fijo';
+      if (tipo === 'fijo') {
+        return sum + (item.costoMensual || 0);
+      } else if (tipo === 'porcentaje-facturacion') {
+        return sum + (ingresos.totalBruto * ((item.porcentaje || 0) / 100));
+      } else if (tipo === 'por-reserva') {
+        const reservasAplicables = calculateReservasForActivities(item.actividadesIncluidas);
+        const reservasConPorcentaje = reservasAplicables * ((item.porcentajeReservas || 100) / 100);
+        return sum + ((item.costoPorReserva || 0) * reservasConPorcentaje);
+      }
+      return sum;
+    }, 0);
+  };
+
   // Calculate OPEX base (without rent and commissions) for utility-based calculations
   const opexBaseSinArriendoNiComisiones = useMemo(() => {
     const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
@@ -273,23 +291,6 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     return 0;
   };
 
-  // Calculate category total with variable expense types (FIXED)
-  const calculateCategoryTotal = (items: ServiceItem[]) => {
-    if (!items || items.length === 0) return 0;
-    return items.reduce((sum, item) => {
-      const tipo = item.tipo || 'fijo';
-      if (tipo === 'fijo') {
-        return sum + (item.costoMensual || 0);
-      } else if (tipo === 'porcentaje-facturacion') {
-        return sum + (ingresos.totalBruto * ((item.porcentaje || 0) / 100));
-      } else if (tipo === 'por-reserva') {
-        const reservasAplicables = calculateReservasForActivities(item.actividadesIncluidas);
-        const reservasConPorcentaje = reservasAplicables * ((item.porcentajeReservas || 100) / 100);
-        return sum + ((item.costoPorReserva || 0) * reservasConPorcentaje);
-      }
-      return sum;
-    }, 0);
-  };
 
   // Calculate OPEX without commissions (includes rent, for calculating utility-based commissions)
   const opexSinComisiones = useMemo(() => {
