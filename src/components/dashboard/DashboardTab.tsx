@@ -3,8 +3,11 @@ import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { ProjectionViewMode } from '@/types/dashboard';
+import { CurrencyCode } from '@/types';
 import { HeroMetrics } from './HeroMetrics';
 import { AutoInsights } from './AutoInsights';
+import { ActivityInsightsSection } from './ActivityInsightsSection';
+import { SpaceInsightsSection } from './SpaceInsightsSection';
 import { ChartsGrid } from './ChartsGrid';
 import { ProjectionTable } from './ProjectionTable';
 import { DetailedMetrics } from './DetailedMetrics';
@@ -23,7 +26,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ProjectionViewMode>('anual');
   
-  const currency = currentProject?.currency || 'COP';
+  const currency = (currentProject?.currency || 'COP') as CurrencyCode;
 
   const handleExportPDF = () => {
     toast({
@@ -83,6 +86,13 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
     });
   };
 
+  const handleEditActivity = (activityId: string) => {
+    // Navigate to constructor tab - in a real implementation this would scroll to the specific activity
+    if (onTabChange) {
+      onTabChange('constructor');
+    }
+  };
+
   if (metrics.loading) {
     return <DashboardSkeleton />;
   }
@@ -123,10 +133,26 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
       {/* Section 2: Insights Automáticos */}
       <AutoInsights insights={metrics.insights} onNavigate={onTabChange} />
       
-      {/* Section 3: Visualizaciones */}
+      {/* Section 3: Activity Insights - NEW */}
+      <ActivityInsightsSection 
+        activities={metrics.activityInsights}
+        topByRevenue={metrics.topActivitiesByRevenue}
+        topByMargin={metrics.topActivitiesByMargin}
+        worstPerformers={metrics.worstPerformers}
+        currency={currency}
+        onEditActivity={handleEditActivity}
+      />
+      
+      {/* Section 4: Space Insights - NEW */}
+      <SpaceInsightsSection 
+        spaces={metrics.spaceInsights}
+        currency={currency}
+      />
+      
+      {/* Section 5: Visualizaciones */}
       <ChartsGrid metrics={metrics} currency={currency} />
       
-      {/* Section 4: Proyección 5 Años */}
+      {/* Section 6: Proyección 5 Años */}
       <ProjectionTable 
         proyeccion={metrics.proyeccion}
         viewMode={viewMode}
@@ -134,7 +160,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
         currency={currency}
       />
       
-      {/* Section 5: Métricas Detalladas */}
+      {/* Section 7: Métricas Detalladas */}
       <DetailedMetrics metrics={metrics} currency={currency} />
     </div>
   );

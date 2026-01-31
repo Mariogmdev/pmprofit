@@ -4,9 +4,10 @@ import { useProjectOpex } from '@/hooks/useProjectOpex';
 import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useObraCivil } from '@/hooks/useObraCivil';
 import { useProject } from '@/contexts/ProjectContext';
-import { DashboardMetrics, DashboardInsight, ProjectionYear, CHART_COLORS } from '@/types/dashboard';
+import { DashboardMetrics, DashboardInsight, ProjectionYear, ActivityInsight, SpaceInsight, CHART_COLORS } from '@/types/dashboard';
 import { ActivityConfig } from '@/types/activity';
 import { ServiceItem, RentCalculationBase } from '@/types/opex';
+import { ProjectSpace } from '@/types/infrastructure';
 
 // Helper to generate unique IDs
 const generateId = () => crypto.randomUUID();
@@ -372,7 +373,181 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
     if (puntoEquilibrioMes === 0) puntoEquilibrioMes = projectionYears * 12 + 12;
 
-    // === GENERATE INSIGHTS ===
+    // === GENERATE ACTIVITY INSIGHTS ===
+    const activityInsights: ActivityInsight[] = activities.map((act, idx) => {
+      const config: ActivityConfig = act.config;
+      const cantidad = config.cantidad || 1;
+      const horarios = config.horarios || [];
+      
+      // Calculate activity income
+      const tarifaPromedio = horarios.length > 0 
+        ? horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length 
+        : 0;
+      const ocupacionPromedio = horarios.length > 0
+        ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length
+        : 50;
+      const ocupacionTarget = horarios.length > 0
+        ? horarios.reduce((s, h) => s + (h.tipo === 'pico' ? 80 : 50), 0) / horarios.length
+        : 60;
+      const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
+      const diasMes = 30;
+      const duracion = config.duracionReserva || 1.5;
+      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * (ocupacionPromedio / 100) * diasMes / duracion;
+      
+      // Calculate activity CAPEX
+      const tipoCubierta = config.tipoCubierta || 'cubierta';
+      let capexConstruccion = 0;
+      if (tipoCubierta === 'cubierta') {
+        capexConstruccion = (config.capexCubierta || 0) * cantidad;
+      } else if (tipoCubierta === 'semicubierta') {
+        capexConstruccion = (config.capexSemicubierta || 0) * cantidad;
+      } else {
+        capexConstruccion = (config.capexAireLibre || 0) * cantidad;
+      }
+      const equipamientoTotal = (config.equipamientoEspecifico || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const consumiblesTotal = (config.consumibles || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const mobiliarioTotal = (config.mobiliario || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const actCapex = capexConstruccion + equipamientoTotal + consumiblesTotal + mobiliarioTotal;
+      
+      // Calculate activity OPEX
+      const personalCost = (config.personal || []).reduce(
+        (s, p) => s + ((p.cantidad || 0) * (p.salarioMensual || 0)), 0
+      );
+      const mantenimientoCost = (config.mantenimiento || []).reduce(
+        (s, m) => s + ((m.costoAnual || 0) / 12), 0
+      );
+      const actOpex = personalCost + mantenimientoCost;
+      
+      const actEbitda = ingresoEstimado - actOpex;
+      const actMargen = ingresoEstimado > 0 ? (actEbitda / ingresoEstimado) * 100 : 0;
+      const actPayback = actEbitda > 0 ? Math.ceil(actCapex / actEbitda) : 999;
+      const actRoi = actCapex > 0 ? ((actEbitda * 12) / actCapex) * 100 : 0;
+      
+      // Generate activity-specific insights
+      const actInsights: ActivityInsight['insights'] = [];
+      
+      if (actMargen >= 40) {
+        actInsights.push({ type: 'success', message: 'Margen saludable (>40%)', action: undefined });
+      } else if (actMargen < 20) {
+        actInsights.push({ type: 'warning', message: `Margen bajo (${actMargen.toFixed(0)}%). Revisar tarifas o costos.` });
+      }
+      
+      if (ocupacionPromedio >= ocupacionTarget * 0.9) {
+        actInsights.push({ type: 'success', message: 'Ocupación cerca del objetivo' });
+      } else if (ocupacionPromedio < ocupacionTarget * 0.7) {
+        actInsights.push({ type: 'warning', message: `Ocupación baja (${ocupacionPromedio.toFixed(0)}% vs ${ocupacionTarget.toFixed(0)}% target)` });
+      }
+      
+      if (actPayback <= 24) {
+        actInsights.push({ type: 'success', message: `Payback rápido: ${actPayback} meses` });
+      } else if (actPayback > 48) {
+        actInsights.push({ type: 'warning', message: `Payback largo: ${actPayback} meses` });
+      }
+      
+      if (ingresoEstimado > 0 && actCapex === 0) {
+        actInsights.push({ type: 'opportunity', message: 'Sin CAPEX registrado - Verificar inversión' });
+      }
+      
+      return {
+        activityId: act.id,
+        nombre: act.name,
+        icon: act.icon || '📦',
+        categoria: config.modeloIngreso || 'reserva',
+        ingresosMensuales: ingresoEstimado,
+        opexMensual: actOpex,
+        ebitdaMensual: actEbitda,
+        margenEbitda: actMargen,
+        ocupacionPromedio,
+        ocupacionTarget,
+        capacidadUtilizada: ocupacionTarget > 0 ? (ocupacionPromedio / ocupacionTarget) * 100 : 0,
+        capex: actCapex,
+        paybackMeses: actPayback,
+        roiAnual: actRoi,
+        rankingIngresos: 0, // Will be calculated after
+        rankingMargen: 0,
+        rankingROI: 0,
+        insights: actInsights,
+        porcentajeIngresosTotales: ingresosBrutosAno1 > 0 ? (ingresoEstimado / ingresosBrutosAno1) * 100 : 0,
+        porcentajeOpexTotales: 0, // Will calculate after
+      };
+    });
+    
+    // Calculate rankings
+    const sortedByIngresos = [...activityInsights].sort((a, b) => b.ingresosMensuales - a.ingresosMensuales);
+    const sortedByMargen = [...activityInsights].sort((a, b) => b.margenEbitda - a.margenEbitda);
+    const sortedByROI = [...activityInsights].sort((a, b) => b.roiAnual - a.roiAnual);
+    
+    activityInsights.forEach(act => {
+      act.rankingIngresos = sortedByIngresos.findIndex(a => a.activityId === act.activityId) + 1;
+      act.rankingMargen = sortedByMargen.findIndex(a => a.activityId === act.activityId) + 1;
+      act.rankingROI = sortedByROI.findIndex(a => a.activityId === act.activityId) + 1;
+    });
+    
+    // Top performers
+    const topActivitiesByRevenue = sortedByIngresos.slice(0, 3);
+    const topActivitiesByMargin = sortedByMargen.filter(a => a.margenEbitda > 0).slice(0, 3);
+    const worstPerformers = activityInsights
+      .filter(a => a.margenEbitda < 30 || a.ocupacionPromedio < a.ocupacionTarget * 0.7)
+      .slice(0, 3);
+    
+    // === GENERATE SPACE INSIGHTS ===
+    const spaceInsights: SpaceInsight[] = spaces.map((space: ProjectSpace) => {
+      const breakdownTotal = ((space.breakdown as Array<{cantidad?: number; precioUnitario?: number}>) || []).reduce(
+        (s: number, item: {cantidad?: number; precioUnitario?: number}) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      
+      // Estimate income if space generates revenue
+      const spaceIncome = space.genera_ingresos && space.configuracion_ingresos 
+        ? (space.configuracion_ingresos.ingresoMensual || 0) 
+        : 0;
+      
+      // Estimate OPEX (maintenance ~2% of CAPEX annually)
+      const spaceOpex = breakdownTotal > 0 ? (breakdownTotal * 0.02) / 12 : 0;
+      
+      const spaceEbitda = spaceIncome - spaceOpex;
+      const spaceRoi = breakdownTotal > 0 ? ((spaceEbitda * 12) / breakdownTotal) * 100 : 0;
+      const spacePayback = spaceEbitda > 0 ? Math.ceil(breakdownTotal / spaceEbitda) : 999;
+      
+      // Generate space insights
+      const spaceInsightsList: SpaceInsight['insights'] = [];
+      
+      if (space.genera_ingresos && spaceIncome > 0) {
+        if (spaceRoi >= 15) {
+          spaceInsightsList.push({ type: 'success', message: `ROI atractivo: ${spaceRoi.toFixed(1)}%` });
+        } else if (spaceRoi > 0 && spaceRoi < 8) {
+          spaceInsightsList.push({ type: 'warning', message: `ROI bajo: ${spaceRoi.toFixed(1)}%` });
+        }
+      } else if (!space.genera_ingresos && breakdownTotal > 50000000) {
+        spaceInsightsList.push({ type: 'info', message: 'Espacio de soporte - Alto CAPEX sin ingresos directos' });
+      }
+      
+      if (space.area === 0) {
+        spaceInsightsList.push({ type: 'warning', message: 'Área no definida' });
+      }
+      
+      return {
+        spaceId: space.id,
+        nombre: space.name,
+        tipo: space.type,
+        area: space.area || 0,
+        capex: breakdownTotal,
+        opexMensual: spaceOpex,
+        ingresosMensuales: spaceIncome,
+        utilizacionEstimada: space.genera_ingresos ? 80 : 100, // Assume 80% for revenue, 100% for support
+        capacidadMaxima: space.area || 0,
+        roi: spaceRoi,
+        paybackMeses: spacePayback < 999 ? spacePayback : 0,
+        insights: spaceInsightsList,
+      };
+    });
+
+    // === GENERATE PROJECT INSIGHTS ===
     const insights: DashboardInsight[] = [];
     const ebitdaMensualAno1 = proyeccion[0]?.ebitdaMensual || 0;
     const margenEbitdaAno1 = proyeccion[0]?.margenEbitda || 0;
@@ -493,6 +668,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       areaTotal,
       loading,
       insights,
+      activityInsights,
+      spaceInsights,
+      topActivitiesByRevenue,
+      topActivitiesByMargin,
+      worstPerformers,
     };
   }, [currentProject, activities, opex, spaces, obraCivil, loading]);
 
