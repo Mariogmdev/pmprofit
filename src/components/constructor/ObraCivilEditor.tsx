@@ -54,22 +54,20 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
     };
   }, [activities, spaces]);
 
-  // Automatic calculations
+  // Automatic calculations - NO contingencies here (moved to summary)
   const calculos = useMemo(() => {
     // Construction ONLY for common areas + circulations (NOT activities)
     const capexConstruccion = areas.areaObraCivil * (obraCivil?.costo_construccion_por_m2 || 0);
     const interventoria = capexConstruccion * ((obraCivil?.interventoria_porcentaje || 5) / 100);
     
-    const subtotal = capexConstruccion +
+    // Total WITHOUT contingencies (they're calculated on total project CAPEX in summary)
+    const capexTotal = capexConstruccion +
       (obraCivil?.paisajismo || 0) +
       (obraCivil?.estudios_disenos || 0) +
       (obraCivil?.permisos_licencias || 0) +
       interventoria;
-    
-    const imprevistosValor = subtotal * ((obraCivil?.imprevistos_porcentaje || 10) / 100);
-    const capexTotal = subtotal + imprevistosValor;
 
-    return { capexConstruccion, interventoria, imprevistosValor, capexTotal };
+    return { capexConstruccion, interventoria, capexTotal };
   }, [areas.areaObraCivil, obraCivil]);
 
   // Auto-update calculations in DB (with debounce to avoid loops)
@@ -90,7 +88,6 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
         area_total_proyecto: areas.areaTotal,
         capex_construccion: calculos.capexConstruccion,
         interventoria: calculos.interventoria,
-        imprevistos_valor: calculos.imprevistosValor,
         capex_obra_civil_total: calculos.capexTotal
       });
     }, 500);
@@ -267,40 +264,14 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
 
         <Separator />
 
-        {/* Contingencies */}
-        <div>
-          <Label>Imprevistos ({obraCivil?.imprevistos_porcentaje || 10}%)</Label>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              value={obraCivil?.imprevistos_porcentaje || 10}
-              onChange={(e) => updateObraCivil({ imprevistos_porcentaje: Number(e.target.value) })}
-              className="w-24"
-              min="0"
-              max="100"
-            />
-            <Input
-              type="number"
-              value={Math.round(calculos.imprevistosValor)}
-              disabled
-              className="flex-1"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            (Auto-calculado sobre subtotal)
-          </p>
-        </div>
-
-        <Separator />
-
         {/* Total */}
         <Card className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 border-orange-300 dark:border-orange-700">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xl font-semibold">CAPEX Obra Civil Total:</span>
+                <span className="text-xl font-semibold">CAPEX Obra Civil:</span>
                 <p className="text-xs text-muted-foreground">
-                  (Solo espacios comunes + circulaciones)
+                  (Construcción + Adicionales + Interventoría)
                 </p>
               </div>
               <span className="text-3xl font-bold text-orange-600 dark:text-orange-400">
@@ -309,6 +280,14 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
             </div>
           </CardContent>
         </Card>
+
+        <Alert className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 mt-4">
+          <AlertTriangle className="w-4 h-4 text-blue-600" />
+          <AlertDescription className="text-blue-700 dark:text-blue-400">
+            <strong>Nota:</strong> Los imprevistos se calculan sobre el CAPEX total del proyecto 
+            en el Resumen Final (abajo), no solo sobre la obra civil.
+          </AlertDescription>
+        </Alert>
       </CardContent>
     </Card>
   );
