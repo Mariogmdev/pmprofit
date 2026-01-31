@@ -201,9 +201,10 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       }, 0);
     }
 
-    // === DEPRECIATION (OPTIONAL) ===
+    // === DEPRECIATION (OPTIONAL - explicitly check for false) ===
     const depreciacionAnos = opex?.depreciacion_anos || 10;
-    const depreciacion = (opex?.incluir_depreciacion !== false)
+    const incluirDepreciacion = opex?.incluir_depreciacion !== false;
+    const depreciacion = incluirDepreciacion
       ? (capexTotal / depreciacionAnos / 12)
       : 0;
 
@@ -290,7 +291,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       margenEbitda,
       capexTotal,
       depreciacionAnos,
-      incluirDepreciacion: opex?.incluir_depreciacion !== false
+      incluirDepreciacion
     };
   }, [opex, activities, spaces, obraCivil]);
 
@@ -364,8 +365,14 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Depreciación:</span>
-            <span className={cn("font-semibold", !summary.incluirDepreciacion && "text-muted-foreground line-through")}>
-              {formatCurrency(summary.depreciacion, currency)}
+            <span className={cn(
+              "font-semibold",
+              !summary.incluirDepreciacion && "text-muted-foreground"
+            )}>
+              {summary.incluirDepreciacion 
+                ? formatCurrency(summary.depreciacion, currency)
+                : "(No incluida)"
+              }
             </span>
           </div>
         </div>
