@@ -29,7 +29,30 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const projectionYears = currentProject?.projection_years || 5;
     const areaTotal = currentProject?.area_total || 0;
 
-    // === INCOME CALCULATIONS (Year 1) ===
+    // === INCOME CALCULATIONS (Year 1) using CENTRALIZED calculations ===
+    // CRITICAL: Use calculateActivityFinancials for ALL income calculations
+    // This ensures consistency between Constructor and Dashboard
+    const daysPerMonth = currentProject?.days_per_month || 30;
+    
+    // First pass: calculate total users for traffic-dependent activities
+    const totalClubUsersFromOtherActivities = activities
+      .filter(a => a.config.modeloIngreso !== 'trafico')
+      .reduce((sum, a) => {
+        const financials = calculateActivityFinancials(a.config, daysPerMonth, 0);
+        return sum + financials.totalUsuariosMes;
+      }, 0);
+    
+    // Calculate financials for each activity using centralized function
+    const activityFinancials = activities.map(act => ({
+      activity: act,
+      financials: calculateActivityFinancials(
+        act.config,
+        daysPerMonth,
+        act.config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      )
+    }));
+    
+    // Sum up total income from all activities
     let ingresosBrutosAno1 = 0;
     let ingresosOperacionales = 0;
     let totalReservas = 0;
@@ -40,36 +63,32 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     const ingresosPorActividad: DashboardMetrics['ingresosPorActividad'] = [];
 
-    activities.forEach((act, idx) => {
-      const config: ActivityConfig = act.config;
-      const cantidad = config.cantidad || 1;
-      const horarios = config.horarios || [];
-      const tarifaPromedio = horarios.length > 0 
-        ? horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length 
-        : 0;
-      const ocupacionPromedio = horarios.length > 0
-        ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
-        : 0.5;
-      const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-      const diasMes = 30;
-      const duracion = config.duracionReserva || 1.5;
-      const reservasPorDia = horasOperacion * ocupacionPromedio / duracion;
-      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * ocupacionPromedio * diasMes / duracion;
+    activityFinancials.forEach(({ activity, financials }, idx) => {
+      // Use the centralized calculation for income
+      const ingresoEstimado = financials.ingresosMensuales;
       
       ingresosBrutosAno1 += ingresoEstimado;
       ingresosOperacionales += ingresoEstimado;
-      totalReservas += cantidad * reservasPorDia * diasMes;
+      totalReservas += financials.totalUsuariosMes;
       
+      // Calculate weighted occupancy
+      const totalHours = financials.totalHorasPico + financials.totalHorasValle;
+      if (totalHours > 0) {
+        ocupacionTotal += financials.ocupacionPromedio * totalHours;
+        horasTotal += totalHours;
+      }
+      
+      // Get average tariff from schedules
+      const horarios = activity.config.horarios || [];
       if (horarios.length > 0) {
-        ocupacionTotal += ocupacionPromedio * horasOperacion;
-        horasTotal += horasOperacion;
+        const tarifaPromedio = horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length;
         ticketTotal += tarifaPromedio;
         ticketCount++;
       }
 
       if (ingresoEstimado > 0) {
         ingresosPorActividad.push({
-          nombre: act.name,
+          nombre: activity.name,
           valor: ingresoEstimado,
           porcentaje: 0, // Will calculate after total
           color: CHART_COLORS.activities[idx % CHART_COLORS.activities.length],
@@ -83,7 +102,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     });
 
     const ingresosNetos = ingresosBrutosAno1 * 0.85;
-    const ocupacionPromedio = horasTotal > 0 ? (ocupacionTotal / horasTotal) * 100 : 0;
+    const ocupacionPromedio = horasTotal > 0 ? ocupacionTotal / horasTotal : 0;
     const ticketPromedio = ticketCount > 0 ? ticketTotal / ticketCount : 0;
 
     // === CAPEX CALCULATIONS ===
@@ -374,26 +393,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
     if (puntoEquilibrioMes === 0) puntoEquilibrioMes = projectionYears * 12 + 12;
 
-    // === GENERATE ACTIVITY INSIGHTS (Using centralized calculations) ===
-    const daysPerMonth = currentProject?.days_per_month || 30;
-    
-    // First pass: calculate total users for traffic activities
-    const totalClubUsersFromOtherActivities = activities
-      .filter(a => a.config.modeloIngreso !== 'trafico')
-      .reduce((sum, a) => {
-        const financials = calculateActivityFinancials(a.config, daysPerMonth, 0);
-        return sum + financials.totalUsuariosMes;
-      }, 0);
-    
-    const activityInsights: ActivityInsight[] = activities.map((act) => {
-      const config: ActivityConfig = act.config;
-      
-      // Use centralized calculation - SAME as Constructor
-      const financials = calculateActivityFinancials(
-        config, 
-        daysPerMonth, 
-        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
-      );
+    // === GENERATE ACTIVITY INSIGHTS (Reuse calculations from above) ===
+    const activityInsights: ActivityInsight[] = activityFinancials.map(({ activity, financials }) => {
+      const config: ActivityConfig = activity.config;
       
       const ocupacionTarget = calculateOccupancyTarget(config);
       
@@ -427,9 +429,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }
       
       return {
-        activityId: act.id,
-        nombre: act.name,
-        icon: act.icon || '📦',
+        activityId: activity.id,
+        nombre: activity.name,
+        icon: activity.icon || '📦',
         categoria: config.modeloIngreso || 'reserva',
         ingresosMensuales: financials.ingresosMensuales,
         opexMensual: financials.opexMensual,
