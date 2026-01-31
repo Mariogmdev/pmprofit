@@ -183,15 +183,73 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     return calculateNominaBase() + nominaActividades + calculatePrestaciones();
   };
 
+  // Calculate OPEX base (without rent and commissions) for utility-based calculations
+  const opexBaseSinArriendoNiComisiones = useMemo(() => {
+    const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
+      (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
+    );
+    const nominaOperativo = (opex?.nomina_operativa || []).reduce(
+      (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
+    );
+    const nominaBase = nominaAdmin + nominaOperativo + nominaActividades;
+    const prestaciones = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
+    const totalNomina = nominaBase + prestaciones;
+    
+    const serviciosPublicos = calculateCategoryTotal(opex?.servicios_publicos || []);
+    const marketing = calculateCategoryTotal(opex?.marketing || []);
+    const tecnologia = calculateCategoryTotal(opex?.tecnologia || []);
+    const seguridad = calculateCategoryTotal(opex?.seguridad || []);
+    const seguros = calculateCategoryTotal(opex?.seguros || []);
+    const mantenimientoGeneral = calculateCategoryTotal(opex?.mantenimiento_general || []);
+    const administrativos = calculateCategoryTotal(opex?.administrativos || []);
+    const otrosGastos = calculateCategoryTotal(opex?.otros_gastos || []);
+    
+    // Financial expenses
+    let gastosFinancieros = 0;
+    if (opex?.incluir_4x1000) {
+      gastosFinancieros += ingresos.totalBruto * 0.004;
+    }
+    gastosFinancieros += (opex?.comisiones_bancarias || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
+    if (opex?.incluir_comision_datafono !== false) {
+      gastosFinancieros += ingresos.totalBruto * 
+                 ((opex?.porcentaje_ventas_datafono ?? 70) / 100) * 
+                 ((opex?.comision_datafono_porcentaje ?? 2.5) / 100);
+    }
+    
+    // Taxes
+    let impuestos = 0;
+    if (opex?.incluir_iva) {
+      const ivaCobrado = ingresos.totalBruto * 
+                         ((opex?.porcentaje_ingresos_iva ?? 0) / 100) * 
+                         ((opex?.tarifa_iva ?? 19) / 100);
+      impuestos += Math.max(0, ivaCobrado - (opex?.iva_pagado_estimado ?? 0));
+    }
+    if (opex?.incluir_retenciones) {
+      impuestos += (opex?.retenciones || []).reduce((s, i) => {
+        const base = i.base === 'ingresos' ? ingresos.totalBruto : ingresos.totalBruto * 0.3;
+        return s + (base * ((i.porcentaje || 0) / 100));
+      }, 0);
+    }
+    
+    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad + 
+           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos + 
+           gastosFinancieros + impuestos + otrosGastos;
+  }, [opex, nominaActividades, mantenimientoActividades, activities, ingresos]);
+
+  // Calculate utilities before rent (for rent on utilities)
+  const utilidadesAntesArriendo = useMemo(() => {
+    return Math.max(0, ingresos.totalBruto - opexBaseSinArriendoNiComisiones);
+  }, [ingresos.totalBruto, opexBaseSinArriendoNiComisiones]);
+
   // Calculate rent base value
-  const calculateArrendamientoBase = (base: RentCalculationBase, opexSinArriendo: number = 0) => {
+  const calculateArrendamientoBase = (base: RentCalculationBase) => {
     switch (base) {
       case 'ingresos-brutos':
         return ingresos.totalBruto;
       case 'ingresos-netos':
         return ingresos.totalNeto;
       case 'utilidades':
-        return ingresos.totalBruto - opexSinArriendo;
+        return utilidadesAntesArriendo;
       case 'ingresos-operacionales':
         return ingresos.soloActividades;
       default:
@@ -233,72 +291,14 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     }, 0);
   };
 
-  // Calculate OPEX without commissions (for calculating utility-based commissions)
+  // Calculate OPEX without commissions (includes rent, for calculating utility-based commissions)
   const opexSinComisiones = useMemo(() => {
-    const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
-      (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
-    );
-    const nominaOperativo = (opex?.nomina_operativa || []).reduce(
-      (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
-    );
-    const nominaBase = nominaAdmin + nominaOperativo + nominaActividades;
-    const prestaciones = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
-    const totalNomina = nominaBase + prestaciones;
-    
-    const serviciosPublicos = calculateCategoryTotal(opex?.servicios_publicos || []);
-    const marketing = calculateCategoryTotal(opex?.marketing || []);
-    const tecnologia = calculateCategoryTotal(opex?.tecnologia || []);
-    const seguridad = calculateCategoryTotal(opex?.seguridad || []);
-    const seguros = calculateCategoryTotal(opex?.seguros || []);
-    const mantenimientoGeneral = calculateCategoryTotal(opex?.mantenimiento_general || []);
-    const administrativos = calculateCategoryTotal(opex?.administrativos || []);
-    const otrosGastos = calculateCategoryTotal(opex?.otros_gastos || []);
-    
-    // Financial expenses inline
-    let gastosFinancieros = 0;
-    if (opex?.incluir_4x1000) {
-      gastosFinancieros += ingresos.totalBruto * 0.004;
-    }
-    gastosFinancieros += (opex?.comisiones_bancarias || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    if (opex?.incluir_comision_datafono) {
-      gastosFinancieros += ingresos.totalBruto * 
-                 ((opex?.porcentaje_ventas_datafono || 70) / 100) * 
-                 ((opex?.comision_datafono_porcentaje || 2.5) / 100);
-    }
-    
-    // Taxes inline
-    let impuestos = 0;
-    if (opex?.incluir_iva) {
-      const ivaCobrado = ingresos.totalBruto * 
-                         ((opex?.porcentaje_ingresos_iva || 0) / 100) * 
-                         ((opex?.tarifa_iva || 19) / 100);
-      impuestos += Math.max(0, ivaCobrado - (opex?.iva_pagado_estimado || 0));
-    }
-    if (opex?.incluir_retenciones) {
-      impuestos += (opex?.retenciones || []).reduce((s, i) => {
-        const base = i.base === 'ingresos' ? ingresos.totalBruto : ingresos.totalBruto * 0.3;
-        return s + (base * ((i.porcentaje || 0) / 100));
-      }, 0);
-    }
-    
-    // Rent calculation
-    let arrendamiento = 0;
-    const modelo = opex?.arrendamiento_modelo || 'propio';
-    if (modelo === 'fijo') {
-      arrendamiento = opex?.arrendamiento_fijo || 0;
-    } else if (modelo === 'variable') {
-      arrendamiento = ingresos.totalBruto * ((opex?.arrendamiento_variable_porcentaje || 0) / 100);
-    } else if (modelo === 'mixto') {
-      arrendamiento = (opex?.arrendamiento_mixto_fijo || 0) + 
-                      ingresos.totalBruto * ((opex?.arrendamiento_mixto_porcentaje || 0) / 100);
-    }
-    
-    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad + 
-           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos + 
-           gastosFinancieros + impuestos + otrosGastos + arrendamiento;
-  }, [opex, nominaActividades, mantenimientoActividades, activities, ingresos]);
+    return opexBaseSinArriendoNiComisiones + calculateArrendamiento();
+  }, [opexBaseSinArriendoNiComisiones, opex?.arrendamiento_modelo, opex?.arrendamiento_fijo, 
+      opex?.arrendamiento_variable_porcentaje, opex?.arrendamiento_variable_base,
+      opex?.arrendamiento_mixto_fijo, opex?.arrendamiento_mixto_porcentaje, opex?.arrendamiento_mixto_base]);
 
-  // Calculate utilities (for commission calculation)
+  // Calculate utilities for commissions (Ingresos - OPEX sin comisiones)
   const utilidadesParaComisiones = useMemo(() => {
     return Math.max(0, ingresos.totalBruto - opexSinComisiones);
   }, [ingresos.totalBruto, opexSinComisiones]);
@@ -1038,11 +1038,24 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
               <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 p-4">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Base de cálculo:</span>
+                    <span className="text-muted-foreground">
+                      Base ({
+                        opex?.arrendamiento_variable_base === 'ingresos-brutos' ? 'Ingresos Brutos' :
+                        opex?.arrendamiento_variable_base === 'ingresos-netos' ? 'Ingresos Netos' :
+                        opex?.arrendamiento_variable_base === 'utilidades' ? 'Utilidades (EBITDA)' :
+                        opex?.arrendamiento_variable_base === 'ingresos-operacionales' ? 'Ing. Operacionales' :
+                        'Ingresos Brutos'
+                      }):
+                    </span>
                     <span className="font-semibold">
                       {formatCurrency(calculateArrendamientoBase(opex?.arrendamiento_variable_base || 'ingresos-brutos'), currency)}
                     </span>
                   </div>
+                  {opex?.arrendamiento_variable_base === 'utilidades' && (
+                    <div className="text-xs text-muted-foreground">
+                      = Ingresos ({formatCurrency(ingresos.totalBruto, currency)}) - OPEX sin arriendo ({formatCurrency(opexBaseSinArriendoNiComisiones, currency)})
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">× {opex?.arrendamiento_variable_porcentaje || 0}%</span>
                   </div>
@@ -1096,7 +1109,15 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                     <span className="font-semibold">{formatCurrency(opex?.arrendamiento_mixto_fijo || 0, currency)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Variable ({opex?.arrendamiento_mixto_porcentaje || 0}%):</span>
+                    <span>
+                      Variable ({opex?.arrendamiento_mixto_porcentaje || 0}% de {
+                        opex?.arrendamiento_mixto_base === 'ingresos-brutos' ? 'Ingresos Brutos' :
+                        opex?.arrendamiento_mixto_base === 'ingresos-netos' ? 'Ingresos Netos' :
+                        opex?.arrendamiento_mixto_base === 'utilidades' ? 'Utilidades' :
+                        opex?.arrendamiento_mixto_base === 'ingresos-operacionales' ? 'Ing. Op.' :
+                        'Ingresos Brutos'
+                      }):
+                    </span>
                     <span className="font-semibold">
                       {formatCurrency(
                         calculateArrendamientoBase(opex?.arrendamiento_mixto_base || 'ingresos-brutos') * 
@@ -1105,6 +1126,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                       )}
                     </span>
                   </div>
+                  {opex?.arrendamiento_mixto_base === 'utilidades' && (
+                    <div className="text-xs text-muted-foreground">
+                      Utilidades = {formatCurrency(utilidadesAntesArriendo, currency)}
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between text-lg">
                     <span className="font-bold">Total:</span>
@@ -1654,15 +1680,26 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
             {(opex?.comisiones || []).map((com, idx) => (
               <Card key={idx} className="p-4 bg-muted/50">
                 <div className="space-y-3">
-                  <Input
-                    placeholder="Concepto (ej: Comisión ventas)"
-                    value={com.concepto}
-                    onChange={(e) => updateComision(idx, { concepto: e.target.value })}
-                    className="h-8"
-                  />
+                  <div className="flex items-start gap-2">
+                    <Input
+                      placeholder="Concepto (ej: Comisión ventas)"
+                      value={com.concepto}
+                      onChange={(e) => updateComision(idx, { concepto: e.target.value })}
+                      className="h-8 flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeComision(idx)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                   
                   <div className="grid grid-cols-12 gap-3 items-center">
                     <div className="col-span-6">
+                      <Label className="text-xs text-muted-foreground">Base de cálculo</Label>
                       <Select
                         value={com.base || 'ingresos-brutos'}
                         onValueChange={(v) => updateComision(idx, { base: v as ComisionItem['base'] })}
@@ -1671,44 +1708,67 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="ingresos-brutos">Ingresos Brutos</SelectItem>
-                          <SelectItem value="ingresos-netos">Ingresos Netos</SelectItem>
-                          <SelectItem value="utilidades">Utilidades (EBITDA)</SelectItem>
+                          <SelectItem value="ingresos-brutos">💰 Ingresos Brutos</SelectItem>
+                          <SelectItem value="ingresos-netos">📉 Ingresos Netos</SelectItem>
+                          <SelectItem value="utilidades">📊 Utilidades (EBITDA)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     
-                    <div className="col-span-3 flex gap-1 items-center">
-                      <Input
-                        type="number"
-                        placeholder="%"
-                        value={com.porcentaje || 0}
-                        onChange={(e) => updateComision(idx, { porcentaje: Number(e.target.value) })}
-                        className="h-8 text-sm"
-                        min="0"
-                        step="0.1"
-                      />
-                      <span className="text-muted-foreground text-xs">%</span>
-                    </div>
-                    
-                    <div className="col-span-2 text-right text-sm font-semibold text-rose-600 dark:text-rose-400">
-                      {formatCurrency(
-                        getComisionBaseValue(com.base) * ((com.porcentaje || 0) / 100),
-                        currency
-                      )}
-                    </div>
-                    
-                    <div className="col-span-1 flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeComision(idx)}
-                        className="h-7 w-7 p-0"
-                      >
-                        <X className="w-4 h-4 text-destructive" />
-                      </Button>
+                    <div className="col-span-6">
+                      <Label className="text-xs text-muted-foreground">Porcentaje</Label>
+                      <div className="flex gap-1 items-center">
+                        <Input
+                          type="number"
+                          placeholder="%"
+                          value={com.porcentaje || 0}
+                          onChange={(e) => updateComision(idx, { porcentaje: Number(e.target.value) })}
+                          className="h-8 text-sm"
+                          min="0"
+                          step="0.1"
+                        />
+                        <span className="text-muted-foreground text-xs">%</span>
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* Calculation details card */}
+                  <Card className="bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800 p-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Base ({
+                            com.base === 'ingresos-brutos' ? 'Ingresos Brutos' :
+                            com.base === 'ingresos-netos' ? 'Ingresos Netos' :
+                            com.base === 'utilidades' ? 'Utilidades' :
+                            'Ingresos Brutos'
+                          }):
+                        </span>
+                        <span className="font-semibold">
+                          {formatCurrency(getComisionBaseValue(com.base), currency)}
+                        </span>
+                      </div>
+                      {com.base === 'utilidades' && (
+                        <div className="text-[10px] text-muted-foreground">
+                          = Ingresos Brutos ({formatCurrency(ingresos.totalBruto, currency)}) - OPEX sin comisiones ({formatCurrency(opexSinComisiones, currency)})
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">× {com.porcentaje || 0}%</span>
+                        <span></span>
+                      </div>
+                      <Separator className="my-1" />
+                      <div className="flex justify-between text-sm">
+                        <span className="font-bold">Comisión:</span>
+                        <span className="font-bold text-rose-600 dark:text-rose-400">
+                          {formatCurrency(
+                            getComisionBaseValue(com.base) * ((com.porcentaje || 0) / 100),
+                            currency
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
               </Card>
             ))}
