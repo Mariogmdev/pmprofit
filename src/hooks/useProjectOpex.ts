@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectOpex, NominaItem, ServiceItem, ComisionItem, RentCalculationBase, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { Json } from '@/integrations/supabase/types';
@@ -11,34 +11,43 @@ const parseJsonArray = <T>(data: Json | null, fallback: T[] = []): T[] => {
 };
 
 // Global store for OPEX data to share state between hook instances
-const opexStore = new Map<string, { opex: ProjectOpex | null; version: number }>();
-const listeners = new Set<() => void>();
+type OpexStoreEntry = { opex: ProjectOpex | null; version: number };
+const opexStore = new Map<string, OpexStoreEntry>();
+const listenersByProject = new Map<string, Set<(entry: OpexStoreEntry) => void>>();
 
-const notifyListeners = () => {
-  listeners.forEach(listener => listener());
+const notifyProjectListeners = (projectId: string) => {
+  const entry = opexStore.get(projectId) || { opex: null, version: 0 };
+  const listeners = listenersByProject.get(projectId);
+  if (!listeners) return;
+  listeners.forEach((cb) => cb(entry));
 };
 
-const subscribeToStore = (callback: () => void) => {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
-};
-
-const getSnapshot = (projectId: string) => {
-  return opexStore.get(projectId) || { opex: null, version: 0 };
+const subscribeProject = (projectId: string, cb: (entry: OpexStoreEntry) => void) => {
+  if (!listenersByProject.has(projectId)) listenersByProject.set(projectId, new Set());
+  listenersByProject.get(projectId)!.add(cb);
+  return () => {
+    const set = listenersByProject.get(projectId);
+    if (!set) return;
+    set.delete(cb);
+    if (set.size === 0) listenersByProject.delete(projectId);
+  };
 };
 
 export const useProjectOpex = (projectId: string) => {
   const [loading, setLoading] = useState(true);
   const lastUpdateRef = useRef<string>('');
 
-  // Use external store to sync across all hook instances
-  const storeData = useSyncExternalStore(
-    subscribeToStore,
-    () => getSnapshot(projectId),
-    () => getSnapshot(projectId)
-  );
+  // Local state mirrors the global store entry for this project
+  const [entry, setEntry] = useState<OpexStoreEntry>(() => opexStore.get(projectId) || { opex: null, version: 0 });
+  const opex = entry.opex;
 
-  const opex = storeData.opex;
+  // Subscribe to changes for this projectId so all hook instances stay in sync
+  useEffect(() => {
+    if (!projectId) return;
+    // Ensure local state starts from current snapshot
+    setEntry(opexStore.get(projectId) || { opex: null, version: 0 });
+    return subscribeProject(projectId, setEntry);
+  }, [projectId]);
 
   useEffect(() => {
     const loadOpex = async () => {
@@ -147,11 +156,11 @@ export const useProjectOpex = (projectId: string) => {
         };
 
         const currentData = opexStore.get(projectId);
-        opexStore.set(projectId, { 
-          opex: parsedOpex, 
-          version: (currentData?.version || 0) + 1 
+        opexStore.set(projectId, {
+          opex: parsedOpex,
+          version: (currentData?.version || 0) + 1,
         });
-        notifyListeners();
+        notifyProjectListeners(projectId);
       }
       
       setLoading(false);
@@ -175,7 +184,7 @@ export const useProjectOpex = (projectId: string) => {
       opex: newOpex, 
       version: currentData.version + 1 
     });
-    notifyListeners();
+    notifyProjectListeners(projectId);
     
     // Convert to DB-compatible format
     const dbUpdates: Record<string, unknown> = {
@@ -195,7 +204,7 @@ export const useProjectOpex = (projectId: string) => {
       console.error('Error updating opex:', error);
       // Revert on error
       opexStore.set(projectId, currentData);
-      notifyListeners();
+      notifyProjectListeners(projectId);
     }
   }, [projectId]);
 
