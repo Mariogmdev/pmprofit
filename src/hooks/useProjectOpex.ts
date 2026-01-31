@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectOpex, NominaItem, ServiceItem, ComisionItem, RentCalculationBase, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { Json } from '@/integrations/supabase/types';
@@ -10,10 +10,35 @@ const parseJsonArray = <T>(data: Json | null, fallback: T[] = []): T[] => {
   return fallback;
 };
 
+// Global store for OPEX data to share state between hook instances
+const opexStore = new Map<string, { opex: ProjectOpex | null; version: number }>();
+const listeners = new Set<() => void>();
+
+const notifyListeners = () => {
+  listeners.forEach(listener => listener());
+};
+
+const subscribeToStore = (callback: () => void) => {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+};
+
+const getSnapshot = (projectId: string) => {
+  return opexStore.get(projectId) || { opex: null, version: 0 };
+};
+
 export const useProjectOpex = (projectId: string) => {
-  const [opex, setOpex] = useState<ProjectOpex | null>(null);
   const [loading, setLoading] = useState(true);
   const lastUpdateRef = useRef<string>('');
+
+  // Use external store to sync across all hook instances
+  const storeData = useSyncExternalStore(
+    subscribeToStore,
+    () => getSnapshot(projectId),
+    () => getSnapshot(projectId)
+  );
+
+  const opex = storeData.opex;
 
   useEffect(() => {
     const loadOpex = async () => {
@@ -81,7 +106,7 @@ export const useProjectOpex = (projectId: string) => {
       }
       
       if (data) {
-        setOpex({
+        const parsedOpex: ProjectOpex = {
           id: data.id,
           project_id: data.project_id,
           nomina_administrativa: parseJsonArray<NominaItem>(data.nomina_administrativa),
@@ -104,7 +129,6 @@ export const useProjectOpex = (projectId: string) => {
           otros_gastos: parseJsonArray<ServiceItem>(data.otros_gastos),
           comisiones: parseJsonArray<ComisionItem>(data.comisiones),
           depreciacion_anos: data.depreciacion_anos ?? 10,
-          // New fields
           incluir_depreciacion: data.incluir_depreciacion ?? true,
           incluir_4x1000: data.incluir_4x1000 ?? false,
           comisiones_bancarias: parseJsonArray<BankCommissionItem>(data.comisiones_bancarias),
@@ -120,7 +144,14 @@ export const useProjectOpex = (projectId: string) => {
           retenciones: parseJsonArray<RetencionItem>(data.retenciones),
           impuestos: parseJsonArray<ServiceItem>(data.impuestos),
           updated_at: data.updated_at || new Date().toISOString(),
+        };
+
+        const currentData = opexStore.get(projectId);
+        opexStore.set(projectId, { 
+          opex: parsedOpex, 
+          version: (currentData?.version || 0) + 1 
         });
+        notifyListeners();
       }
       
       setLoading(false);
@@ -130,16 +161,21 @@ export const useProjectOpex = (projectId: string) => {
   }, [projectId]);
 
   const updateOpex = useCallback(async (updates: Partial<ProjectOpex>) => {
-    if (!opex || !projectId) return;
+    const currentData = opexStore.get(projectId);
+    if (!currentData?.opex || !projectId) return;
     
     // Debounce updates
     const updateKey = JSON.stringify(updates);
     if (updateKey === lastUpdateRef.current) return;
     lastUpdateRef.current = updateKey;
     
-    // Optimistic update
-    const newOpex = { ...opex, ...updates };
-    setOpex(newOpex);
+    // Optimistic update - update store and notify all listeners
+    const newOpex = { ...currentData.opex, ...updates };
+    opexStore.set(projectId, { 
+      opex: newOpex, 
+      version: currentData.version + 1 
+    });
+    notifyListeners();
     
     // Convert to DB-compatible format
     const dbUpdates: Record<string, unknown> = {
@@ -158,9 +194,10 @@ export const useProjectOpex = (projectId: string) => {
     if (error) {
       console.error('Error updating opex:', error);
       // Revert on error
-      setOpex(opex);
+      opexStore.set(projectId, currentData);
+      notifyListeners();
     }
-  }, [opex, projectId]);
+  }, [projectId]);
 
   return { opex, loading, updateOpex };
 };
