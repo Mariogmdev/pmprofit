@@ -8,6 +8,7 @@ import { DashboardMetrics, DashboardInsight, ProjectionYear, ActivityInsight, Sp
 import { ActivityConfig } from '@/types/activity';
 import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { ProjectSpace } from '@/types/infrastructure';
+import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
 
 // Helper to generate unique IDs
 const generateId = () => crypto.randomUUID();
@@ -373,85 +374,56 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
     if (puntoEquilibrioMes === 0) puntoEquilibrioMes = projectionYears * 12 + 12;
 
-    // === GENERATE ACTIVITY INSIGHTS ===
-    const activityInsights: ActivityInsight[] = activities.map((act, idx) => {
+    // === GENERATE ACTIVITY INSIGHTS (Using centralized calculations) ===
+    const daysPerMonth = currentProject?.days_per_month || 30;
+    
+    // First pass: calculate total users for traffic activities
+    const totalClubUsersFromOtherActivities = activities
+      .filter(a => a.config.modeloIngreso !== 'trafico')
+      .reduce((sum, a) => {
+        const financials = calculateActivityFinancials(a.config, daysPerMonth, 0);
+        return sum + financials.totalUsuariosMes;
+      }, 0);
+    
+    const activityInsights: ActivityInsight[] = activities.map((act) => {
       const config: ActivityConfig = act.config;
-      const cantidad = config.cantidad || 1;
-      const horarios = config.horarios || [];
       
-      // Calculate activity income
-      const tarifaPromedio = horarios.length > 0 
-        ? horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length 
-        : 0;
-      const ocupacionPromedio = horarios.length > 0
-        ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length
-        : 50;
-      const ocupacionTarget = horarios.length > 0
-        ? horarios.reduce((s, h) => s + (h.tipo === 'pico' ? 80 : 50), 0) / horarios.length
-        : 60;
-      const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-      const diasMes = 30;
-      const duracion = config.duracionReserva || 1.5;
-      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * (ocupacionPromedio / 100) * diasMes / duracion;
+      // Use centralized calculation - SAME as Constructor
+      const financials = calculateActivityFinancials(
+        config, 
+        daysPerMonth, 
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
       
-      // Calculate activity CAPEX
-      const tipoCubierta = config.tipoCubierta || 'cubierta';
-      let capexConstruccion = 0;
-      if (tipoCubierta === 'cubierta') {
-        capexConstruccion = (config.capexCubierta || 0) * cantidad;
-      } else if (tipoCubierta === 'semicubierta') {
-        capexConstruccion = (config.capexSemicubierta || 0) * cantidad;
-      } else {
-        capexConstruccion = (config.capexAireLibre || 0) * cantidad;
-      }
-      const equipamientoTotal = (config.equipamientoEspecifico || []).reduce(
-        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
-      );
-      const consumiblesTotal = (config.consumibles || []).reduce(
-        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
-      );
-      const mobiliarioTotal = (config.mobiliario || []).reduce(
-        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
-      );
-      const actCapex = capexConstruccion + equipamientoTotal + consumiblesTotal + mobiliarioTotal;
-      
-      // Calculate activity OPEX
-      const personalCost = (config.personal || []).reduce(
-        (s, p) => s + ((p.cantidad || 0) * (p.salarioMensual || 0)), 0
-      );
-      const mantenimientoCost = (config.mantenimiento || []).reduce(
-        (s, m) => s + ((m.costoAnual || 0) / 12), 0
-      );
-      const actOpex = personalCost + mantenimientoCost;
-      
-      const actEbitda = ingresoEstimado - actOpex;
-      const actMargen = ingresoEstimado > 0 ? (actEbitda / ingresoEstimado) * 100 : 0;
-      const actPayback = actEbitda > 0 ? Math.ceil(actCapex / actEbitda) : 999;
-      const actRoi = actCapex > 0 ? ((actEbitda * 12) / actCapex) * 100 : 0;
+      const ocupacionTarget = calculateOccupancyTarget(config);
       
       // Generate activity-specific insights
       const actInsights: ActivityInsight['insights'] = [];
       
-      if (actMargen >= 40) {
+      if (financials.margenEbitda >= 40) {
         actInsights.push({ type: 'success', message: 'Margen saludable (>40%)', action: undefined });
-      } else if (actMargen < 20) {
-        actInsights.push({ type: 'warning', message: `Margen bajo (${actMargen.toFixed(0)}%). Revisar tarifas o costos.` });
+      } else if (financials.margenEbitda < 20) {
+        actInsights.push({ type: 'warning', message: `Margen bajo (${financials.margenEbitda.toFixed(0)}%). Revisar tarifas o costos.` });
       }
       
-      if (ocupacionPromedio >= ocupacionTarget * 0.9) {
+      if (financials.ocupacionPromedio >= ocupacionTarget * 0.9) {
         actInsights.push({ type: 'success', message: 'Ocupación cerca del objetivo' });
-      } else if (ocupacionPromedio < ocupacionTarget * 0.7) {
-        actInsights.push({ type: 'warning', message: `Ocupación baja (${ocupacionPromedio.toFixed(0)}% vs ${ocupacionTarget.toFixed(0)}% target)` });
+      } else if (financials.ocupacionPromedio < ocupacionTarget * 0.7) {
+        actInsights.push({ type: 'warning', message: `Ocupación baja (${financials.ocupacionPromedio.toFixed(0)}% vs ${ocupacionTarget.toFixed(0)}% target)` });
       }
       
-      if (actPayback <= 24) {
-        actInsights.push({ type: 'success', message: `Payback rápido: ${actPayback} meses` });
-      } else if (actPayback > 48) {
-        actInsights.push({ type: 'warning', message: `Payback largo: ${actPayback} meses` });
+      if (financials.paybackMeses <= 24) {
+        actInsights.push({ type: 'success', message: `Payback rápido: ${financials.paybackMeses} meses` });
+      } else if (financials.paybackMeses > 48) {
+        actInsights.push({ type: 'warning', message: `Payback largo: ${financials.paybackMeses} meses` });
       }
       
-      if (ingresoEstimado > 0 && actCapex === 0) {
+      if (financials.ingresosMensuales > 0 && financials.capexTotal === 0) {
         actInsights.push({ type: 'opportunity', message: 'Sin CAPEX registrado - Verificar inversión' });
+      }
+
+      if (financials.ebitdaMensual < 0) {
+        actInsights.push({ type: 'warning', message: 'EBITDA negativo - Requiere atención' });
       }
       
       return {
@@ -459,21 +431,21 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         nombre: act.name,
         icon: act.icon || '📦',
         categoria: config.modeloIngreso || 'reserva',
-        ingresosMensuales: ingresoEstimado,
-        opexMensual: actOpex,
-        ebitdaMensual: actEbitda,
-        margenEbitda: actMargen,
-        ocupacionPromedio,
+        ingresosMensuales: financials.ingresosMensuales,
+        opexMensual: financials.opexMensual,
+        ebitdaMensual: financials.ebitdaMensual,
+        margenEbitda: financials.margenEbitda,
+        ocupacionPromedio: financials.ocupacionPromedio,
         ocupacionTarget,
-        capacidadUtilizada: ocupacionTarget > 0 ? (ocupacionPromedio / ocupacionTarget) * 100 : 0,
-        capex: actCapex,
-        paybackMeses: actPayback,
-        roiAnual: actRoi,
+        capacidadUtilizada: ocupacionTarget > 0 ? (financials.ocupacionPromedio / ocupacionTarget) * 100 : 0,
+        capex: financials.capexTotal,
+        paybackMeses: financials.paybackMeses,
+        roiAnual: financials.roiAnual,
         rankingIngresos: 0, // Will be calculated after
         rankingMargen: 0,
         rankingROI: 0,
         insights: actInsights,
-        porcentajeIngresosTotales: ingresosBrutosAno1 > 0 ? (ingresoEstimado / ingresosBrutosAno1) * 100 : 0,
+        porcentajeIngresosTotales: ingresosBrutosAno1 > 0 ? (financials.ingresosMensuales / ingresosBrutosAno1) * 100 : 0,
         porcentajeOpexTotales: 0, // Will calculate after
       };
     });
