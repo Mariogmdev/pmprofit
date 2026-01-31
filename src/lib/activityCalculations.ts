@@ -1,14 +1,25 @@
 /**
  * Centralized activity financial calculations
  * Used by both Constructor and Dashboard for consistent numbers
+ * 
+ * CRITICAL: All calculations properly weight:
+ * - L-V (Lunes-Viernes): 5 days per week
+ * - S-D (Sábado-Domingo): 2 days per week
+ * - Uses 4.33 weeks/month (not 30 days directly)
  */
 
 import { 
   ActivityConfig, 
+  ActivitySchedule,
   DEFAULT_MEMBERSHIP_CONFIG,
   DEFAULT_DAILY_PASS_CONFIG,
   DEFAULT_TRAFFIC_CONFIG,
 } from '@/types/activity';
+
+// Constants for weekly calculations
+const WEEKS_PER_MONTH = 4.33;
+const WEEKDAYS_LV = 5; // Lunes - Viernes
+const WEEKDAYS_SD = 2; // Sábado - Domingo
 
 export interface ActivityFinancials {
   // Income breakdown
@@ -45,11 +56,51 @@ export interface ActivityFinancials {
   totalUsuariosMes: number;
   totalHorasPico: number;
   totalHorasValle: number;
+  
+  // Weekly breakdown (for transparency)
+  ingresosDiaLV: number;
+  ingresosDiaSD: number;
+  ingresosSemana: number;
+}
+
+/**
+ * Calculate income per day for a set of schedules
+ * @param schedules - Array of schedules for a specific day type (LV or SD)
+ * @param cantidad - Number of courts/units
+ * @param duracion - Duration of each reservation in hours
+ */
+function calculateIngresosPorDia(
+  schedules: ActivitySchedule[],
+  cantidad: number,
+  duracion: number
+): { ingresos: number; turnos: number; usuarios: number } {
+  let ingresosDia = 0;
+  let turnosTotales = 0;
+  let usuariosTotales = 0;
+
+  schedules.forEach((horario) => {
+    const horas = Math.max(0, horario.fin - horario.inicio);
+    const turnosPorUnidad = duracion > 0 ? horas / duracion : 0;
+    const turnosDisponibles = turnosPorUnidad * cantidad;
+    const turnosOcupados = turnosDisponibles * (horario.ocupacion / 100);
+    const ingresosHorario = turnosOcupados * horario.tarifa;
+    
+    ingresosDia += ingresosHorario;
+    turnosTotales += turnosOcupados;
+  });
+
+  return {
+    ingresos: ingresosDia,
+    turnos: turnosTotales,
+    usuarios: usuariosTotales
+  };
 }
 
 /**
  * Calculate all financial metrics for a single activity
  * This is the SINGLE SOURCE OF TRUTH for activity calculations
+ * 
+ * IMPORTANT: Uses proper weekly weighting (5 days L-V, 2 days S-D)
  */
 export function calculateActivityFinancials(
   config: ActivityConfig,
@@ -63,7 +114,6 @@ export function calculateActivityFinancials(
   // Initialize values
   let totalHorasPico = 0;
   let totalHorasValle = 0;
-  let weightedTarifa = 0;
   let weightedOcupacion = 0;
   let ingresosHorarios = 0;
   let ingresosComplementarios = 0;
@@ -73,11 +123,21 @@ export function calculateActivityFinancials(
   let totalUsuariosMes = 0;
   let opexProfesores = 0;
   let opexCostoVentas = 0;
+  
+  // Weekly breakdown
+  let ingresosDiaLV = 0;
+  let ingresosDiaSD = 0;
+  let ingresosSemana = 0;
 
   // Only calculate schedule-based values for reservation model
   if (config.modeloIngreso === 'reserva' || config.modeloIngreso === 'mixto') {
     const schedules = config.horarios || [];
     
+    // Separate schedules by day type
+    const horariosLV = schedules.filter(h => h.diaSemana === 'LV' || !h.diaSemana);
+    const horariosSD = schedules.filter(h => h.diaSemana === 'SD');
+    
+    // Calculate totals for summary (all schedules)
     schedules.forEach((s) => {
       const hours = Math.max(0, s.fin - s.inicio);
       if (s.tipo === 'pico') {
@@ -85,24 +145,42 @@ export function calculateActivityFinancials(
       } else {
         totalHorasValle += hours;
       }
-      weightedTarifa += s.tarifa * hours;
       weightedOcupacion += s.ocupacion * hours;
     });
     
-    // Calculate hourly income
-    schedules.forEach((s) => {
-      const hoursPerDay = Math.max(0, s.fin - s.inicio);
-      const reservasPerDay = hoursPerDay / duracion;
-      const ocupacion = s.ocupacion / 100;
-      const reservasPerMonth = reservasPerDay * cantidad * ocupacion * daysPerMonth;
-      ingresosHorarios += reservasPerMonth * s.tarifa;
-    });
+    // Calculate income per day for L-V (Lunes-Viernes)
+    const resultLV = calculateIngresosPorDia(horariosLV, cantidad, duracion);
+    ingresosDiaLV = resultLV.ingresos;
+    
+    // Calculate income per day for S-D (Sábado-Domingo)
+    const resultSD = calculateIngresosPorDia(horariosSD, cantidad, duracion);
+    ingresosDiaSD = resultSD.ingresos;
+    
+    // Calculate weekly income (properly weighted)
+    ingresosSemana = (ingresosDiaLV * WEEKDAYS_LV) + (ingresosDiaSD * WEEKDAYS_SD);
+    
+    // Calculate monthly income (4.33 weeks per month)
+    ingresosHorarios = ingresosSemana * WEEKS_PER_MONTH;
 
     // Total users calculation for reservations
-    const totalHours = totalHorasPico + totalHorasValle;
-    const turnosPorDia = duracion > 0 ? totalHours / duracion : 0;
-    const ocupacionPromedioCalc = totalHours > 0 ? weightedOcupacion / totalHours : 0;
-    const totalReservasMes = turnosPorDia * cantidad * (ocupacionPromedioCalc / 100) * daysPerMonth;
+    // Calculate turns per day for each day type
+    const turnosDiaLV = horariosLV.reduce((sum, h) => {
+      const horas = Math.max(0, h.fin - h.inicio);
+      const turnosPorUnidad = duracion > 0 ? horas / duracion : 0;
+      const turnosDisponibles = turnosPorUnidad * cantidad;
+      return sum + turnosDisponibles * (h.ocupacion / 100);
+    }, 0);
+    
+    const turnosDiaSD = horariosSD.reduce((sum, h) => {
+      const horas = Math.max(0, h.fin - h.inicio);
+      const turnosPorUnidad = duracion > 0 ? horas / duracion : 0;
+      const turnosDisponibles = turnosPorUnidad * cantidad;
+      return sum + turnosDisponibles * (h.ocupacion / 100);
+    }, 0);
+    
+    // Weekly turns and monthly reservations
+    const turnosSemana = (turnosDiaLV * WEEKDAYS_LV) + (turnosDiaSD * WEEKDAYS_SD);
+    const totalReservasMes = turnosSemana * WEEKS_PER_MONTH;
     totalUsuariosMes = totalReservasMes * jugadores;
     
     // Complementary income (rentals)
@@ -243,6 +321,9 @@ export function calculateActivityFinancials(
     totalUsuariosMes,
     totalHorasPico,
     totalHorasValle,
+    ingresosDiaLV,
+    ingresosDiaSD,
+    ingresosSemana,
   };
 }
 
