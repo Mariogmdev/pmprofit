@@ -204,10 +204,13 @@ export type Database = {
         Row: {
           administrativos: Json | null
           arrendamiento_fijo: number | null
+          arrendamiento_mixto_base: string | null
           arrendamiento_mixto_fijo: number | null
           arrendamiento_mixto_porcentaje: number | null
           arrendamiento_modelo: string | null
+          arrendamiento_variable_base: string | null
           arrendamiento_variable_porcentaje: number | null
+          comisiones: Json | null
           depreciacion_anos: number | null
           id: string
           mantenimiento_general: Json | null
@@ -217,6 +220,7 @@ export type Database = {
           otros_gastos: Json | null
           prestaciones_porcentaje: number | null
           project_id: string
+          seguridad: Json | null
           seguros: Json | null
           servicios_publicos: Json | null
           tecnologia: Json | null
@@ -225,10 +229,13 @@ export type Database = {
         Insert: {
           administrativos?: Json | null
           arrendamiento_fijo?: number | null
+          arrendamiento_mixto_base?: string | null
           arrendamiento_mixto_fijo?: number | null
           arrendamiento_mixto_porcentaje?: number | null
           arrendamiento_modelo?: string | null
+          arrendamiento_variable_base?: string | null
           arrendamiento_variable_porcentaje?: number | null
+          comisiones?: Json | null
           depreciacion_anos?: number | null
           id?: string
           mantenimiento_general?: Json | null
@@ -238,6 +245,7 @@ export type Database = {
           otros_gastos?: Json | null
           prestaciones_porcentaje?: number | null
           project_id: string
+          seguridad?: Json | null
           seguros?: Json | null
           servicios_publicos?: Json | null
           tecnologia?: Json | null
@@ -246,10 +254,13 @@ export type Database = {
         Update: {
           administrativos?: Json | null
           arrendamiento_fijo?: number | null
+          arrendamiento_mixto_base?: string | null
           arrendamiento_mixto_fijo?: number | null
           arrendamiento_mixto_porcentaje?: number | null
           arrendamiento_modelo?: string | null
+          arrendamiento_variable_base?: string | null
           arrendamiento_variable_porcentaje?: number | null
+          comisiones?: Json | null
           depreciacion_anos?: number | null
           id?: string
           mantenimiento_general?: Json | null
@@ -259,6 +270,7 @@ export type Database = {
           otros_gastos?: Json | null
           prestaciones_porcentaje?: number | null
           project_id?: string
+          seguridad?: Json | null
           seguros?: Json | null
           servicios_publicos?: Json | null
           tecnologia?: Json | null

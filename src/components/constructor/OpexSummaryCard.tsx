@@ -9,6 +9,7 @@ import { useObraCivil } from '@/hooks/useObraCivil';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types/index';
 import { ActivityConfig } from '@/types/activity';
+import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { Receipt, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,23 +25,12 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
   const { obraCivil } = useObraCivil(projectId);
 
   const summary = useMemo(() => {
-    // Payroll from activities
-    const nominaActividades = activities.reduce((sum, act) => {
-      const config: ActivityConfig = act.config;
-      const personal = config.personal || [];
-      return sum + personal.reduce((s, p) => s + ((p.cantidad || 0) * (p.salarioMensual || 0)), 0);
-    }, 0);
+    // === INCOME CALCULATIONS ===
+    let ingresosBrutos = 0;
+    let ingresosOperacionales = 0;
+    let totalReservas = 0;
 
-    // Maintenance from activities (annual cost / 12 for monthly)
-    const mantenimientoActividades = activities.reduce((sum, act) => {
-      const config: ActivityConfig = act.config;
-      const mantenimiento = config.mantenimiento || [];
-      const costoAnual = mantenimiento.reduce((s, m) => s + (m.costoAnual || 0), 0);
-      return sum + (costoAnual / 12);
-    }, 0);
-
-    // Monthly revenue from activities (simplified estimate)
-    const ingresosMensuales = activities.reduce((sum, act) => {
+    activities.forEach(act => {
       const config: ActivityConfig = act.config;
       const cantidad = config.cantidad || 1;
       const horarios = config.horarios || [];
@@ -52,11 +42,33 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
         : 0.5;
       const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
       const diasMes = 30;
-      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * ocupacionPromedio * diasMes / (config.duracionReserva || 1.5);
-      return sum + ingresoEstimado;
+      const duracion = config.duracionReserva || 1.5;
+      const reservasPorDia = horasOperacion * ocupacionPromedio / duracion;
+      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * ocupacionPromedio * diasMes / duracion;
+      
+      ingresosBrutos += ingresoEstimado;
+      ingresosOperacionales += ingresoEstimado;
+      totalReservas += cantidad * reservasPorDia * diasMes;
+    });
+
+    const ingresosNetos = ingresosBrutos * 0.85; // 15% third-party costs
+
+    // === PAYROLL FROM ACTIVITIES ===
+    const nominaActividades = activities.reduce((sum, act) => {
+      const config: ActivityConfig = act.config;
+      const personal = config.personal || [];
+      return sum + personal.reduce((s, p) => s + ((p.cantidad || 0) * (p.salarioMensual || 0)), 0);
     }, 0);
 
-    // CAPEX calculation for depreciation
+    // === MAINTENANCE FROM ACTIVITIES ===
+    const mantenimientoActividades = activities.reduce((sum, act) => {
+      const config: ActivityConfig = act.config;
+      const mantenimiento = config.mantenimiento || [];
+      const costoAnual = mantenimiento.reduce((s, m) => s + (m.costoAnual || 0), 0);
+      return sum + (costoAnual / 12);
+    }, 0);
+
+    // === CAPEX CALCULATION ===
     const capexActividades = activities.reduce((sum, activity) => {
       const config: ActivityConfig = activity.config;
       const cantidad = config.cantidad || 1;
@@ -91,7 +103,22 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
     const capexTotal = capexActividades + capexEspacios + capexObraCivil;
 
-    // Calculate individual categories
+    // === HELPER: Calculate category total with variable types ===
+    const calculateCategoryTotal = (items: ServiceItem[]) => {
+      return (items || []).reduce((sum, item) => {
+        const tipo = item.tipo || 'fijo';
+        if (tipo === 'fijo') {
+          return sum + (item.costoMensual || 0);
+        } else if (tipo === 'porcentaje-facturacion') {
+          return sum + (ingresosBrutos * ((item.porcentaje || 0) / 100));
+        } else if (tipo === 'por-reserva') {
+          return sum + ((item.costoPorReserva || 0) * totalReservas);
+        }
+        return sum;
+      }, 0);
+    };
+
+    // === 1. PAYROLL ===
     const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
       (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
     );
@@ -102,52 +129,96 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     const prestaciones = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
     const totalNomina = nominaBase + prestaciones;
 
-    // Rent
-    let arrendamiento = 0;
-    const modelo = opex?.arrendamiento_modelo || 'propio';
-    if (modelo === 'fijo') arrendamiento = opex?.arrendamiento_fijo || 0;
-    if (modelo === 'variable') arrendamiento = ingresosMensuales * ((opex?.arrendamiento_variable_porcentaje || 0) / 100);
-    if (modelo === 'mixto') {
-      arrendamiento = (opex?.arrendamiento_mixto_fijo || 0) + 
-                      ingresosMensuales * ((opex?.arrendamiento_mixto_porcentaje || 0) / 100);
-    }
+    // === 2-10. CATEGORIES ===
+    const serviciosPublicos = calculateCategoryTotal(opex?.servicios_publicos || []);
+    const marketing = calculateCategoryTotal(opex?.marketing || []);
+    const tecnologia = calculateCategoryTotal(opex?.tecnologia || []);
+    const seguridad = calculateCategoryTotal(opex?.seguridad || []);
+    const seguros = calculateCategoryTotal(opex?.seguros || []);
+    const mantenimientoGeneral = calculateCategoryTotal(opex?.mantenimiento_general || []);
+    const administrativos = calculateCategoryTotal(opex?.administrativos || []);
+    const otrosGastos = calculateCategoryTotal(opex?.otros_gastos || []);
 
-    // Other categories
-    const serviciosPublicos = (opex?.servicios_publicos || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    const marketing = (opex?.marketing || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    const tecnologia = (opex?.tecnologia || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    const seguros = (opex?.seguros || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    const mantenimientoGeneral = (opex?.mantenimiento_general || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    const administrativos = (opex?.administrativos || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-    const otrosGastos = (opex?.otros_gastos || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
-
-    // Depreciation
+    // === DEPRECIATION ===
     const depreciacionAnos = opex?.depreciacion_anos || 10;
     const depreciacion = capexTotal / depreciacionAnos / 12;
 
-    // Total OPEX
-    const opexMensualTotal = totalNomina + arrendamiento + serviciosPublicos + marketing +
-      tecnologia + seguros + mantenimientoGeneral + mantenimientoActividades +
+    // === SUBTOTAL (without rent and commissions for calculating utilities) ===
+    const opexSinArriendoNiComisiones = totalNomina + serviciosPublicos + marketing +
+      tecnologia + seguridad + seguros + mantenimientoGeneral + mantenimientoActividades +
       administrativos + otrosGastos + depreciacion;
 
-    // Metrics
-    const opexComoPorcentaje = ingresosMensuales > 0 ? (opexMensualTotal / ingresosMensuales) * 100 : 0;
-    const ebitdaMensual = ingresosMensuales - (opexMensualTotal - depreciacion);
-    const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
+    // === HELPER: Calculate rent base ===
+    const calculateRentBase = (base: RentCalculationBase): number => {
+      switch (base) {
+        case 'ingresos-brutos':
+          return ingresosBrutos;
+        case 'ingresos-netos':
+          return ingresosNetos;
+        case 'utilidades':
+          return ingresosBrutos - opexSinArriendoNiComisiones;
+        case 'ingresos-operacionales':
+          return ingresosOperacionales;
+        default:
+          return ingresosBrutos;
+      }
+    };
+
+    // === RENT ===
+    let arrendamiento = 0;
+    const modelo = opex?.arrendamiento_modelo || 'propio';
+    if (modelo === 'fijo') {
+      arrendamiento = opex?.arrendamiento_fijo || 0;
+    } else if (modelo === 'variable') {
+      const base = calculateRentBase(opex?.arrendamiento_variable_base || 'ingresos-brutos');
+      arrendamiento = base * ((opex?.arrendamiento_variable_porcentaje || 0) / 100);
+    } else if (modelo === 'mixto') {
+      const base = calculateRentBase(opex?.arrendamiento_mixto_base || 'ingresos-brutos');
+      arrendamiento = (opex?.arrendamiento_mixto_fijo || 0) + 
+                      base * ((opex?.arrendamiento_mixto_porcentaje || 0) / 100);
+    }
+
+    // === UTILITIES BEFORE COMMISSIONS ===
+    const utilidadesAntesComisiones = ingresosBrutos - opexSinArriendoNiComisiones - arrendamiento;
+
+    // === COMMISSIONS ===
+    const comisiones = (opex?.comisiones || []).reduce((sum, com) => {
+      let base = ingresosBrutos;
+      if (com.base === 'ingresos-netos') base = ingresosNetos;
+      if (com.base === 'utilidades') base = utilidadesAntesComisiones;
+      return sum + (base * ((com.porcentaje || 0) / 100));
+    }, 0);
+
+    // === TOTAL OPEX ===
+    const opexMensualTotal = opexSinArriendoNiComisiones + arrendamiento + comisiones;
+
+    // === METRICS ===
+    const ebitdaMensual = ingresosBrutos - (opexMensualTotal - depreciacion);
+    const opexComoPorcentaje = ingresosBrutos > 0 ? (opexMensualTotal / ingresosBrutos) * 100 : 0;
+    const margenEbitda = ingresosBrutos > 0 ? (ebitdaMensual / ingresosBrutos) * 100 : 0;
 
     return {
+      // Categories
+      nominaAdmin,
+      nominaOperativo,
+      nominaActividades,
+      prestaciones,
       totalNomina,
       arrendamiento,
       serviciosPublicos,
       marketing,
       tecnologia,
+      seguridad,
       seguros,
-      mantenimientoGeneral: mantenimientoGeneral + mantenimientoActividades,
+      mantenimientoGeneral,
+      mantenimientoActividades,
       administrativos,
       otrosGastos,
+      comisiones,
       depreciacion,
+      // Totals
       opexMensualTotal,
-      ingresosMensuales,
+      ingresosMensuales: ingresosBrutos,
       opexComoPorcentaje,
       ebitdaMensual,
       margenEbitda,
@@ -191,12 +262,18 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
             <span className="font-semibold">{formatCurrency(summary.tecnologia, currency)}</span>
           </div>
           <div className="flex justify-between">
+            <span className="text-muted-foreground">Seguridad:</span>
+            <span className="font-semibold">{formatCurrency(summary.seguridad, currency)}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-muted-foreground">Seguros:</span>
             <span className="font-semibold">{formatCurrency(summary.seguros, currency)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Mantenimiento:</span>
-            <span className="font-semibold">{formatCurrency(summary.mantenimientoGeneral, currency)}</span>
+            <span className="font-semibold">
+              {formatCurrency(summary.mantenimientoGeneral + summary.mantenimientoActividades, currency)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Administrativos:</span>
@@ -205,6 +282,10 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
           <div className="flex justify-between">
             <span className="text-muted-foreground">Otros Gastos:</span>
             <span className="font-semibold">{formatCurrency(summary.otrosGastos, currency)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Comisiones:</span>
+            <span className="font-semibold">{formatCurrency(summary.comisiones, currency)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Depreciación:</span>
