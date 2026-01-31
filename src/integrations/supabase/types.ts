@@ -200,6 +200,80 @@ export type Database = {
           },
         ]
       }
+      project_opex: {
+        Row: {
+          administrativos: Json | null
+          arrendamiento_fijo: number | null
+          arrendamiento_mixto_fijo: number | null
+          arrendamiento_mixto_porcentaje: number | null
+          arrendamiento_modelo: string | null
+          arrendamiento_variable_porcentaje: number | null
+          depreciacion_anos: number | null
+          id: string
+          mantenimiento_general: Json | null
+          marketing: Json | null
+          nomina_administrativa: Json | null
+          nomina_operativa: Json | null
+          otros_gastos: Json | null
+          prestaciones_porcentaje: number | null
+          project_id: string
+          seguros: Json | null
+          servicios_publicos: Json | null
+          tecnologia: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          administrativos?: Json | null
+          arrendamiento_fijo?: number | null
+          arrendamiento_mixto_fijo?: number | null
+          arrendamiento_mixto_porcentaje?: number | null
+          arrendamiento_modelo?: string | null
+          arrendamiento_variable_porcentaje?: number | null
+          depreciacion_anos?: number | null
+          id?: string
+          mantenimiento_general?: Json | null
+          marketing?: Json | null
+          nomina_administrativa?: Json | null
+          nomina_operativa?: Json | null
+          otros_gastos?: Json | null
+          prestaciones_porcentaje?: number | null
+          project_id: string
+          seguros?: Json | null
+          servicios_publicos?: Json | null
+          tecnologia?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          administrativos?: Json | null
+          arrendamiento_fijo?: number | null
+          arrendamiento_mixto_fijo?: number | null
+          arrendamiento_mixto_porcentaje?: number | null
+          arrendamiento_modelo?: string | null
+          arrendamiento_variable_porcentaje?: number | null
+          depreciacion_anos?: number | null
+          id?: string
+          mantenimiento_general?: Json | null
+          marketing?: Json | null
+          nomina_administrativa?: Json | null
+          nomina_operativa?: Json | null
+          otros_gastos?: Json | null
+          prestaciones_porcentaje?: number | null
+          project_id?: string
+          seguros?: Json | null
+          servicios_publicos?: Json | null
+          tecnologia?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_opex_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_spaces: {
         Row: {
           area: number | null
