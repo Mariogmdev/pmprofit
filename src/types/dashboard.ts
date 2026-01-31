@@ -16,6 +16,73 @@ export interface ProjectionYear {
   paybackAlcanzado: boolean;
 }
 
+// New: Activity-level insight
+export interface ActivityInsight {
+  activityId: string;
+  nombre: string;
+  icon: string;
+  categoria: string;
+  
+  // Financial metrics
+  ingresosMensuales: number;
+  opexMensual: number;
+  ebitdaMensual: number;
+  margenEbitda: number;
+  
+  // Operational metrics
+  ocupacionPromedio: number;
+  ocupacionTarget: number;
+  capacidadUtilizada: number;
+  
+  // ROI metrics
+  capex: number;
+  paybackMeses: number;
+  roiAnual: number;
+  
+  // Ranking
+  rankingIngresos: number;
+  rankingMargen: number;
+  rankingROI: number;
+  
+  // Activity-specific insights
+  insights: Array<{
+    type: 'success' | 'warning' | 'info' | 'opportunity';
+    message: string;
+    action?: string;
+  }>;
+  
+  // Comparative
+  porcentajeIngresosTotales: number;
+  porcentajeOpexTotales: number;
+}
+
+// New: Space-level insight
+export interface SpaceInsight {
+  spaceId: string;
+  nombre: string;
+  tipo: string;
+  area: number;
+  
+  // Financial
+  capex: number;
+  opexMensual: number;
+  ingresosMensuales: number;
+  
+  // Utilization
+  utilizacionEstimada: number;
+  capacidadMaxima: number;
+  
+  // ROI
+  roi: number;
+  paybackMeses: number;
+  
+  // Insights
+  insights: Array<{
+    type: 'success' | 'warning' | 'info';
+    message: string;
+  }>;
+}
+
 export interface DashboardMetrics {
   // Hero metrics
   ingresosMensualesAno1: number;
@@ -58,6 +125,13 @@ export interface DashboardMetrics {
   
   // Insights
   insights: DashboardInsight[];
+  
+  // NEW: Activity and space insights
+  activityInsights: ActivityInsight[];
+  spaceInsights: SpaceInsight[];
+  topActivitiesByRevenue: ActivityInsight[];
+  topActivitiesByMargin: ActivityInsight[];
+  worstPerformers: ActivityInsight[];
 }
 
 export interface DashboardInsight {
