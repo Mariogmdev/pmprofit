@@ -244,9 +244,11 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     }
 
     // === UTILITIES BEFORE COMMISSIONS ===
-    const utilidadesAntesComisiones = ingresosBrutos - opexSinArriendoNiComisiones - arrendamiento;
+    // OPEX sin comisiones = todo lo anterior + arrendamiento
+    const opexSinComisiones = opexSinArriendoNiComisiones + arrendamiento;
+    const utilidadesAntesComisiones = Math.max(0, ingresosBrutos - opexSinComisiones);
 
-    // === COMMISSIONS (FIXED) ===
+    // === COMMISSIONS (FIXED - use real utilities) ===
     const comisiones = (opex?.comisiones || []).reduce((sum, com) => {
       let base = ingresosBrutos;
       if (com.base === 'ingresos-netos') base = ingresosNetos;
@@ -255,7 +257,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     }, 0);
 
     // === TOTAL OPEX ===
-    const opexMensualTotal = opexSinArriendoNiComisiones + arrendamiento + comisiones;
+    const opexMensualTotal = opexSinComisiones + comisiones;
 
     // === METRICS ===
     const ebitdaMensual = ingresosBrutos - (opexMensualTotal - depreciacion);
