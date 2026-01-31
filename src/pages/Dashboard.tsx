@@ -7,7 +7,7 @@ import AppTabs from '@/components/layout/AppTabs';
 import ConfigurationTab from '@/components/tabs/ConfigurationTab';
 import ConstructorTab from '@/components/tabs/ConstructorTab';
 import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
-import PlaceholderTab from '@/components/tabs/PlaceholderTab';
+import { DashboardTab } from '@/components/dashboard/DashboardTab';
 
 export default function Dashboard() {
   const { saveStatus } = useProject();
@@ -23,7 +23,7 @@ export default function Dashboard() {
       case 'modules':
         return <ModuleCenterTab />;
       case 'summary':
-        return <PlaceholderTab title="Resumen - En Construcción" />;
+        return <DashboardTab onTabChange={setActiveTab} />;
       default:
         return <ConfigurationTab />;
     }
