@@ -804,51 +804,63 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     </div>
   );
 
-  // Render rent base selector
+  // Render rent base selector (using divs instead of RadioGroup to prevent auto-scroll)
   const renderRentBaseSelector = (currentBase: RentCalculationBase, onChange: (base: RentCalculationBase) => void) => (
     <div className="space-y-2">
       <Label className="text-sm">Calculado sobre:</Label>
-      <RadioGroup
-        value={currentBase}
-        onValueChange={(v) => onChange(v as RentCalculationBase)}
-        className="grid grid-cols-2 gap-2"
-      >
-        <Card className={cn("p-2 cursor-pointer transition-all text-center", 
-          currentBase === 'ingresos-brutos' && "border-blue-500 bg-blue-50 dark:bg-blue-950/30")}>
-          <RadioGroupItem value="ingresos-brutos" id="ing-brutos" className="sr-only" />
-          <Label htmlFor="ing-brutos" className="cursor-pointer text-xs">
-            <p className="font-medium">Ingresos Brutos</p>
-            <p className="text-muted-foreground mt-1">Total facturación</p>
-          </Label>
-        </Card>
+      <div className="grid grid-cols-2 gap-2">
+        <div
+          onClick={() => onChange('ingresos-brutos')}
+          className={cn(
+            "p-2 cursor-pointer transition-all text-center rounded-lg border-2",
+            currentBase === 'ingresos-brutos' 
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm" 
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+          )}
+        >
+          <p className="font-medium text-xs">Ingresos Brutos</p>
+          <p className="text-muted-foreground mt-1 text-xs">Total facturación</p>
+        </div>
         
-        <Card className={cn("p-2 cursor-pointer transition-all text-center", 
-          currentBase === 'ingresos-netos' && "border-green-500 bg-green-50 dark:bg-green-950/30")}>
-          <RadioGroupItem value="ingresos-netos" id="ing-netos" className="sr-only" />
-          <Label htmlFor="ing-netos" className="cursor-pointer text-xs">
-            <p className="font-medium">Ingresos Netos</p>
-            <p className="text-muted-foreground mt-1">Menos costos terceros</p>
-          </Label>
-        </Card>
+        <div
+          onClick={() => onChange('ingresos-netos')}
+          className={cn(
+            "p-2 cursor-pointer transition-all text-center rounded-lg border-2",
+            currentBase === 'ingresos-netos' 
+              ? "border-green-500 bg-green-50 dark:bg-green-950/30 shadow-sm" 
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+          )}
+        >
+          <p className="font-medium text-xs">Ingresos Netos</p>
+          <p className="text-muted-foreground mt-1 text-xs">Menos costos terceros</p>
+        </div>
         
-        <Card className={cn("p-2 cursor-pointer transition-all text-center", 
-          currentBase === 'utilidades' && "border-purple-500 bg-purple-50 dark:bg-purple-950/30")}>
-          <RadioGroupItem value="utilidades" id="utilidades" className="sr-only" />
-          <Label htmlFor="utilidades" className="cursor-pointer text-xs">
-            <p className="font-medium">Utilidades (EBITDA)</p>
-            <p className="text-muted-foreground mt-1">Ingresos - OPEX</p>
-          </Label>
-        </Card>
+        <div
+          onClick={() => onChange('utilidades')}
+          className={cn(
+            "p-2 cursor-pointer transition-all text-center rounded-lg border-2",
+            currentBase === 'utilidades' 
+              ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30 shadow-sm" 
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+          )}
+        >
+          <p className="font-medium text-xs">Utilidades (EBITDA)</p>
+          <p className="text-muted-foreground mt-1 text-xs">Ingresos - OPEX</p>
+        </div>
         
-        <Card className={cn("p-2 cursor-pointer transition-all text-center", 
-          currentBase === 'ingresos-operacionales' && "border-orange-500 bg-orange-50 dark:bg-orange-950/30")}>
-          <RadioGroupItem value="ingresos-operacionales" id="ing-oper" className="sr-only" />
-          <Label htmlFor="ing-oper" className="cursor-pointer text-xs">
-            <p className="font-medium">Ing. Operacionales</p>
-            <p className="text-muted-foreground mt-1">Solo actividades</p>
-          </Label>
-        </Card>
-      </RadioGroup>
+        <div
+          onClick={() => onChange('ingresos-operacionales')}
+          className={cn(
+            "p-2 cursor-pointer transition-all text-center rounded-lg border-2",
+            currentBase === 'ingresos-operacionales' 
+              ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30 shadow-sm" 
+              : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+          )}
+        >
+          <p className="font-medium text-xs">Ing. Operacionales</p>
+          <p className="text-muted-foreground mt-1 text-xs">Solo actividades</p>
+        </div>
+      </div>
     </div>
   );
 
@@ -963,43 +975,59 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
         <AccordionContent className="px-4 pt-4 space-y-4">
           <div>
             <Label>Modelo de Arrendamiento</Label>
-            <RadioGroup
-              value={opex?.arrendamiento_modelo || 'propio'}
-              onValueChange={(v) => updateOpex({ arrendamiento_modelo: v as any })}
-              className="grid grid-cols-4 gap-3 mt-2"
-            >
-              <Card className={cn("p-3 cursor-pointer transition-all", opex?.arrendamiento_modelo === 'propio' && "border-green-500 bg-green-50 dark:bg-green-950/30")}>
-                <RadioGroupItem value="propio" id="propio" className="sr-only" />
-                <Label htmlFor="propio" className="cursor-pointer flex flex-col items-center gap-1">
-                  <Home className="w-5 h-5" />
-                  <span className="text-sm">Propio</span>
-                </Label>
-              </Card>
+            <div className="grid grid-cols-4 gap-3 mt-2">
+              <div
+                onClick={() => updateOpex({ arrendamiento_modelo: 'propio' })}
+                className={cn(
+                  "p-3 cursor-pointer transition-all rounded-lg border-2 flex flex-col items-center gap-1",
+                  opex?.arrendamiento_modelo === 'propio' 
+                    ? "border-green-500 bg-green-50 dark:bg-green-950/30 shadow-sm" 
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+                )}
+              >
+                <Home className="w-5 h-5" />
+                <span className="text-sm">Propio</span>
+              </div>
               
-              <Card className={cn("p-3 cursor-pointer transition-all", opex?.arrendamiento_modelo === 'fijo' && "border-blue-500 bg-blue-50 dark:bg-blue-950/30")}>
-                <RadioGroupItem value="fijo" id="fijo" className="sr-only" />
-                <Label htmlFor="fijo" className="cursor-pointer flex flex-col items-center gap-1">
-                  <DollarSign className="w-5 h-5" />
-                  <span className="text-sm">Fijo</span>
-                </Label>
-              </Card>
+              <div
+                onClick={() => updateOpex({ arrendamiento_modelo: 'fijo' })}
+                className={cn(
+                  "p-3 cursor-pointer transition-all rounded-lg border-2 flex flex-col items-center gap-1",
+                  opex?.arrendamiento_modelo === 'fijo' 
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm" 
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+                )}
+              >
+                <DollarSign className="w-5 h-5" />
+                <span className="text-sm">Fijo</span>
+              </div>
               
-              <Card className={cn("p-3 cursor-pointer transition-all", opex?.arrendamiento_modelo === 'variable' && "border-purple-500 bg-purple-50 dark:bg-purple-950/30")}>
-                <RadioGroupItem value="variable" id="variable" className="sr-only" />
-                <Label htmlFor="variable" className="cursor-pointer flex flex-col items-center gap-1">
-                  <TrendingUp className="w-5 h-5" />
-                  <span className="text-sm">Variable</span>
-                </Label>
-              </Card>
+              <div
+                onClick={() => updateOpex({ arrendamiento_modelo: 'variable' })}
+                className={cn(
+                  "p-3 cursor-pointer transition-all rounded-lg border-2 flex flex-col items-center gap-1",
+                  opex?.arrendamiento_modelo === 'variable' 
+                    ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30 shadow-sm" 
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+                )}
+              >
+                <TrendingUp className="w-5 h-5" />
+                <span className="text-sm">Variable</span>
+              </div>
               
-              <Card className={cn("p-3 cursor-pointer transition-all", opex?.arrendamiento_modelo === 'mixto' && "border-orange-500 bg-orange-50 dark:bg-orange-950/30")}>
-                <RadioGroupItem value="mixto" id="mixto" className="sr-only" />
-                <Label htmlFor="mixto" className="cursor-pointer flex flex-col items-center gap-1">
-                  <Percent className="w-5 h-5" />
-                  <span className="text-sm">Mixto</span>
-                </Label>
-              </Card>
-            </RadioGroup>
+              <div
+                onClick={() => updateOpex({ arrendamiento_modelo: 'mixto' })}
+                className={cn(
+                  "p-3 cursor-pointer transition-all rounded-lg border-2 flex flex-col items-center gap-1",
+                  opex?.arrendamiento_modelo === 'mixto' 
+                    ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30 shadow-sm" 
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/50"
+                )}
+              >
+                <Percent className="w-5 h-5" />
+                <span className="text-sm">Mixto</span>
+              </div>
+            </div>
           </div>
           
           {opex?.arrendamiento_modelo === 'fijo' && (
