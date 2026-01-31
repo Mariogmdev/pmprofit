@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ProjectOpex, NominaItem, ServiceItem } from '@/types/opex';
+import { ProjectOpex, NominaItem, ServiceItem, ComisionItem, RentCalculationBase } from '@/types/opex';
 import { Json } from '@/integrations/supabase/types';
 
 // Helper to safely parse JSONB arrays
@@ -40,16 +40,20 @@ export const useProjectOpex = (projectId: string) => {
           .insert({
             project_id: projectId,
             arrendamiento_modelo: 'propio',
+            arrendamiento_variable_base: 'ingresos-brutos',
+            arrendamiento_mixto_base: 'ingresos-brutos',
             nomina_administrativa: [],
             nomina_operativa: [],
             prestaciones_porcentaje: 53.94,
             servicios_publicos: [],
             marketing: [],
             tecnologia: [],
+            seguridad: [],
             seguros: [],
             mantenimiento_general: [],
             administrativos: [],
             otros_gastos: [],
+            comisiones: [],
             depreciacion_anos: 10
           })
           .select()
@@ -72,15 +76,19 @@ export const useProjectOpex = (projectId: string) => {
           arrendamiento_modelo: (data.arrendamiento_modelo as ProjectOpex['arrendamiento_modelo']) || 'propio',
           arrendamiento_fijo: data.arrendamiento_fijo ?? 0,
           arrendamiento_variable_porcentaje: data.arrendamiento_variable_porcentaje ?? 0,
+          arrendamiento_variable_base: (data.arrendamiento_variable_base as RentCalculationBase) || 'ingresos-brutos',
           arrendamiento_mixto_fijo: data.arrendamiento_mixto_fijo ?? 0,
           arrendamiento_mixto_porcentaje: data.arrendamiento_mixto_porcentaje ?? 0,
+          arrendamiento_mixto_base: (data.arrendamiento_mixto_base as RentCalculationBase) || 'ingresos-brutos',
           servicios_publicos: parseJsonArray<ServiceItem>(data.servicios_publicos),
           marketing: parseJsonArray<ServiceItem>(data.marketing),
           tecnologia: parseJsonArray<ServiceItem>(data.tecnologia),
+          seguridad: parseJsonArray<ServiceItem>(data.seguridad),
           seguros: parseJsonArray<ServiceItem>(data.seguros),
           mantenimiento_general: parseJsonArray<ServiceItem>(data.mantenimiento_general),
           administrativos: parseJsonArray<ServiceItem>(data.administrativos),
           otros_gastos: parseJsonArray<ServiceItem>(data.otros_gastos),
+          comisiones: parseJsonArray<ComisionItem>(data.comisiones),
           depreciacion_anos: data.depreciacion_anos ?? 10,
           updated_at: data.updated_at || new Date().toISOString(),
         });

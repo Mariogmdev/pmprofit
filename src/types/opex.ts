@@ -6,9 +6,22 @@ export interface NominaItem {
   salarioMensual: number;
 }
 
+export type ExpenseType = 'fijo' | 'porcentaje-facturacion' | 'por-reserva';
+
 export interface ServiceItem {
   concepto: string;
-  costoMensual: number;
+  tipo?: ExpenseType;
+  costoMensual?: number;
+  porcentaje?: number;
+  costoPorReserva?: number;
+}
+
+export type RentCalculationBase = 'ingresos-brutos' | 'ingresos-netos' | 'utilidades' | 'ingresos-operacionales';
+
+export interface ComisionItem {
+  concepto: string;
+  base: 'ingresos-brutos' | 'ingresos-netos' | 'utilidades';
+  porcentaje: number;
 }
 
 export interface ProjectOpex {
@@ -24,19 +37,25 @@ export interface ProjectOpex {
   arrendamiento_modelo: 'variable' | 'fijo' | 'mixto' | 'propio';
   arrendamiento_fijo: number;
   arrendamiento_variable_porcentaje: number;
+  arrendamiento_variable_base: RentCalculationBase;
   arrendamiento_mixto_fijo: number;
   arrendamiento_mixto_porcentaje: number;
+  arrendamiento_mixto_base: RentCalculationBase;
   
-  // 3-9. Other categories (all use ServiceItem format)
+  // 3-10. Categories
   servicios_publicos: ServiceItem[];
   marketing: ServiceItem[];
   tecnologia: ServiceItem[];
+  seguridad: ServiceItem[];
   seguros: ServiceItem[];
   mantenimiento_general: ServiceItem[];
   administrativos: ServiceItem[];
   otros_gastos: ServiceItem[];
   
-  // 10. Depreciation
+  // 11. Commissions
+  comisiones: ComisionItem[];
+  
+  // 12. Depreciation
   depreciacion_anos: number; // default 10
   
   updated_at: string;
@@ -54,11 +73,13 @@ export interface OpexSummary {
   serviciosPublicos: number;
   marketing: number;
   tecnologia: number;
+  seguridad: number;
   seguros: number;
   mantenimientoGeneral: number;
   mantenimientoActividades: number; // from Section A
   administrativos: number;
   otrosGastos: number;
+  comisiones: number;
   depreciacion: number;
   
   // Total
