@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ProjectOpex, NominaItem, ServiceItem, ComisionItem, RentCalculationBase } from '@/types/opex';
+import { ProjectOpex, NominaItem, ServiceItem, ComisionItem, RentCalculationBase, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { Json } from '@/integrations/supabase/types';
 
 // Helper to safely parse JSONB arrays
@@ -54,7 +54,21 @@ export const useProjectOpex = (projectId: string) => {
             administrativos: [],
             otros_gastos: [],
             comisiones: [],
-            depreciacion_anos: 10
+            depreciacion_anos: 10,
+            incluir_depreciacion: true,
+            incluir_4x1000: false,
+            comisiones_bancarias: [],
+            incluir_comision_datafono: true,
+            comision_datafono_porcentaje: 2.5,
+            porcentaje_ventas_datafono: 70,
+            gastos_financieros: [],
+            incluir_iva: false,
+            porcentaje_ingresos_iva: 0,
+            tarifa_iva: 19,
+            iva_pagado_estimado: 0,
+            incluir_retenciones: false,
+            retenciones: [],
+            impuestos: []
           })
           .select()
           .single();
@@ -90,6 +104,21 @@ export const useProjectOpex = (projectId: string) => {
           otros_gastos: parseJsonArray<ServiceItem>(data.otros_gastos),
           comisiones: parseJsonArray<ComisionItem>(data.comisiones),
           depreciacion_anos: data.depreciacion_anos ?? 10,
+          // New fields
+          incluir_depreciacion: data.incluir_depreciacion ?? true,
+          incluir_4x1000: data.incluir_4x1000 ?? false,
+          comisiones_bancarias: parseJsonArray<BankCommissionItem>(data.comisiones_bancarias),
+          incluir_comision_datafono: data.incluir_comision_datafono ?? true,
+          comision_datafono_porcentaje: data.comision_datafono_porcentaje ?? 2.5,
+          porcentaje_ventas_datafono: data.porcentaje_ventas_datafono ?? 70,
+          gastos_financieros: parseJsonArray<ServiceItem>(data.gastos_financieros),
+          incluir_iva: data.incluir_iva ?? false,
+          porcentaje_ingresos_iva: data.porcentaje_ingresos_iva ?? 0,
+          tarifa_iva: data.tarifa_iva ?? 19,
+          iva_pagado_estimado: data.iva_pagado_estimado ?? 0,
+          incluir_retenciones: data.incluir_retenciones ?? false,
+          retenciones: parseJsonArray<RetencionItem>(data.retenciones),
+          impuestos: parseJsonArray<ServiceItem>(data.impuestos),
           updated_at: data.updated_at || new Date().toISOString(),
         });
       }

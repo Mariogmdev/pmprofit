@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -29,12 +32,13 @@ import { useProjectOpex } from '@/hooks/useProjectOpex';
 import { useProjectActivities } from '@/hooks/useProjectActivities';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types/index';
-import { NominaItem, ServiceItem, ComisionItem, RentCalculationBase, ExpenseType } from '@/types/opex';
+import { NominaItem, ServiceItem, ComisionItem, RentCalculationBase, ExpenseType, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { ActivityConfig } from '@/types/activity';
 import {
   Users, Home, Zap, Megaphone, Monitor, Shield, Wrench,
   FileText, MoreHorizontal, TrendingDown, Plus, X, DollarSign, 
-  Percent, TrendingUp, Info, Loader2, Package, ShieldCheck
+  Percent, TrendingUp, Info, Loader2, Package, ShieldCheck,
+  CreditCard, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -105,9 +109,13 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     }, 0);
   }, [activities]);
 
-  // Calculate total monthly reservations
-  const totalReservasMes = useMemo(() => {
-    return activities.reduce((sum, act) => {
+  // Calculate reservations for specific activities
+  const calculateReservasForActivities = (actividadesIncluidas?: string[]) => {
+    const activitiesToInclude = actividadesIncluidas && actividadesIncluidas.length > 0
+      ? activities.filter(a => actividadesIncluidas.includes(a.id))
+      : activities;
+
+    return activitiesToInclude.reduce((sum, act) => {
       const config: ActivityConfig = act.config;
       const cantidad = config.cantidad || 1;
       const horarios = config.horarios || [];
@@ -119,6 +127,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
       const reservasPorDia = horasOperacion * ocupacionPromedio / (config.duracionReserva || 1.5);
       return sum + (cantidad * reservasPorDia * diasMes);
     }, 0);
+  };
+
+  // Calculate total monthly reservations
+  const totalReservasMes = useMemo(() => {
+    return calculateReservasForActivities(undefined);
   }, [activities]);
 
   // Calculate different income bases for rent calculations
@@ -202,8 +215,9 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     return 0;
   };
 
-  // Calculate category total with variable expense types
+  // Calculate category total with variable expense types (FIXED)
   const calculateCategoryTotal = (items: ServiceItem[]) => {
+    if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => {
       const tipo = item.tipo || 'fijo';
       if (tipo === 'fijo') {
@@ -211,7 +225,9 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
       } else if (tipo === 'porcentaje-facturacion') {
         return sum + (ingresos.totalBruto * ((item.porcentaje || 0) / 100));
       } else if (tipo === 'por-reserva') {
-        return sum + ((item.costoPorReserva || 0) * totalReservasMes);
+        const reservasAplicables = calculateReservasForActivities(item.actividadesIncluidas);
+        const reservasConPorcentaje = reservasAplicables * ((item.porcentajeReservas || 100) / 100);
+        return sum + ((item.costoPorReserva || 0) * reservasConPorcentaje);
       }
       return sum;
     }, 0);
@@ -223,10 +239,55 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     return comisiones.reduce((sum, com) => {
       let base = ingresos.totalBruto;
       if (com.base === 'ingresos-netos') base = ingresos.totalNeto;
-      // For utilidades, we'd need to calculate OPEX first - simplified here
       if (com.base === 'utilidades') base = ingresos.totalBruto * 0.3;
       return sum + (base * ((com.porcentaje || 0) / 100));
     }, 0);
+  };
+
+  // Calculate financial expenses
+  const calculateGastosFinancieros = () => {
+    let total = 0;
+    
+    // 4x1000
+    if (opex?.incluir_4x1000) {
+      total += ingresos.totalBruto * 0.004;
+    }
+    
+    // Bank commissions
+    total += (opex?.comisiones_bancarias || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
+    
+    // Dataphone commissions
+    if (opex?.incluir_comision_datafono) {
+      total += ingresos.totalBruto * 
+               ((opex?.porcentaje_ventas_datafono || 70) / 100) * 
+               ((opex?.comision_datafono_porcentaje || 2.5) / 100);
+    }
+    
+    return total;
+  };
+
+  // Calculate taxes
+  const calculateImpuestos = () => {
+    let total = 0;
+    
+    // IVA
+    if (opex?.incluir_iva) {
+      const ivaCobrado = ingresos.totalBruto * 
+                         ((opex?.porcentaje_ingresos_iva || 0) / 100) * 
+                         ((opex?.tarifa_iva || 19) / 100);
+      const ivaNeto = Math.max(0, ivaCobrado - (opex?.iva_pagado_estimado || 0));
+      total += ivaNeto;
+    }
+    
+    // Retentions
+    if (opex?.incluir_retenciones) {
+      total += (opex?.retenciones || []).reduce((s, i) => {
+        const base = i.base === 'ingresos' ? ingresos.totalBruto : ingresos.totalBruto * 0.3;
+        return s + (base * ((i.porcentaje || 0) / 100));
+      }, 0);
+    }
+    
+    return total;
   };
 
   // Handlers for editable lists
@@ -288,6 +349,42 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
     const current = [...(opex?.comisiones || [])];
     current.splice(index, 1);
     updateOpex({ comisiones: current });
+  };
+
+  // Bank commission handlers
+  const addBankCommission = () => {
+    const current = opex?.comisiones_bancarias || [];
+    updateOpex({ comisiones_bancarias: [...current, { concepto: '', costoMensual: 0 }] });
+  };
+
+  const updateBankCommission = (index: number, updates: Partial<BankCommissionItem>) => {
+    const current = [...(opex?.comisiones_bancarias || [])];
+    current[index] = { ...current[index], ...updates };
+    updateOpex({ comisiones_bancarias: current });
+  };
+
+  const removeBankCommission = (index: number) => {
+    const current = [...(opex?.comisiones_bancarias || [])];
+    current.splice(index, 1);
+    updateOpex({ comisiones_bancarias: current });
+  };
+
+  // Retention handlers
+  const addRetencion = () => {
+    const current = opex?.retenciones || [];
+    updateOpex({ retenciones: [...current, { concepto: '', base: 'ingresos' as const, porcentaje: 0 }] });
+  };
+
+  const updateRetencion = (index: number, updates: Partial<RetencionItem>) => {
+    const current = [...(opex?.retenciones || [])];
+    current[index] = { ...current[index], ...updates };
+    updateOpex({ retenciones: current });
+  };
+
+  const removeRetencion = (index: number) => {
+    const current = [...(opex?.retenciones || [])];
+    current.splice(index, 1);
+    updateOpex({ retenciones: current });
   };
 
   if (loading) {
@@ -483,24 +580,127 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
               )}
 
               {item.tipo === 'por-reserva' && (
-                <>
-                  <div className="col-span-3">
-                    <Input
-                      type="number"
-                      placeholder="$/reserva"
-                      value={item.costoPorReserva || 0}
-                      onChange={(e) => updateServiceItem(field, idx, { costoPorReserva: Number(e.target.value) })}
-                      className="h-8 text-sm"
-                      min="0"
-                    />
+                <div className="col-span-12 space-y-3">
+                  <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-3">
+                      <Label className="text-xs">Costo/Reserva</Label>
+                      <Input
+                        type="number"
+                        placeholder="$/reserva"
+                        value={item.costoPorReserva || 0}
+                        onChange={(e) => updateServiceItem(field, idx, { costoPorReserva: Number(e.target.value) })}
+                        className="h-8 text-sm"
+                        min="0"
+                      />
+                    </div>
+                    
+                    <div className="col-span-2">
+                      <Label className="text-xs">% Reservas</Label>
+                      <Input
+                        type="number"
+                        placeholder="100"
+                        value={item.porcentajeReservas || 100}
+                        onChange={(e) => updateServiceItem(field, idx, { porcentajeReservas: Number(e.target.value) })}
+                        className="h-8 text-sm"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    
+                    <div className="col-span-7">
+                      <Label className="text-xs">Actividades</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full h-8 justify-start text-left font-normal text-sm">
+                            <span className="truncate">
+                              {!item.actividadesIncluidas || item.actividadesIncluidas.length === 0 || 
+                               item.actividadesIncluidas.length === activities.length
+                                ? "Todas las actividades"
+                                : `${item.actividadesIncluidas.length} seleccionadas`
+                              }
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-semibold">Seleccionar Actividades</Label>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const allIds = activities.map(a => a.id);
+                                  updateServiceItem(field, idx, { 
+                                    actividadesIncluidas: 
+                                      item.actividadesIncluidas?.length === activities.length ? [] : allIds
+                                  });
+                                }}
+                              >
+                                {item.actividadesIncluidas?.length === activities.length ? "Ninguna" : "Todas"}
+                              </Button>
+                            </div>
+                            <Separator />
+                            <div className="max-h-[300px] overflow-y-auto space-y-2">
+                              {activities.map((activity) => (
+                                <div key={activity.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`activity-${idx}-${activity.id}`}
+                                    checked={!item.actividadesIncluidas || 
+                                             item.actividadesIncluidas.length === 0 ||
+                                             item.actividadesIncluidas.includes(activity.id)}
+                                    onCheckedChange={(checked) => {
+                                      const allIds = activities.map(a => a.id);
+                                      const current = item.actividadesIncluidas?.length ? 
+                                        item.actividadesIncluidas : allIds;
+                                      const updated = checked
+                                        ? [...current.filter(id => id !== activity.id), activity.id]
+                                        : current.filter(id => id !== activity.id);
+                                      updateServiceItem(field, idx, { actividadesIncluidas: updated });
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`activity-${idx}-${activity.id}`}
+                                    className="text-sm cursor-pointer flex-1"
+                                  >
+                                    {activity.name}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
-                  <div className="col-span-6 text-xs text-muted-foreground">
-                    × {Math.round(totalReservasMes).toLocaleString()} reservas/mes
-                  </div>
-                  <div className="col-span-3 text-right text-sm font-semibold text-green-600 dark:text-green-400">
-                    {formatCurrency((item.costoPorReserva || 0) * totalReservasMes, currency)}
-                  </div>
-                </>
+                  
+                  <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 p-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Reservas/mes (actividades sel.):</span>
+                        <span className="font-semibold">
+                          {Math.round(calculateReservasForActivities(item.actividadesIncluidas)).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">× {item.porcentajeReservas || 100}%:</span>
+                        <span className="font-semibold">
+                          {Math.round(calculateReservasForActivities(item.actividadesIncluidas) * 
+                            ((item.porcentajeReservas || 100) / 100)).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">× {formatCurrency(item.costoPorReserva || 0, currency)}:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          {formatCurrency(
+                            Math.round(calculateReservasForActivities(item.actividadesIncluidas) * 
+                            ((item.porcentajeReservas || 100) / 100)) * (item.costoPorReserva || 0),
+                            currency
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
               )}
             </div>
           </div>
@@ -816,7 +1016,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                   <div className="flex justify-between">
                     <span>Variable ({opex?.arrendamiento_mixto_porcentaje || 0}%):</span>
                     <span className="font-semibold">
-                      {formatCurrency(calculateArrendamientoBase(opex?.arrendamiento_mixto_base || 'ingresos-brutos') * ((opex?.arrendamiento_mixto_porcentaje || 0) / 100), currency)}
+                      {formatCurrency(
+                        calculateArrendamientoBase(opex?.arrendamiento_mixto_base || 'ingresos-brutos') * 
+                        ((opex?.arrendamiento_mixto_porcentaje || 0) / 100),
+                        currency
+                      )}
                     </span>
                   </div>
                   <Separator />
@@ -865,7 +1069,7 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-4 pt-4">
-          {renderServiceList('marketing', opex?.marketing || [], 'Ej: Pauta digital', 'marketing')}
+          {renderServiceList('marketing', opex?.marketing || [], 'Ej: Redes sociales', 'marketing')}
         </AccordionContent>
       </AccordionItem>
 
@@ -875,7 +1079,7 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
           <div className="flex items-center justify-between w-full pr-4">
             <div className="flex items-center gap-3">
               <Monitor className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-              <span className="font-semibold">5. Tecnología y Software</span>
+              <span className="font-semibold">5. Tecnología</span>
             </div>
             <span className="text-sm font-semibold text-cyan-600 dark:text-cyan-400">
               {formatCurrency(calculateCategoryTotal(opex?.tecnologia || []), currency)}/mes
@@ -883,11 +1087,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-4 pt-4">
-          {renderServiceList('tecnologia', opex?.tecnologia || [], 'Ej: Software reservas', 'tecnologia')}
+          {renderServiceList('tecnologia', opex?.tecnologia || [], 'Ej: Software de reservas', 'tecnologia')}
         </AccordionContent>
       </AccordionItem>
 
-      {/* 6. SEGURIDAD Y VIGILANCIA (NEW) */}
+      {/* 6. SEGURIDAD */}
       <AccordionItem value="seguridad" className="border rounded-lg">
         <AccordionTrigger className="px-4 hover:bg-muted/50">
           <div className="flex items-center justify-between w-full pr-4">
@@ -972,13 +1176,365 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
         </AccordionContent>
       </AccordionItem>
 
-      {/* 10. OTROS GASTOS */}
+      {/* 10. GASTOS FINANCIEROS (NEW) */}
+      <AccordionItem value="financieros" className="border rounded-lg">
+        <AccordionTrigger className="px-4 hover:bg-muted/50">
+          <div className="flex items-center justify-between w-full pr-4">
+            <div className="flex items-center gap-3">
+              <CreditCard className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+              <span className="font-semibold">10. Gastos Financieros</span>
+            </div>
+            <span className="text-sm font-semibold text-teal-600 dark:text-teal-400">
+              {formatCurrency(calculateGastosFinancieros(), currency)}/mes
+            </span>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="px-4 pt-4 space-y-6">
+          {/* 4x1000 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-base font-semibold">💳 4x1000 (Impuesto transacciones)</Label>
+              <Switch
+                checked={opex?.incluir_4x1000 ?? false}
+                onCheckedChange={(checked) => updateOpex({ incluir_4x1000: checked })}
+              />
+            </div>
+            
+            {opex?.incluir_4x1000 && (
+              <Card className="bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 p-4">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Ingresos mensuales:</span>
+                    <span className="font-semibold">{formatCurrency(ingresos.totalBruto, currency)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">× 0.4% (4x1000):</span>
+                    <span className="font-semibold text-teal-600 dark:text-teal-400">
+                      {formatCurrency(ingresos.totalBruto * 0.004, currency)}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+          
+          <Separator />
+          
+          {/* Bank Commissions */}
+          <div>
+            <Label className="text-base font-semibold mb-3 block">🏦 Comisiones Bancarias</Label>
+            <div className="space-y-2">
+              {(opex?.comisiones_bancarias || []).map((item, idx) => (
+                <Card key={idx} className="p-2 bg-muted/50">
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-6">
+                      <Input
+                        placeholder="Ej: Cuota manejo cuenta"
+                        value={item.concepto || ''}
+                        onChange={(e) => updateBankCommission(idx, { concepto: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        type="number"
+                        placeholder="Costo/mes"
+                        value={item.costoMensual || 0}
+                        onChange={(e) => updateBankCommission(idx, { costoMensual: Number(e.target.value) })}
+                        className="h-8 text-sm"
+                        min="0"
+                      />
+                    </div>
+                    <div className="col-span-1 text-right text-sm font-semibold text-teal-600 dark:text-teal-400">
+                      {formatCurrency(item.costoMensual || 0, currency)}
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button variant="ghost" size="sm" onClick={() => removeBankCommission(idx)} className="h-7 w-7 p-0">
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+              <Button variant="outline" size="sm" onClick={addBankCommission} className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar
+              </Button>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          {/* Dataphone Commissions */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-base font-semibold">💳 Comisiones Datáfono/Pasarela</Label>
+              <Switch
+                checked={opex?.incluir_comision_datafono ?? true}
+                onCheckedChange={(checked) => updateOpex({ incluir_comision_datafono: checked })}
+              />
+            </div>
+            
+            {opex?.incluir_comision_datafono && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm">Porcentaje Comisión</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        value={opex?.comision_datafono_porcentaje ?? 2.5}
+                        onChange={(e) => updateOpex({ comision_datafono_porcentaje: Number(e.target.value) })}
+                        className="w-24"
+                        step="0.1"
+                      />
+                      <span className="text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm">% Ventas con Datáfono</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        value={opex?.porcentaje_ventas_datafono ?? 70}
+                        onChange={(e) => updateOpex({ porcentaje_ventas_datafono: Number(e.target.value) })}
+                        className="w-24"
+                        step="1"
+                      />
+                      <span className="text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <Card className="bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 p-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Ingresos:</span>
+                      <span className="font-semibold">{formatCurrency(ingresos.totalBruto, currency)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">× {opex?.porcentaje_ventas_datafono ?? 70}% (ventas con datáfono):</span>
+                      <span className="font-semibold">
+                        {formatCurrency(ingresos.totalBruto * ((opex?.porcentaje_ventas_datafono ?? 70) / 100), currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">× {opex?.comision_datafono_porcentaje ?? 2.5}% (comisión):</span>
+                      <span className="font-semibold text-teal-600 dark:text-teal-400">
+                        {formatCurrency(
+                          ingresos.totalBruto * 
+                          ((opex?.porcentaje_ventas_datafono ?? 70) / 100) * 
+                          ((opex?.comision_datafono_porcentaje ?? 2.5) / 100),
+                          currency
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+
+      {/* 11. IMPUESTOS (NEW) */}
+      <AccordionItem value="impuestos" className="border rounded-lg">
+        <AccordionTrigger className="px-4 hover:bg-muted/50">
+          <div className="flex items-center justify-between w-full pr-4">
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <span className="font-semibold">11. Impuestos</span>
+            </div>
+            <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+              {formatCurrency(calculateImpuestos(), currency)}/mes
+            </span>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="px-4 pt-4 space-y-6">
+          <Alert className="bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800">
+            <AlertTriangle className="w-4 h-4" />
+            <AlertDescription>
+              <strong>Importante:</strong> Los impuestos se calculan mensualmente como
+              estimación. Consulta con tu contador para el cálculo preciso según tu
+              régimen tributario.
+            </AlertDescription>
+          </Alert>
+          
+          {/* IVA */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-base font-semibold">📊 IVA por Pagar</Label>
+              <Switch
+                checked={opex?.incluir_iva ?? false}
+                onCheckedChange={(checked) => updateOpex({ incluir_iva: checked })}
+              />
+            </div>
+            
+            {opex?.incluir_iva && (
+              <div className="space-y-3">
+                <Alert className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+                  <Info className="w-4 h-4" />
+                  <AlertDescription className="text-xs">
+                    IVA = IVA cobrado (sobre ventas) - IVA pagado (sobre compras)
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm">% Ingresos gravados con IVA</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        value={opex?.porcentaje_ingresos_iva ?? 0}
+                        onChange={(e) => updateOpex({ porcentaje_ingresos_iva: Number(e.target.value) })}
+                        className="w-24"
+                      />
+                      <span className="text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm">Tarifa IVA</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        value={opex?.tarifa_iva ?? 19}
+                        onChange={(e) => updateOpex({ tarifa_iva: Number(e.target.value) })}
+                        className="w-24"
+                      />
+                      <span className="text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <Card className="bg-muted/50 p-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">IVA Cobrado (sobre ventas):</span>
+                      <span className="font-semibold">
+                        {formatCurrency(
+                          ingresos.totalBruto * 
+                          ((opex?.porcentaje_ingresos_iva ?? 0) / 100) * 
+                          ((opex?.tarifa_iva ?? 19) / 100),
+                          currency
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">IVA Pagado (estimado):</span>
+                      <Input
+                        type="number"
+                        value={opex?.iva_pagado_estimado ?? 0}
+                        onChange={(e) => updateOpex({ iva_pagado_estimado: Number(e.target.value) })}
+                        className="w-32 h-8"
+                        placeholder="0"
+                      />
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-base">
+                      <span className="font-bold">IVA Neto a Pagar:</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {formatCurrency(
+                          Math.max(0, 
+                            (ingresos.totalBruto * 
+                            ((opex?.porcentaje_ingresos_iva ?? 0) / 100) * 
+                            ((opex?.tarifa_iva ?? 19) / 100)) -
+                            (opex?.iva_pagado_estimado ?? 0)
+                          ),
+                          currency
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+          
+          <Separator />
+          
+          {/* Retenciones */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-base font-semibold">🧾 Retenciones</Label>
+              <Switch
+                checked={opex?.incluir_retenciones ?? false}
+                onCheckedChange={(checked) => updateOpex({ incluir_retenciones: checked })}
+              />
+            </div>
+            
+            {opex?.incluir_retenciones && (
+              <div className="space-y-2">
+                {(opex?.retenciones || []).map((item, idx) => (
+                  <Card key={idx} className="p-2 bg-muted/50">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-5">
+                        <Input
+                          placeholder="Tipo (ej: Retefte ICA)"
+                          value={item.concepto || ''}
+                          onChange={(e) => updateRetencion(idx, { concepto: e.target.value })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Select
+                          value={item.base || 'ingresos'}
+                          onValueChange={(v) => updateRetencion(idx, { base: v as 'ingresos' | 'compras' })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ingresos">Ingresos</SelectItem>
+                            <SelectItem value="compras">Compras</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-2 flex gap-1 items-center">
+                        <Input
+                          type="number"
+                          placeholder="%"
+                          value={item.porcentaje || 0}
+                          onChange={(e) => updateRetencion(idx, { porcentaje: Number(e.target.value) })}
+                          className="h-8 text-sm"
+                          min="0"
+                          step="0.1"
+                        />
+                        <span className="text-xs">%</span>
+                      </div>
+                      <div className="col-span-1 text-right text-xs font-semibold text-amber-600">
+                        {formatCurrency(
+                          (item.base === 'ingresos' ? ingresos.totalBruto : ingresos.totalBruto * 0.3) * 
+                          ((item.porcentaje || 0) / 100),
+                          currency
+                        )}
+                      </div>
+                      <div className="col-span-1 flex justify-end">
+                        <Button variant="ghost" size="sm" onClick={() => removeRetencion(idx)} className="h-7 w-7 p-0">
+                          <X className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                <Button variant="outline" size="sm" onClick={addRetencion} className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Retención
+                </Button>
+              </div>
+            )}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+
+      {/* 12. OTROS GASTOS */}
       <AccordionItem value="otros" className="border rounded-lg">
         <AccordionTrigger className="px-4 hover:bg-muted/50">
           <div className="flex items-center justify-between w-full pr-4">
             <div className="flex items-center gap-3">
               <MoreHorizontal className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <span className="font-semibold">10. Otros Gastos</span>
+              <span className="font-semibold">12. Otros Gastos</span>
             </div>
             <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
               {formatCurrency(calculateCategoryTotal(opex?.otros_gastos || []), currency)}/mes
@@ -990,13 +1546,13 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
         </AccordionContent>
       </AccordionItem>
 
-      {/* 11. COMISIONES VARIABLES (NEW) */}
+      {/* 13. COMISIONES VARIABLES */}
       <AccordionItem value="comisiones" className="border rounded-lg">
         <AccordionTrigger className="px-4 hover:bg-muted/50">
           <div className="flex items-center justify-between w-full pr-4">
             <div className="flex items-center gap-3">
               <Percent className="w-5 h-5 text-rose-600 dark:text-rose-400" />
-              <span className="font-semibold">11. Comisiones Variables</span>
+              <span className="font-semibold">13. Comisiones Variables</span>
             </div>
             <span className="text-sm font-semibold text-rose-600 dark:text-rose-400">
               {formatCurrency(calculateComisionesTotal(), currency)}/mes
@@ -1095,39 +1651,57 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
         </AccordionContent>
       </AccordionItem>
 
-      {/* 12. DEPRECIACIÓN */}
+      {/* 14. DEPRECIACIÓN (with optional checkbox) */}
       <AccordionItem value="depreciacion" className="border rounded-lg">
         <AccordionTrigger className="px-4 hover:bg-muted/50">
           <div className="flex items-center justify-between w-full pr-4">
             <div className="flex items-center gap-3">
               <TrendingDown className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              <span className="font-semibold">12. Depreciación</span>
+              <span className="font-semibold">14. Depreciación</span>
             </div>
             <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
-              (Ver Resumen)
+              {opex?.incluir_depreciacion !== false ? "(Ver Resumen)" : "(Excluida)"}
             </span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-4 pt-4 space-y-4">
-          <Alert className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="incluir-depreciacion"
+              checked={opex?.incluir_depreciacion !== false}
+              onCheckedChange={(checked) => updateOpex({ incluir_depreciacion: !!checked })}
+            />
+            <Label htmlFor="incluir-depreciacion" className="cursor-pointer">
+              Incluir depreciación en el OPEX
+            </Label>
+          </div>
+          
+          <Alert className={cn(
+            opex?.incluir_depreciacion !== false 
+              ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" 
+              : "bg-muted/50"
+          )}>
             <Info className="w-4 h-4" />
             <AlertDescription>
-              La depreciación se calcula automáticamente en el Resumen Final,
-              dividiendo el CAPEX total del proyecto entre los años de vida útil.
+              {opex?.incluir_depreciacion !== false 
+                ? "La depreciación se calculará automáticamente y se incluirá en el OPEX mensual."
+                : "La depreciación NO se incluirá en el OPEX mensual. Útil para análisis de flujo de caja."}
             </AlertDescription>
           </Alert>
           
-          <div>
-            <Label>Años de Vida Útil</Label>
-            <Input
-              type="number"
-              value={opex?.depreciacion_anos ?? 10}
-              onChange={(e) => updateOpex({ depreciacion_anos: Number(e.target.value) })}
-              className="w-32"
-              min="1"
-              max="50"
-            />
-          </div>
+          {opex?.incluir_depreciacion !== false && (
+            <div>
+              <Label>Años de Vida Útil</Label>
+              <Input
+                type="number"
+                value={opex?.depreciacion_anos ?? 10}
+                onChange={(e) => updateOpex({ depreciacion_anos: Number(e.target.value) })}
+                className="w-32"
+                min="1"
+                max="50"
+              />
+            </div>
+          )}
         </AccordionContent>
       </AccordionItem>
     </Accordion>
