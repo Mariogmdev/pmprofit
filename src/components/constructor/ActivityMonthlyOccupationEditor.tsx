@@ -43,36 +43,78 @@ const DEFAULT_MONTHLY_OCCUPATION: OccupationMonth[] = [
   { mes: 12, pico: 80, valle: 50 },
 ];
 
-// Calculate average occupation by type (pico/valle) from schedules
+// Calculate average occupation by type (pico/valle) from schedules - WEIGHTED BY DAYS
 const calculateAverageOccupationByType = (horarios: ActivitySchedule[]) => {
-  let totalHorasPico = 0;
-  let totalHorasValle = 0;
-  let sumOcupacionPico = 0;
-  let sumOcupacionValle = 0;
+  console.log('=== Calculating Occupation by Type (WEIGHTED) ===');
   
-  horarios.forEach(horario => {
-    const horas = Math.max(0, horario.fin - horario.inicio);
+  // Separate schedules by day type
+  const horariosLV = horarios.filter(h => h.diaSemana === 'LV' || !h.diaSemana);
+  const horariosSD = horarios.filter(h => h.diaSemana === 'SD');
+  
+  // Calculate weekly hours (L-V: 5 days, S-D: 2 days)
+  let horasPicoSemana = 0;
+  let horasValleSemana = 0;
+  let sumOcupacionPicoSemana = 0;
+  let sumOcupacionValleSemana = 0;
+  
+  // L-V schedules (5 days per week)
+  horariosLV.forEach(horario => {
+    const horasPorDia = Math.max(0, horario.fin - horario.inicio);
+    const horasSemana = horasPorDia * 5; // 5 days L-V
     
     if (horario.tipo === 'pico') {
-      totalHorasPico += horas;
-      sumOcupacionPico += horario.ocupacion * horas;
+      horasPicoSemana += horasSemana;
+      sumOcupacionPicoSemana += horario.ocupacion * horasSemana;
     } else {
-      totalHorasValle += horas;
-      sumOcupacionValle += horario.ocupacion * horas;
+      horasValleSemana += horasSemana;
+      sumOcupacionValleSemana += horario.ocupacion * horasSemana;
     }
   });
   
-  const totalHoras = totalHorasPico + totalHorasValle;
-  const ocupacionPromedioPico = totalHorasPico > 0 ? sumOcupacionPico / totalHorasPico : 50;
-  const ocupacionPromedioValle = totalHorasValle > 0 ? sumOcupacionValle / totalHorasValle : 30;
-  const ocupacionPromedioTotal = totalHoras > 0 
-    ? (sumOcupacionPico + sumOcupacionValle) / totalHoras 
+  // S-D schedules (2 days per week)
+  horariosSD.forEach(horario => {
+    const horasPorDia = Math.max(0, horario.fin - horario.inicio);
+    const horasSemana = horasPorDia * 2; // 2 days S-D
+    
+    if (horario.tipo === 'pico') {
+      horasPicoSemana += horasSemana;
+      sumOcupacionPicoSemana += horario.ocupacion * horasSemana;
+    } else {
+      horasValleSemana += horasSemana;
+      sumOcupacionValleSemana += horario.ocupacion * horasSemana;
+    }
+  });
+  
+  const totalHorasSemana = horasPicoSemana + horasValleSemana;
+  
+  const ocupacionPromedioPico = horasPicoSemana > 0 
+    ? sumOcupacionPicoSemana / horasPicoSemana 
+    : 50;
+  const ocupacionPromedioValle = horasValleSemana > 0 
+    ? sumOcupacionValleSemana / horasValleSemana 
+    : 30;
+  const ocupacionPromedioTotal = totalHorasSemana > 0 
+    ? (sumOcupacionPicoSemana + sumOcupacionValleSemana) / totalHorasSemana 
     : (ocupacionPromedioPico + ocupacionPromedioValle) / 2;
+  
+  console.log('Horas Pico semana:', horasPicoSemana);
+  console.log('Horas Valle semana:', horasValleSemana);
+  console.log('Total horas semana:', totalHorasSemana);
+  console.log('% Pico:', totalHorasSemana > 0 ? ((horasPicoSemana / totalHorasSemana) * 100).toFixed(1) : 0);
+  console.log('% Valle:', totalHorasSemana > 0 ? ((horasValleSemana / totalHorasSemana) * 100).toFixed(1) : 0);
+  console.log('Ocupación Pico promedio:', ocupacionPromedioPico.toFixed(1));
+  console.log('Ocupación Valle promedio:', ocupacionPromedioValle.toFixed(1));
+  console.log('Ocupación Total promedio:', ocupacionPromedioTotal.toFixed(1));
+  console.log('=== END ===');
   
   return {
     pico: Math.round(ocupacionPromedioPico),
     valle: Math.round(ocupacionPromedioValle),
-    promedio: Math.round(ocupacionPromedioTotal)
+    promedio: Math.round(ocupacionPromedioTotal),
+    // Return weighted hours for display
+    horasPicoSemana,
+    horasValleSemana,
+    totalHorasSemana
   };
 };
 
@@ -88,27 +130,30 @@ export default function ActivityMonthlyOccupationEditor({
   horasValle = 0,
 }: ActivityMonthlyOccupationEditorProps) {
   const [curveType, setCurveType] = useState<CurveType>('lineal');
-  const [maduracionFactor, setMaduracionFactor] = useState(1.3); // 130% - Month 12 target
+  const [maduracionFactor, setMaduracionFactor] = useState(1.0); // 100% - Month 12 target (equal to schedules)
   const [inicioFactor, setInicioFactor] = useState(0.7); // 70% - Month 1 start
   
-  // Total hours for weighted average calculation
-  const totalHoras = horasPico + horasValle;
+  // Base occupation from schedules - WITH WEIGHTED HOURS
+  const ocupacionBase = useMemo(() => {
+    const result = calculateAverageOccupationByType(config.horarios || []);
+    console.log('Occupation base calculated:', result);
+    return result;
+  }, [config.horarios]);
+  
+  // Use the calculated weighted hours from ocupacionBase (fallback to props)
+  const horasPicoCalculadas = ocupacionBase.horasPicoSemana || horasPico || 0;
+  const horasValleCalculadas = ocupacionBase.horasValleSemana || horasValle || 0;
+  const totalHoras = horasPicoCalculadas + horasValleCalculadas;
   
   // Calculate weighted average for any pico/valle values
   const calculateWeightedAverage = (pico: number, valle: number): number => {
     if (totalHoras === 0) return (pico + valle) / 2;
-    return (pico * horasPico + valle * horasValle) / totalHoras;
+    return (pico * horasPicoCalculadas + valle * horasValleCalculadas) / totalHoras;
   };
   
   // Hours distribution percentage for display
-  const porcentajePico = totalHoras > 0 ? (horasPico / totalHoras) * 100 : 50;
-  const porcentajeValle = totalHoras > 0 ? (horasValle / totalHoras) * 100 : 50;
-  
-  // Base occupation from schedules
-  const ocupacionBase = useMemo(() => 
-    calculateAverageOccupationByType(config.horarios || []),
-    [config.horarios]
-  );
+  const porcentajePico = totalHoras > 0 ? (horasPicoCalculadas / totalHoras) * 100 : 50;
+  const porcentajeValle = totalHoras > 0 ? (horasValleCalculadas / totalHoras) * 100 : 50;
   
   // Check if Year 1 projection is realistic vs schedule occupancy
   const year1Avg = config.ocupacionAnual[0] 
@@ -447,11 +492,11 @@ export default function ActivityMonthlyOccupationEditor({
                   <Info className="h-4 w-4 text-blue-600 mt-0.5" />
                   <div className="text-sm">
                     <p className="text-blue-700 dark:text-blue-300 font-medium">
-                      Distribución de horas para cálculo ponderado:
+                      Distribución de horas (semanal):
                     </p>
                     <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">
-                      Pico: {horasPico.toFixed(1)} hrs ({porcentajePico.toFixed(0)}%) • 
-                      Valle: {horasValle.toFixed(1)} hrs ({porcentajeValle.toFixed(0)}%)
+                      <strong>Pico:</strong> {horasPicoCalculadas.toFixed(1)} hrs/semana ({porcentajePico.toFixed(0)}%) • 
+                      <strong>Valle:</strong> {horasValleCalculadas.toFixed(1)} hrs/semana ({porcentajeValle.toFixed(0)}%)
                     </p>
                     <p className="text-blue-600/80 dark:text-blue-400/80 text-xs mt-1">
                       El promedio de cada mes se calcula: (Pico × {porcentajePico.toFixed(0)}% + Valle × {porcentajeValle.toFixed(0)}%) 
@@ -509,14 +554,13 @@ export default function ActivityMonthlyOccupationEditor({
                   value={[maduracionFactor]}
                   onValueChange={(v) => setMaduracionFactor(v[0])}
                   min={0.8}
-                  max={1.8}
+                  max={1.0}
                   step={0.05}
                   className="w-full"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>80% (conservador)</span>
                   <span>100% (igual a horarios)</span>
-                  <span>180% (optimista)</span>
                 </div>
               </div>
 
