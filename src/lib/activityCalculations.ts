@@ -137,15 +137,28 @@ export function calculateActivityFinancials(
     const horariosLV = schedules.filter(h => h.diaSemana === 'LV' || !h.diaSemana);
     const horariosSD = schedules.filter(h => h.diaSemana === 'SD');
     
-    // Calculate totals for summary (all schedules)
-    schedules.forEach((s) => {
+    // Calculate totals for summary - WEIGHTED by days per week
+    // L-V: 5 days, S-D: 2 days
+    horariosLV.forEach((s) => {
       const hours = Math.max(0, s.fin - s.inicio);
+      const weightedHours = hours * WEEKDAYS_LV; // 5 days
       if (s.tipo === 'pico') {
-        totalHorasPico += hours;
+        totalHorasPico += weightedHours;
       } else {
-        totalHorasValle += hours;
+        totalHorasValle += weightedHours;
       }
-      weightedOcupacion += s.ocupacion * hours;
+      weightedOcupacion += s.ocupacion * weightedHours;
+    });
+    
+    horariosSD.forEach((s) => {
+      const hours = Math.max(0, s.fin - s.inicio);
+      const weightedHours = hours * WEEKDAYS_SD; // 2 days
+      if (s.tipo === 'pico') {
+        totalHorasPico += weightedHours;
+      } else {
+        totalHorasValle += weightedHours;
+      }
+      weightedOcupacion += s.ocupacion * weightedHours;
     });
     
     // Calculate income per day for L-V (Lunes-Viernes)
