@@ -144,22 +144,43 @@ export default function ActivityCard({
   };
 
   // Calculate monthly income for occupation editor
-  const calculateMonthlyIncome = useCallback((pico: number, valle: number) => {
-    const schedules = activity.config.horarios || [];
+  // CRITICAL: Properly weights L-V (5 days/week) and S-D (2 days/week)
+  const calculateMonthlyIncome = useCallback((picoOcupacion: number, valleOcupacion: number): number => {
+    const horarios = activity.config.horarios || [];
     const cantidad = activity.config.cantidad || 1;
     const duracion = activity.config.duracionReserva || 1.5;
-    
-    let income = 0;
-    schedules.forEach((s) => {
-      const hoursPerDay = Math.max(0, s.fin - s.inicio);
-      const reservasPerDay = hoursPerDay / duracion;
-      const ocupacion = s.tipo === 'pico' ? pico / 100 : valle / 100;
-      const reservasPerMonth = reservasPerDay * cantidad * ocupacion * daysPerMonth;
-      income += reservasPerMonth * s.tarifa;
+    const WEEKS_PER_MONTH = 4.33;
+
+    // Separate schedules by day type
+    const horariosLV = horarios.filter((h: any) => h.diaSemana === 'LV' || !h.diaSemana);
+    const horariosSD = horarios.filter((h: any) => h.diaSemana === 'SD');
+
+    let totalIncome = 0;
+
+    // L-V: 5 days per week
+    horariosLV.forEach((h: any) => {
+      const horas = Math.max(0, (h.fin || 0) - (h.inicio || 0));
+      const turnosHorario = (horas / duracion) * cantidad;
+      const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
+      const reservas = turnosHorario * (ocupacion / 100);
+      const tarifa = h.tarifa || 0;
+      // 5 days/week × 4.33 weeks/month
+      totalIncome += reservas * tarifa * 5 * WEEKS_PER_MONTH;
     });
-    
-    return income;
-  }, [activity.config, daysPerMonth]);
+
+    // S-D: 2 days per week
+    horariosSD.forEach((h: any) => {
+      const horas = Math.max(0, (h.fin || 0) - (h.inicio || 0));
+      const turnosHorario = (horas / duracion) * cantidad;
+      const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
+      const reservas = turnosHorario * (ocupacion / 100);
+      const tarifa = h.tarifa || 0;
+      // 2 days/week × 4.33 weeks/month
+      totalIncome += reservas * tarifa * 2 * WEEKS_PER_MONTH;
+    });
+
+    return totalIncome;
+  }, [activity.config]);
 
   // Show schedule/occupation only for reservation model
   const showSchedules = activity.config.modeloIngreso === 'reserva';

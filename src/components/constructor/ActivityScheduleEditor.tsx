@@ -247,13 +247,13 @@ export default function ActivityScheduleEditor({
               <div>
                 <span className="text-muted-foreground">Horas Pico:</span>
                 <span className="ml-2 font-medium text-orange-600">
-                  {calculations.totalHorasPico.toFixed(1)} hrs ({calculations.porcentajePico.toFixed(0)}%)
+                  {calculations.totalHorasPico.toFixed(1)} hrs/sem ({calculations.porcentajePico.toFixed(0)}%)
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Horas Valle:</span>
                 <span className="ml-2 font-medium text-blue-600">
-                  {calculations.totalHorasValle.toFixed(1)} hrs ({calculations.porcentajeValle.toFixed(0)}%)
+                  {calculations.totalHorasValle.toFixed(1)} hrs/sem ({calculations.porcentajeValle.toFixed(0)}%)
                 </span>
               </div>
               <div>
