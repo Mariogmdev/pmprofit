@@ -8,7 +8,7 @@ import { DashboardMetrics, DashboardInsight, ProjectionYear, ActivityInsight, Sp
 import { ActivityConfig } from '@/types/activity';
 import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { ProjectSpace } from '@/types/infrastructure';
-import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
+import { calculateActivityFinancials, calculateOccupancyTarget, calculateYear1IncomeFromProjection } from '@/lib/activityCalculations';
 
 // Helper to generate unique IDs
 const generateId = () => crypto.randomUUID();
@@ -43,16 +43,30 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }, 0);
     
     // Calculate financials for each activity using centralized function
-    const activityFinancials = activities.map(act => ({
-      activity: act,
-      financials: calculateActivityFinancials(
+    // IMPORTANT: For Year 1, we need to consider the monthly occupation projection (maturity curve)
+    const activityFinancials = activities.map(act => {
+      const financials = calculateActivityFinancials(
         act.config,
         daysPerMonth,
         act.config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
-      )
-    }));
+      );
+      
+      // Calculate Year 1 income considering monthly occupation projection
+      const year1Income = calculateYear1IncomeFromProjection(
+        act.config,
+        daysPerMonth,
+        act.config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
+      
+      return {
+        activity: act,
+        financials,
+        year1Income,
+      };
+    });
     
     // Sum up total income from all activities
+    // Use Year 1 monthly average (which considers maturity curve)
     let ingresosBrutosAno1 = 0;
     let ingresosOperacionales = 0;
     let totalReservas = 0;
@@ -63,9 +77,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     const ingresosPorActividad: DashboardMetrics['ingresosPorActividad'] = [];
 
-    activityFinancials.forEach(({ activity, financials }, idx) => {
-      // Use the centralized calculation for income
-      const ingresoEstimado = financials.ingresosMensuales;
+    activityFinancials.forEach(({ activity, financials, year1Income }, idx) => {
+      // Use Year 1 monthly average (considers maturity curve)
+      const ingresoEstimado = year1Income.monthlyAverage;
       
       ingresosBrutosAno1 += ingresoEstimado;
       ingresosOperacionales += ingresoEstimado;
@@ -394,10 +408,13 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     if (puntoEquilibrioMes === 0) puntoEquilibrioMes = projectionYears * 12 + 12;
 
     // === GENERATE ACTIVITY INSIGHTS (Reuse calculations from above) ===
-    const activityInsights: ActivityInsight[] = activityFinancials.map(({ activity, financials }) => {
+    const activityInsights: ActivityInsight[] = activityFinancials.map(({ activity, financials, year1Income }) => {
       const config: ActivityConfig = activity.config;
       
       const ocupacionTarget = calculateOccupancyTarget(config);
+      
+      // Use Year 1 monthly average for income (considers maturity curve)
+      const ingresosMensualesYear1 = year1Income.monthlyAverage;
       
       // Generate activity-specific insights
       const actInsights: ActivityInsight['insights'] = [];
@@ -420,7 +437,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         actInsights.push({ type: 'warning', message: `Payback largo: ${financials.paybackMeses} meses` });
       }
       
-      if (financials.ingresosMensuales > 0 && financials.capexTotal === 0) {
+      if (ingresosMensualesYear1 > 0 && financials.capexTotal === 0) {
         actInsights.push({ type: 'opportunity', message: 'Sin CAPEX registrado - Verificar inversión' });
       }
 
@@ -433,10 +450,10 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         nombre: activity.name,
         icon: activity.icon || '📦',
         categoria: config.modeloIngreso || 'reserva',
-        ingresosMensuales: financials.ingresosMensuales,
+        ingresosMensuales: ingresosMensualesYear1,
         opexMensual: financials.opexMensual,
-        ebitdaMensual: financials.ebitdaMensual,
-        margenEbitda: financials.margenEbitda,
+        ebitdaMensual: ingresosMensualesYear1 - financials.opexMensual,
+        margenEbitda: ingresosMensualesYear1 > 0 ? ((ingresosMensualesYear1 - financials.opexMensual) / ingresosMensualesYear1) * 100 : 0,
         ocupacionPromedio: financials.ocupacionPromedio,
         ocupacionTarget,
         capacidadUtilizada: ocupacionTarget > 0 ? (financials.ocupacionPromedio / ocupacionTarget) * 100 : 0,
@@ -447,7 +464,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         rankingMargen: 0,
         rankingROI: 0,
         insights: actInsights,
-        porcentajeIngresosTotales: ingresosBrutosAno1 > 0 ? (financials.ingresosMensuales / ingresosBrutosAno1) * 100 : 0,
+        porcentajeIngresosTotales: ingresosBrutosAno1 > 0 ? (ingresosMensualesYear1 / ingresosBrutosAno1) * 100 : 0,
         porcentajeOpexTotales: 0, // Will calculate after
       };
     });
