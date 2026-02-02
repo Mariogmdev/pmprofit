@@ -158,6 +158,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         currency={currency}
+         year1Monthly={metrics.year1Monthly}
       />
       
       {/* Section 7: Métricas Detalladas */}

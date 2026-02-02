@@ -10,6 +10,8 @@ import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { ProjectSpace } from '@/types/infrastructure';
 import { calculateActivityFinancials, calculateOccupancyTarget, calculateYear1IncomeFromProjection } from '@/lib/activityCalculations';
 
+const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
 // Helper to generate unique IDs
 const generateId = () => crypto.randomUUID();
 
@@ -77,6 +79,10 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     const ingresosPorActividad: DashboardMetrics['ingresosPorActividad'] = [];
 
+    // Aggregate the 12-month Year 1 income curve across ALL activities.
+    // Source of truth: calculateYear1IncomeFromProjection(...).months
+    const year1IncomeMonths = Array(12).fill(0) as number[];
+
     activityFinancials.forEach(({ activity, financials, year1Income }, idx) => {
       // Use Year 1 monthly average (considers maturity curve)
       const ingresoEstimado = year1Income.monthlyAverage;
@@ -108,7 +114,16 @@ export const useDashboardMetrics = (): DashboardMetrics => {
           color: CHART_COLORS.activities[idx % CHART_COLORS.activities.length],
         });
       }
+
+      year1Income.months.forEach((m, monthIdx) => {
+        year1IncomeMonths[monthIdx] += m || 0;
+      });
     });
+
+    // Build detailed Year 1 monthly breakdown for Dashboard "Mensual Año 1".
+    // NOTE: OPEX and EBITDA distribution is proportional to the income curve.
+    const year1IncomeTotal = year1IncomeMonths.reduce((sum, v) => sum + v, 0);
+    const year1IncomeAvg = year1IncomeTotal / 12;
 
     // Calculate percentages
     ingresosPorActividad.forEach(item => {
@@ -357,6 +372,15 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     if (!paybackAlcanzado) {
       paybackMeses = projectionYears * 12 + 12; // Beyond projection
     }
+
+    const baseOpexMensualAno1 = proyeccion[0]?.opexMensual || 0;
+    const year1Monthly: DashboardMetrics['year1Monthly'] = MONTH_NAMES.map((mes, idx) => {
+      const ingresos = year1IncomeMonths[idx] || 0;
+      const factor = year1IncomeAvg > 0 ? ingresos / year1IncomeAvg : 1;
+      const opex = baseOpexMensualAno1 * factor;
+      const ebitda = ingresos - opex;
+      return { mes, ingresos, opex, ebitda };
+    });
 
     // === CALCULATE TIR (Simple approximation) ===
     // Using Newton-Raphson or bisection for real TIR would be more accurate
@@ -645,6 +669,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       van,
       paybackMeses,
       proyeccion,
+      year1Monthly,
       ingresosPorActividad,
       capexBreakdown: {
         actividades: capexActividades,
