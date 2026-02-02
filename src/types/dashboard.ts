@@ -96,6 +96,14 @@ export interface DashboardMetrics {
   
   // Projection 5 years
   proyeccion: ProjectionYear[];
+
+  // NEW: Detailed monthly breakdown for Year 1 (used by Dashboard "Mensual Año 1")
+  year1Monthly?: Array<{
+    mes: string;
+    ingresos: number;
+    opex: number;
+    ebitda: number;
+  }>;
   
   // Income composition
   ingresosPorActividad: Array<{

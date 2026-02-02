@@ -20,29 +20,30 @@ interface ProjectionTableProps {
   viewMode: ProjectionViewMode;
   onViewModeChange: (mode: ProjectionViewMode) => void;
   currency: CurrencyCode;
+  year1Monthly?: Array<{ mes: string; ingresos: number; opex: number; ebitda: number }>;
 }
 
 export const ProjectionTable = ({ 
   proyeccion, 
   viewMode, 
   onViewModeChange,
-  currency 
+  currency,
+  year1Monthly,
 }: ProjectionTableProps) => {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
-  // Generate monthly data for Year 1
-  const generateMonthlyData = (year: ProjectionYear) => {
+  const monthlyRows = year1Monthly || (() => {
+    // Fallback (should be rare): smooth linear ramp 0.7 -> 1.0 to avoid flat months.
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    // Simple ramp-up curve for Year 1
-    const rampUp = [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-    
-    return months.map((mes, idx) => ({
-      mes,
-      ingresos: year.ingresosMensuales * rampUp[idx],
-      opex: year.opexMensual * (0.95 + (0.05 * (idx / 11))),
-      ebitda: year.ebitdaMensual * rampUp[idx],
-    }));
-  };
+    const year = proyeccion[0];
+    if (!year) return [];
+    return months.map((mes, idx) => {
+      const factor = 0.7 + (0.3 * (idx / 11));
+      const ingresos = year.ingresosMensuales * factor;
+      const opex = year.opexMensual * factor;
+      return { mes, ingresos, opex, ebitda: ingresos - opex };
+    });
+  })();
 
   // Generate quarterly data
   const generateQuarterlyData = () => {
@@ -170,7 +171,7 @@ export const ProjectionTable = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {generateMonthlyData(proyeccion[0]).map((month, idx) => (
+                {(monthlyRows || []).map((month, idx) => (
                   <TableRow key={idx}>
                     <TableCell className="font-medium">{month.mes}</TableCell>
                     <TableCell className="text-right font-mono">
