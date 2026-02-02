@@ -359,3 +359,95 @@ export function calculateOccupancyTarget(config: ActivityConfig): number {
   
   return totalHours > 0 ? weightedTarget / totalHours : 60;
 }
+
+/**
+ * Calculate monthly income for specific pico/valle occupancy percentages
+ * CRITICAL: Uses proper weekly weighting (L-V: 5 days, S-D: 2 days)
+ * 
+ * This function is the SINGLE SOURCE OF TRUTH for income calculations
+ * with custom occupancy values (used for projections with maturity curves)
+ */
+export function calculateMonthlyIncomeWithOccupancy(
+  config: ActivityConfig,
+  picoOcupacion: number,
+  valleOcupacion: number
+): number {
+  const horarios = config.horarios || [];
+  const cantidad = config.cantidad || 1;
+  const duracion = config.duracionReserva || 1.5;
+
+  // Separate schedules by day type
+  const horariosLV = horarios.filter((h) => h.diaSemana === 'LV' || !h.diaSemana);
+  const horariosSD = horarios.filter((h) => h.diaSemana === 'SD');
+
+  let totalIncome = 0;
+
+  // L-V: 5 days per week
+  horariosLV.forEach((h) => {
+    const horas = Math.max(0, (h.fin || 0) - (h.inicio || 0));
+    const turnosHorario = (horas / duracion) * cantidad;
+    const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
+    const reservas = turnosHorario * (ocupacion / 100);
+    const tarifa = h.tarifa || 0;
+    // 5 days/week × 4.33 weeks/month
+    totalIncome += reservas * tarifa * WEEKDAYS_LV * WEEKS_PER_MONTH;
+  });
+
+  // S-D: 2 days per week
+  horariosSD.forEach((h) => {
+    const horas = Math.max(0, (h.fin || 0) - (h.inicio || 0));
+    const turnosHorario = (horas / duracion) * cantidad;
+    const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
+    const reservas = turnosHorario * (ocupacion / 100);
+    const tarifa = h.tarifa || 0;
+    // 2 days/week × 4.33 weeks/month
+    totalIncome += reservas * tarifa * WEEKDAYS_SD * WEEKS_PER_MONTH;
+  });
+
+  return totalIncome;
+}
+
+/**
+ * Calculate Year 1 income using monthly occupation projection
+ * Returns the SUM of 12 months (not average)
+ */
+export function calculateYear1IncomeFromProjection(
+  config: ActivityConfig,
+  daysPerMonth: number = 30,
+  totalClubUsersFromProject: number = 0
+): { totalYear1: number; monthlyAverage: number; months: number[] } {
+  // For non-reservation models, use base calculation
+  if (config.modeloIngreso !== 'reserva') {
+    const financials = calculateActivityFinancials(config, daysPerMonth, totalClubUsersFromProject);
+    const monthlyBase = financials.ingresosMensuales;
+    return {
+      totalYear1: monthlyBase * 12,
+      monthlyAverage: monthlyBase,
+      months: Array(12).fill(monthlyBase),
+    };
+  }
+
+  // For reservation model with monthly occupation data
+  const ocupacionMensual = config.ocupacionMensual;
+  
+  if (!ocupacionMensual || ocupacionMensual.length === 0) {
+    // No monthly data, use base calculation
+    const financials = calculateActivityFinancials(config, daysPerMonth, totalClubUsersFromProject);
+    const monthlyBase = financials.ingresosMensuales;
+    return {
+      totalYear1: monthlyBase * 12,
+      monthlyAverage: monthlyBase,
+      months: Array(12).fill(monthlyBase),
+    };
+  }
+
+  // Calculate income for each month using monthly occupation projections
+  const months = ocupacionMensual.map((month) => 
+    calculateMonthlyIncomeWithOccupancy(config, month.pico, month.valle)
+  );
+
+  const totalYear1 = months.reduce((sum, m) => sum + m, 0);
+  const monthlyAverage = totalYear1 / 12;
+
+  return { totalYear1, monthlyAverage, months };
+}

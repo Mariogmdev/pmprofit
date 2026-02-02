@@ -258,6 +258,15 @@ export default function ActivityMonthlyOccupationEditor({
     [ocupacionMensual, monthlyIncome]
   );
 
+  // BASE INCOME: Income at 100% maturity using target occupations from schedules
+  // This is the "Ingresos Base" shown in the educational panel
+  const ingresoBase100Madurez = useMemo(() => {
+    // Use the target occupations (what schedules define as 100% maturity)
+    const picoObjetivo = ocupacionBase.pico || calculatedPico || 50;
+    const valleObjetivo = ocupacionBase.valle || calculatedValle || 30;
+    return monthlyIncome(picoObjetivo, valleObjetivo);
+  }, [monthlyIncome, ocupacionBase, calculatedPico, calculatedValle]);
+
   return (
     <Card>
       <CardHeader className="py-3">
@@ -282,9 +291,9 @@ export default function ActivityMonthlyOccupationEditor({
             </div>
             <div className="p-2 bg-white/60 dark:bg-black/20 rounded">
               <span className="font-medium text-emerald-700 dark:text-emerald-300">Ingresos Base:</span>
-              <span className="ml-1 font-bold text-emerald-800 dark:text-emerald-200">{formatCurrency(ingresoAnualAno1 / 12, currency as CurrencyCode)}/mes</span>
+              <span className="ml-1 font-bold text-emerald-800 dark:text-emerald-200">{formatCurrency(ingresoBase100Madurez, currency as CurrencyCode)}/mes</span>
               <p className="text-emerald-600 dark:text-emerald-400 mt-0.5">
-                Al {calculatedOccupancy.toFixed(0)}% ocupación
+                Al 100% madurez ({calculatedOccupancy.toFixed(0)}% ocupación)
               </p>
             </div>
             <div className="p-2 bg-white/60 dark:bg-black/20 rounded">
