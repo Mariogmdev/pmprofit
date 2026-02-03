@@ -212,12 +212,19 @@ export default function ActivityMonthlyOccupationEditor({
     const basePico = ocupacionBase.pico || calculatedPico || 50;
     const baseValle = ocupacionBase.valle || calculatedValle || 30;
     
+    console.log('=== GENERATING MONTHLY PROJECTION ===');
+    console.log('Base Pico:', basePico, 'Base Valle:', baseValle);
+    console.log('Inicio factor:', inicioFactor, 'Madurez factor:', maduracionFactor);
+    
     // Month 1 starts at inicio factor of base
     // Month 12 ends at maduracion factor of base
     const startPico = Math.min(100, Math.round(basePico * inicioFactor));
     const startValle = Math.min(100, Math.round(baseValle * inicioFactor));
     const endPico = Math.min(100, Math.round(basePico * maduracionFactor));
     const endValle = Math.min(100, Math.round(baseValle * maduracionFactor));
+    
+    console.log('Start Pico:', startPico, 'Start Valle:', startValle);
+    console.log('End Pico:', endPico, 'End Valle:', endValle);
     
     const newOccupation: OccupationMonth[] = [];
     
@@ -239,7 +246,24 @@ export default function ActivityMonthlyOccupationEditor({
       });
     }
     
+    console.log('Generated occupations:', newOccupation);
+    console.log('Month 1:', newOccupation[0]);
+    console.log('Month 7:', newOccupation[6]);
+    console.log('Month 12:', newOccupation[11]);
+    console.log('=== END GENERATION ===');
+    
     onUpdate({ ocupacionMensual: newOccupation });
+  };
+  
+  // Force regeneration clearing old data first
+  const forceRegenerateProjection = () => {
+    console.log('=== FORCE REGENERATE: Clearing old data ===');
+    // Clear existing monthly data first, then regenerate
+    onUpdate({ ocupacionMensual: [] });
+    // Use setTimeout to ensure state update propagates before regenerating
+    setTimeout(() => {
+      generateMonthlyProjection();
+    }, 100);
   };
 
   // Calculate average occupation for Year 1 (monthly mode)
@@ -599,9 +623,20 @@ export default function ActivityMonthlyOccupationEditor({
                 </div>
               </div>
 
-              <Button onClick={generateMonthlyProjection} className="w-full" size="lg">
-                Generar Proyección Mensual
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={generateMonthlyProjection} className="flex-1" size="lg">
+                  Generar Proyección Mensual
+                </Button>
+                <Button 
+                  onClick={forceRegenerateProjection} 
+                  variant="outline" 
+                  size="lg"
+                  className="flex-1"
+                  title="Limpia datos viejos y regenera la proyección desde cero"
+                >
+                  🔄 Regenerar (Limpiar Datos Viejos)
+                </Button>
+              </div>
             </div>
 
             {/* Monthly Table - Read Only */}
