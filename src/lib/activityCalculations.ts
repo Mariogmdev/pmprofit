@@ -340,22 +340,35 @@ export function calculateActivityFinancials(
 
 /**
  * Calculate occupancy target based on schedule types
+ * 
+ * IMPORTANT: Properly weights hours by weekly frequency:
+ * - L-V (Weekdays): 5 days/week
+ * - S-D (Weekend): 2 days/week
+ * 
+ * @returns Weighted average target occupancy percentage
  */
 export function calculateOccupancyTarget(config: ActivityConfig): number {
   const schedules = config.horarios || [];
   if (schedules.length === 0) return 60;
   
-  let totalHours = 0;
+  let totalWeightedHours = 0;
   let weightedTarget = 0;
   
   schedules.forEach((s) => {
-    const hours = Math.max(0, s.fin - s.inicio);
-    totalHours += hours;
+    const hoursPerDay = Math.max(0, s.fin - s.inicio);
+    
+    // Get days per week based on schedule type (L-V = 5, S-D = 2)
+    const daysPerWeek = (s.diaSemana === 'SD') ? WEEKDAYS_SD : WEEKDAYS_LV;
+    
+    // Hours per week for this schedule
+    const hoursPerWeek = hoursPerDay * daysPerWeek;
+    
+    totalWeightedHours += hoursPerWeek;
     // Peak hours have 80% target, valley has 50%
-    weightedTarget += hours * (s.tipo === 'pico' ? 80 : 50);
+    weightedTarget += hoursPerWeek * (s.tipo === 'pico' ? 80 : 50);
   });
   
-  return totalHours > 0 ? weightedTarget / totalHours : 60;
+  return totalWeightedHours > 0 ? weightedTarget / totalWeightedHours : 60;
 }
 
 /**
