@@ -7,7 +7,7 @@
  * IMPORTANT:
  * - Growth curves modify OCCUPANCY, not raw income
  * - Income scales proportionally with occupancy changes
- * - Uses 4.33 weeks/month for consistency
+ * - Uses dynamic weeks/month based on project configuration (daysPerMonth/7)
  */
 
 export interface MonthlyProjectionItem {

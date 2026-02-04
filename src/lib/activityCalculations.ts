@@ -5,7 +5,7 @@
  * CRITICAL: All calculations properly weight:
  * - L-V (Lunes-Viernes): 5 days per week
  * - S-D (Sábado-Domingo): 2 days per week
- * - Uses 4.33 weeks/month (not 30 days directly)
+ * - Uses dynamic weeks/month based on project configuration (daysPerMonth/7)
  */
 
 import { 
@@ -15,11 +15,7 @@ import {
   DEFAULT_DAILY_PASS_CONFIG,
   DEFAULT_TRAFFIC_CONFIG,
 } from '@/types/activity';
-
-// Constants for weekly calculations
-const WEEKS_PER_MONTH = 4.33;
-const WEEKDAYS_LV = 5; // Lunes - Viernes
-const WEEKDAYS_SD = 2; // Sábado - Domingo
+import { getWeeksPerMonth, WEEKDAYS_LV, WEEKDAYS_SD } from '@/lib/timeHelpers';
 
 export interface ActivityFinancials {
   // Income breakdown
@@ -172,8 +168,9 @@ export function calculateActivityFinancials(
     // Calculate weekly income (properly weighted)
     ingresosSemana = (ingresosDiaLV * WEEKDAYS_LV) + (ingresosDiaSD * WEEKDAYS_SD);
     
-    // Calculate monthly income (4.33 weeks per month)
-    ingresosHorarios = ingresosSemana * WEEKS_PER_MONTH;
+    // Calculate monthly income (dynamic weeks per month based on project config)
+    const weeksPerMonth = getWeeksPerMonth(daysPerMonth);
+    ingresosHorarios = ingresosSemana * weeksPerMonth;
 
     // Total users calculation for reservations
     // Calculate turns per day for each day type
@@ -193,7 +190,8 @@ export function calculateActivityFinancials(
     
     // Weekly turns and monthly reservations
     const turnosSemana = (turnosDiaLV * WEEKDAYS_LV) + (turnosDiaSD * WEEKDAYS_SD);
-    const totalReservasMes = turnosSemana * WEEKS_PER_MONTH;
+    const weeksPerMonthForTurnos = getWeeksPerMonth(daysPerMonth);
+    const totalReservasMes = turnosSemana * weeksPerMonthForTurnos;
     totalUsuariosMes = totalReservasMes * jugadores;
     
     // Complementary income (rentals)
@@ -366,15 +364,19 @@ export function calculateOccupancyTarget(config: ActivityConfig): number {
  * 
  * This function is the SINGLE SOURCE OF TRUTH for income calculations
  * with custom occupancy values (used for projections with maturity curves)
+ * 
+ * @param daysPerMonth - Days per month from project config (default 30)
  */
 export function calculateMonthlyIncomeWithOccupancy(
   config: ActivityConfig,
   picoOcupacion: number,
-  valleOcupacion: number
+  valleOcupacion: number,
+  daysPerMonth: number = 30
 ): number {
   const horarios = config.horarios || [];
   const cantidad = config.cantidad || 1;
   const duracion = config.duracionReserva || 1.5;
+  const weeksPerMonth = getWeeksPerMonth(daysPerMonth);
 
   // Separate schedules by day type
   const horariosLV = horarios.filter((h) => h.diaSemana === 'LV' || !h.diaSemana);
@@ -389,8 +391,8 @@ export function calculateMonthlyIncomeWithOccupancy(
     const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
     const reservas = turnosHorario * (ocupacion / 100);
     const tarifa = h.tarifa || 0;
-    // 5 days/week × 4.33 weeks/month
-    totalIncome += reservas * tarifa * WEEKDAYS_LV * WEEKS_PER_MONTH;
+    // 5 days/week × dynamic weeks/month
+    totalIncome += reservas * tarifa * WEEKDAYS_LV * weeksPerMonth;
   });
 
   // S-D: 2 days per week
@@ -400,8 +402,8 @@ export function calculateMonthlyIncomeWithOccupancy(
     const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
     const reservas = turnosHorario * (ocupacion / 100);
     const tarifa = h.tarifa || 0;
-    // 2 days/week × 4.33 weeks/month
-    totalIncome += reservas * tarifa * WEEKDAYS_SD * WEEKS_PER_MONTH;
+    // 2 days/week × dynamic weeks/month
+    totalIncome += reservas * tarifa * WEEKDAYS_SD * weeksPerMonth;
   });
 
   return totalIncome;
