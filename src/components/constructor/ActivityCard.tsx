@@ -25,6 +25,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useActivityCalculations } from '@/hooks/useActivityCalculations';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
+import { getWeeksPerMonth } from '@/lib/timeHelpers';
 import ActivityBasicConfig from './ActivityBasicConfig';
 import ActivityRevenueModelEditor from './ActivityRevenueModelEditor';
 import ActivityScheduleEditor from './ActivityScheduleEditor';
@@ -145,11 +146,12 @@ export default function ActivityCard({
 
   // Calculate monthly income for occupation editor
   // CRITICAL: Properly weights L-V (5 days/week) and S-D (2 days/week)
+  // Uses dynamic weeks/month based on project daysPerMonth configuration
   const calculateMonthlyIncome = useCallback((picoOcupacion: number, valleOcupacion: number): number => {
     const horarios = activity.config.horarios || [];
     const cantidad = activity.config.cantidad || 1;
     const duracion = activity.config.duracionReserva || 1.5;
-    const WEEKS_PER_MONTH = 4.33;
+    const weeksPerMonth = getWeeksPerMonth(daysPerMonth);
 
     // Separate schedules by day type
     const horariosLV = horarios.filter((h: any) => h.diaSemana === 'LV' || !h.diaSemana);
@@ -164,8 +166,8 @@ export default function ActivityCard({
       const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
       const reservas = turnosHorario * (ocupacion / 100);
       const tarifa = h.tarifa || 0;
-      // 5 days/week × 4.33 weeks/month
-      totalIncome += reservas * tarifa * 5 * WEEKS_PER_MONTH;
+      // 5 days/week × dynamic weeks/month
+      totalIncome += reservas * tarifa * 5 * weeksPerMonth;
     });
 
     // S-D: 2 days per week
@@ -175,12 +177,12 @@ export default function ActivityCard({
       const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
       const reservas = turnosHorario * (ocupacion / 100);
       const tarifa = h.tarifa || 0;
-      // 2 days/week × 4.33 weeks/month
-      totalIncome += reservas * tarifa * 2 * WEEKS_PER_MONTH;
+      // 2 days/week × dynamic weeks/month
+      totalIncome += reservas * tarifa * 2 * weeksPerMonth;
     });
 
     return totalIncome;
-  }, [activity.config]);
+  }, [activity.config, daysPerMonth]);
 
   // Show schedule/occupation only for reservation model
   const showSchedules = activity.config.modeloIngreso === 'reserva';

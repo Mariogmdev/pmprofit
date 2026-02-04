@@ -5,10 +5,7 @@ import {
   ActivityCalculations,
 } from '@/types/activity';
 import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
-
-// Constants for weekly calculations - MUST match activityCalculations.ts
-const WEEKDAYS_LV = 5; // Lunes - Viernes
-const WEEKDAYS_SD = 2; // Sábado - Domingo
+import { WEEKDAYS_LV, WEEKDAYS_SD } from '@/lib/timeHelpers';
 
 /**
  * Hook wrapper for activity calculations
