@@ -45,16 +45,23 @@ export const ProjectionTable = ({
     });
   })();
 
-  // Generate quarterly data
+  // Generate quarterly data - EBITDA is CALCULATED, not distributed independently
+  // This guarantees the accounting identity: EBITDA = Ingresos - OPEX
   const generateQuarterlyData = () => {
+    // Distribution weights per quarter (uniform 25% each)
+    // Can be made configurable for seasonality in future
+    const weights = [0.25, 0.25, 0.25, 0.25];
+    const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
+    
     return proyeccion.map(year => ({
       year: year.year,
-      quarters: [
-        { q: 'Q1', ingresos: year.ingresosAnuales * 0.22, opex: year.opexAnual * 0.24, ebitda: year.ebitdaAnual * 0.20 },
-        { q: 'Q2', ingresos: year.ingresosAnuales * 0.24, opex: year.opexAnual * 0.25, ebitda: year.ebitdaAnual * 0.23 },
-        { q: 'Q3', ingresos: year.ingresosAnuales * 0.26, opex: year.opexAnual * 0.25, ebitda: year.ebitdaAnual * 0.27 },
-        { q: 'Q4', ingresos: year.ingresosAnuales * 0.28, opex: year.opexAnual * 0.26, ebitda: year.ebitdaAnual * 0.30 },
-      ]
+      quarters: weights.map((weight, idx) => {
+        const ingresos = year.ingresosAnuales * weight;
+        const opex = year.opexAnual * weight;
+        // CRITICAL: Calculate EBITDA to preserve accounting identity
+        const ebitda = ingresos - opex;
+        return { q: quarterNames[idx], ingresos, opex, ebitda };
+      })
     }));
   };
 
