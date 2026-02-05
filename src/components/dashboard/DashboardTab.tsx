@@ -70,8 +70,8 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
     const summary = `
 📊 Resumen Ejecutivo - ${currentProject?.name || 'Proyecto'}
 
-💰 Ingresos Mensuales (Año 1): ${formatCurrency(metrics.ingresosMensualesAno1, currency)}
-📈 EBITDA Mensual: ${formatCurrency(metrics.ebitdaMensualAno1, currency)} (${metrics.margenEbitdaAno1.toFixed(1)}%)
+💰 Ingresos Mensuales (Base): ${formatCurrency(metrics.ingresosMensualesBase, currency)}
+📈 EBITDA Mensual: ${formatCurrency(metrics.ebitdaMensualBase, currency)} (${metrics.margenEbitdaBase.toFixed(1)}%)
 🏗️ CAPEX Total: ${formatCurrency(metrics.capexTotal, currency)}
 ⏱️ Payback: ${metrics.paybackMeses} meses (${(metrics.paybackMeses / 12).toFixed(1)} años)
 📊 TIR: ${metrics.tir.toFixed(1)}%

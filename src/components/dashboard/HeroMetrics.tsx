@@ -35,7 +35,7 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <Badge variant="outline" className="bg-background">
-              Año 1
+              Base
             </Badge>
           </div>
           
@@ -44,7 +44,7 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               Ingresos Mensuales
             </p>
             <p className="text-2xl lg:text-3xl font-bold text-green-700 dark:text-green-400">
-              {formatCurrency(metrics.ingresosMensualesAno1, currency)}
+              {formatCurrency(metrics.ingresosMensualesBase, currency)}
             </p>
             <div className="flex items-center gap-2 text-sm">
               <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -58,9 +58,9 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
           
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground">Anual Año 1</p>
+              <p className="text-muted-foreground">Anual Base</p>
               <p className="font-semibold">
-                {formatCurrency(metrics.ingresosAnualesAno1, currency)}
+                {formatCurrency(metrics.ingresosAnualesBase, currency)}
               </p>
             </div>
             <div>
@@ -86,10 +86,10 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               variant="outline"
               className={cn(
                 "bg-background",
-                metrics.margenEbitdaAno1 >= 30 ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"
+                metrics.margenEbitdaBase >= 30 ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"
               )}
             >
-              {formatPercent(metrics.margenEbitdaAno1)} Margen
+              {formatPercent(metrics.margenEbitdaBase)} Margen
             </Badge>
           </div>
           
@@ -98,10 +98,10 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               EBITDA Mensual
             </p>
             <p className="text-2xl lg:text-3xl font-bold text-blue-700 dark:text-blue-400">
-              {formatCurrency(metrics.ebitdaMensualAno1, currency)}
+              {formatCurrency(metrics.ebitdaMensualBase, currency)}
             </p>
             <div className="flex items-center gap-2 text-sm">
-              {metrics.margenEbitdaAno1 >= 30 ? (
+              {metrics.margenEbitdaBase >= 30 ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <span className="text-green-600 dark:text-green-400 font-medium">Margen saludable</span>
@@ -119,9 +119,9 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
           
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground">Anual Año 1</p>
+              <p className="text-muted-foreground">Anual Base</p>
               <p className="font-semibold">
-                {formatCurrency(metrics.ebitdaMensualAno1 * 12, currency)}
+                {formatCurrency(metrics.ebitdaMensualBase * 12, currency)}
               </p>
             </div>
             <div>

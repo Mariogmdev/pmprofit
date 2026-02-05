@@ -172,8 +172,9 @@ export interface ActivityCalculations {
   turnosPorDia: number;
   ocupacionTarget?: number;        // Target occupancy based on schedule types
   
-  // Income
-  ingresosMensualesAno1: number;
+  // Income - Base/Madurez (100% ocupación objetivo)
+  // Representa el ingreso mensual cuando la actividad alcanza su ocupación objetivo
+  ingresosMensualesBase: number;
   ingresosHorarios: number;
   ingresosComplementarios: number;
   ingresosClases: number;
