@@ -184,8 +184,8 @@ export default function ActivityCard({
     return totalIncome;
   }, [activity.config, daysPerMonth]);
 
-  // Show schedule/occupation only for reservation model
-  const showSchedules = activity.config.modeloIngreso === 'reserva';
+  // Show schedule/occupation for reservation and mixed models
+  const showSchedules = ['reserva', 'mixto'].includes(activity.config.modeloIngreso);
 
   return (
     <>
