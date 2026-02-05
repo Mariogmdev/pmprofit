@@ -16,6 +16,7 @@ import {
   DEFAULT_TRAFFIC_CONFIG,
 } from '@/types/activity';
 import { getWeeksPerMonth, WEEKDAYS_LV, WEEKDAYS_SD } from '@/lib/timeHelpers';
+import { monthlyFinancialsWithOccupancy } from '@/lib/monthlyFinancials';
 
 export interface ActivityFinancials {
   // Income breakdown
@@ -425,6 +426,14 @@ export function calculateMonthlyIncomeWithOccupancy(
 /**
  * Calculate Year 1 income using monthly occupation projection
  * Returns the SUM of 12 months (not average)
+ * 
+ * CRITICAL FIX: Now uses monthlyFinancialsWithOccupancy which includes ALL income components:
+ * - Reservations (reservas)
+ * - Complementary income (alquileres/rentals)
+ * - Classes (clases)
+ * - Memberships (membresías)
+ * - Daily passes (pases)
+ * - Traffic income (tráfico)
  */
 export function calculateYear1IncomeFromProjection(
   config: ActivityConfig,
@@ -442,7 +451,7 @@ export function calculateYear1IncomeFromProjection(
     };
   }
 
-  // For reservation model with monthly occupation data
+  // For reservation/mixed model with monthly occupation data
   const ocupacionMensual = config.ocupacionMensual;
   
   if (!ocupacionMensual || ocupacionMensual.length === 0) {
@@ -456,10 +465,18 @@ export function calculateYear1IncomeFromProjection(
     };
   }
 
-  // Calculate income for each month using monthly occupation projections
-  const months = ocupacionMensual.map((month) => 
-    calculateMonthlyIncomeWithOccupancy(config, month.pico, month.valle)
-  );
+  // Calculate income for each month using centralized function
+  // This includes ALL income components: reservations, rentals, classes, memberships, passes, traffic
+  const months = ocupacionMensual.map((month) => {
+    const financials = monthlyFinancialsWithOccupancy(
+      config,
+      daysPerMonth,
+      month.pico,
+      month.valle,
+      totalClubUsersFromProject
+    );
+    return financials.ingresos.total;
+  });
 
   const totalYear1 = months.reduce((sum, m) => sum + m, 0);
   const monthlyAverage = totalYear1 / 12;
