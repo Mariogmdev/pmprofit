@@ -238,7 +238,7 @@ export default function ActivityCard({
                 <span>{formatCurrency(calculations.capexTotal, currency as CurrencyCode)} CAPEX</span>
                 <span>•</span>
                 <span className="text-primary font-medium">
-                  {formatCurrency(calculations.ingresosMensualesAno1, currency as CurrencyCode)}/mes
+                  {formatCurrency(calculations.ingresosMensualesBase, currency as CurrencyCode)}/mes
                 </span>
               </div>
             </div>

@@ -84,11 +84,12 @@ export interface SpaceInsight {
 }
 
 export interface DashboardMetrics {
-  // Hero metrics
-  ingresosMensualesAno1: number;
-  ingresosAnualesAno1: number;
-  ebitdaMensualAno1: number;
-  margenEbitdaAno1: number;
+  // Hero metrics - Base/Madurez (100% ocupación objetivo)
+  // Estos valores representan el estado estable cuando la actividad alcanza su ocupación objetivo
+  ingresosMensualesBase: number;
+  ingresosAnualesBase: number;
+  ebitdaMensualBase: number;
+  margenEbitdaBase: number;
   capexTotal: number;
   tir: number;
   van: number;

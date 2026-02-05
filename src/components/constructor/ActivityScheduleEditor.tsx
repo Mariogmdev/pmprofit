@@ -271,7 +271,7 @@ export default function ActivityScheduleEditor({
               <div>
                 <span className="text-muted-foreground">Ingresos Base:</span>
                 <span className="ml-2 font-medium text-primary">
-                  {formatCurrency(calculations.ingresosMensualesAno1, currency as CurrencyCode)}/mes
+                  {formatCurrency(calculations.ingresosMensualesBase, currency as CurrencyCode)}/mes
                 </span>
               </div>
             </div>

@@ -29,10 +29,10 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
               <span className="text-xs font-medium">Ingresos/mes</span>
             </div>
             <div className="text-lg font-bold text-primary">
-              {formatCurrency(calculations.ingresosMensualesAno1, currency as CurrencyCode)}
+              {formatCurrency(calculations.ingresosMensualesBase, currency as CurrencyCode)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Año 1
+              Base (Madurez)
             </div>
           </div>
 
@@ -152,9 +152,9 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
               </div>
             )}
             <div>
-              <span className="text-muted-foreground">Ingresos anuales:</span>
+              <span className="text-muted-foreground">Ingresos anuales (base):</span>
               <span className="ml-2 font-medium">
-                {formatCurrency(calculations.ingresosMensualesAno1 * 12, currency as CurrencyCode)}
+                {formatCurrency(calculations.ingresosMensualesBase * 12, currency as CurrencyCode)}
               </span>
             </div>
           </div>

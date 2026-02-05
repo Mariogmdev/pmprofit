@@ -161,7 +161,7 @@ export function useActivityCalculations(
       
       // Income breakdown (BASE - 100% maturity)
       // These come directly from centralized calculations
-      ingresosMensualesAno1: financials.ingresosMensuales,
+      ingresosMensualesBase: financials.ingresosMensuales,
       ingresosHorarios: financials.ingresosHorarios,
       ingresosComplementarios: financials.ingresosComplementarios,
       ingresosClases: financials.ingresosClases,

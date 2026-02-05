@@ -581,14 +581,14 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     // === GENERATE PROJECT INSIGHTS ===
     const insights: DashboardInsight[] = [];
-    const ebitdaMensualAno1 = proyeccion[0]?.ebitdaMensual || 0;
-    const margenEbitdaAno1 = proyeccion[0]?.margenEbitda || 0;
+    const ebitdaMensualBase = proyeccion[0]?.ebitdaMensual || 0;
+    const margenEbitdaBase = proyeccion[0]?.margenEbitda || 0;
     const opexPorcentaje = ingresosBrutosAno1 > 0 
       ? ((proyeccion[0]?.opexMensual || 0) / ingresosBrutosAno1) * 100 
       : 0;
 
     // Success insights
-    if (ebitdaMensualAno1 > 0) {
+    if (ebitdaMensualBase > 0) {
       insights.push({
         id: generateId(),
         type: 'success',
@@ -626,12 +626,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    if (margenEbitdaAno1 < 30) {
+    if (margenEbitdaBase < 30) {
       insights.push({
         id: generateId(),
         type: 'warning',
         title: 'Margen ajustado',
-        description: `El margen EBITDA del ${margenEbitdaAno1.toFixed(1)}% está por debajo del benchmark (30%).`,
+        description: `El margen EBITDA del ${margenEbitdaBase.toFixed(1)}% está por debajo del benchmark (30%).`,
         action: { label: 'Optimizar ingresos', tab: 'constructor' },
       });
     }
@@ -666,7 +666,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
 
     // Error insights
-    if (ebitdaMensualAno1 < 0) {
+    if (ebitdaMensualBase < 0) {
       insights.push({
         id: generateId(),
         type: 'error',
@@ -677,10 +677,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
 
     return {
-      ingresosMensualesAno1: ingresosBrutosAno1,
-      ingresosAnualesAno1: ingresosBrutosAno1 * 12,
-      ebitdaMensualAno1,
-      margenEbitdaAno1,
+      // Base/Madurez metrics (100% ocupación objetivo)
+      ingresosMensualesBase: ingresosBrutosAno1,
+      ingresosAnualesBase: ingresosBrutosAno1 * 12,
+      ebitdaMensualBase,
+      margenEbitdaBase,
       capexTotal,
       tir,
       van,
@@ -697,7 +698,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       ocupacionPromedio,
       ticketPromedio,
       ingresosPorM2Anual: areaTotal > 0 ? (ingresosBrutosAno1 * 12) / areaTotal : 0,
-      ebitdaPorM2Anual: areaTotal > 0 ? (ebitdaMensualAno1 * 12) / areaTotal : 0,
+      ebitdaPorM2Anual: areaTotal > 0 ? (ebitdaMensualBase * 12) / areaTotal : 0,
       areaTotal,
       loading,
       insights,
