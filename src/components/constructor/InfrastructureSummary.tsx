@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -18,10 +18,26 @@ interface InfrastructureSummaryProps {
 
 export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSummaryProps) => {
   const { spaces } = useProjectSpaces(projectId);
-  const { obraCivil } = useObraCivil(projectId);
+  const { obraCivil, updateObraCivil } = useObraCivil(projectId);
   const { activities } = useProjectActivities();
   
-  const [imprevistosPorcentaje, setImprevistosPorcentaje] = useState(10);
+  // Use obraCivil.imprevistos_porcentaje as source of truth (synced with dashboard)
+  const [imprevistosPorcentaje, setImprevistosPorcentaje] = useState(
+    obraCivil?.imprevistos_porcentaje ?? 10
+  );
+  
+  // Sync with database when obraCivil loads
+  useEffect(() => {
+    if (obraCivil?.imprevistos_porcentaje !== undefined) {
+      setImprevistosPorcentaje(obraCivil.imprevistos_porcentaje);
+    }
+  }, [obraCivil?.imprevistos_porcentaje]);
+  
+  // Persist changes to database
+  const handleImprevistosPorcentajeChange = (value: number) => {
+    setImprevistosPorcentaje(value);
+    updateObraCivil({ imprevistos_porcentaje: value });
+  };
 
   const summary = useMemo(() => {
     // 1. CAPEX Actividades (construction + equipment + consumables + furniture)
@@ -189,7 +205,7 @@ export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSum
                   <Input
                     type="number"
                     value={imprevistosPorcentaje}
-                    onChange={(e) => setImprevistosPorcentaje(Number(e.target.value))}
+                    onChange={(e) => handleImprevistosPorcentajeChange(Number(e.target.value))}
                     className="w-20 text-right"
                     min="0"
                     max="100"

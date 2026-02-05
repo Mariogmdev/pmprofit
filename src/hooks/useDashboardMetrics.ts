@@ -167,7 +167,18 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }, 0);
 
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
-    const capexTotal = capexActividades + capexEspacios + capexObraCivil;
+    
+    // Subtotal before contingencies
+    const capexSubtotal = capexActividades + capexEspacios + capexObraCivil;
+    
+    // Contingencies (imprevistos) - use percentage from obraCivil config
+    // This ensures CONSISTENCY with InfrastructureSummary which uses the same source
+    const imprevistosPorcentaje = obraCivil?.imprevistos_porcentaje ?? 10;
+    const imprevistosValor = capexSubtotal * (imprevistosPorcentaje / 100);
+    
+    // TOTAL CAPEX = Subtotal + Contingencies
+    // CRITICAL: This must match InfrastructureSummary calculation exactly
+    const capexTotal = capexSubtotal + imprevistosValor;
 
     // === OPEX CALCULATIONS (Simplified from OpexSummaryCard logic) ===
     const calculateReservasForActivities = (actividadesIncluidas?: string[]) => {
