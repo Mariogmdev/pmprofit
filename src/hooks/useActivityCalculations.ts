@@ -6,6 +6,7 @@ import {
 } from '@/types/activity';
 import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
 import { WEEKDAYS_LV, WEEKDAYS_SD } from '@/lib/timeHelpers';
+import { logger } from '@/lib/logger';
 
 /**
  * Hook wrapper for activity calculations
@@ -24,9 +25,9 @@ export function useActivityCalculations(
   const daysPerMonth = currentProject?.days_per_month || 30;
 
   return useMemo(() => {
-    console.log('=== useActivityCalculations (WRAPPER) ===');
-    console.log('Activity:', config.tipoUnidad || 'unnamed');
-    console.log('Using centralized calculateActivityFinancials');
+    logger.dev('=== useActivityCalculations (WRAPPER) ===');
+    logger.dev('Activity:', config.tipoUnidad || 'unnamed');
+    logger.dev('Using centralized calculateActivityFinancials');
     
     // ============================================================
     // CRITICAL: Use centralized calculation function for ALL income
@@ -38,11 +39,11 @@ export function useActivityCalculations(
       totalClubUsersFromProject
     );
     
-    console.log('Base income (100% maturity):', financials.ingresosMensuales);
-    console.log('  - Ingresos/día L-V:', financials.ingresosDiaLV);
-    console.log('  - Ingresos/día S-D:', financials.ingresosDiaSD);
-    console.log('  - Ingresos/semana:', financials.ingresosSemana);
-    console.log('Base occupancy:', financials.ocupacionPromedio);
+    logger.dev('Base income (100% maturity):', financials.ingresosMensuales);
+    logger.dev('  - Ingresos/día L-V:', financials.ingresosDiaLV);
+    logger.dev('  - Ingresos/día S-D:', financials.ingresosDiaSD);
+    logger.dev('  - Ingresos/semana:', financials.ingresosSemana);
+    logger.dev('Base occupancy:', financials.ocupacionPromedio);
     
     // Calculate occupancy target
     const ocupacionTarget = calculateOccupancyTarget(config);
@@ -134,12 +135,12 @@ export function useActivityCalculations(
     const totalHorasPico = financials.totalHorasPico;
     const totalHorasValle = financials.totalHorasValle;
     
-    console.log('Schedule summary:');
-    console.log('  - Pico/Valle %:', porcentajePico.toFixed(1), '/', porcentajeValle.toFixed(1));
-    console.log('  - Tarifa promedio:', tarifaPromedio);
-    console.log('  - Ocupación promedio:', financials.ocupacionPromedio.toFixed(1), '%');
-    console.log('  - Turnos/día promedio:', turnosPorDiaPromedio.toFixed(1));
-    console.log('=== END useActivityCalculations ===');
+    logger.dev('Schedule summary:');
+    logger.dev('  - Pico/Valle %:', porcentajePico.toFixed(1), '/', porcentajeValle.toFixed(1));
+    logger.dev('  - Tarifa promedio:', tarifaPromedio);
+    logger.dev('  - Ocupación promedio:', financials.ocupacionPromedio.toFixed(1), '%');
+    logger.dev('  - Turnos/día promedio:', turnosPorDiaPromedio.toFixed(1));
+    logger.dev('=== END useActivityCalculations ===');
     
     // ============================================================
     // Map to ActivityCalculations interface

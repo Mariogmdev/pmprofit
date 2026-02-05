@@ -11,6 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import { ActivityConfig, OccupationMonth, OccupationYear, ActivitySchedule } from '@/types/activity';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types';
+import { logger } from '@/lib/logger';
 
 interface ActivityMonthlyOccupationEditorProps {
   config: ActivityConfig;
@@ -45,7 +46,7 @@ const DEFAULT_MONTHLY_OCCUPATION: OccupationMonth[] = [
 
 // Calculate average occupation by type (pico/valle) from schedules - WEIGHTED BY DAYS
 const calculateAverageOccupationByType = (horarios: ActivitySchedule[]) => {
-  console.log('=== Calculating Occupation by Type (WEIGHTED) ===');
+  logger.dev('=== Calculating Occupation by Type (WEIGHTED) ===');
   
   // Separate schedules by day type
   const horariosLV = horarios.filter(h => h.diaSemana === 'LV' || !h.diaSemana);
@@ -97,15 +98,15 @@ const calculateAverageOccupationByType = (horarios: ActivitySchedule[]) => {
     ? (sumOcupacionPicoSemana + sumOcupacionValleSemana) / totalHorasSemana 
     : (ocupacionPromedioPico + ocupacionPromedioValle) / 2;
   
-  console.log('Horas Pico semana:', horasPicoSemana);
-  console.log('Horas Valle semana:', horasValleSemana);
-  console.log('Total horas semana:', totalHorasSemana);
-  console.log('% Pico:', totalHorasSemana > 0 ? ((horasPicoSemana / totalHorasSemana) * 100).toFixed(1) : 0);
-  console.log('% Valle:', totalHorasSemana > 0 ? ((horasValleSemana / totalHorasSemana) * 100).toFixed(1) : 0);
-  console.log('Ocupación Pico promedio:', ocupacionPromedioPico.toFixed(1));
-  console.log('Ocupación Valle promedio:', ocupacionPromedioValle.toFixed(1));
-  console.log('Ocupación Total promedio:', ocupacionPromedioTotal.toFixed(1));
-  console.log('=== END ===');
+  logger.dev('Horas Pico semana:', horasPicoSemana);
+  logger.dev('Horas Valle semana:', horasValleSemana);
+  logger.dev('Total horas semana:', totalHorasSemana);
+  logger.dev('% Pico:', totalHorasSemana > 0 ? ((horasPicoSemana / totalHorasSemana) * 100).toFixed(1) : 0);
+  logger.dev('% Valle:', totalHorasSemana > 0 ? ((horasValleSemana / totalHorasSemana) * 100).toFixed(1) : 0);
+  logger.dev('Ocupación Pico promedio:', ocupacionPromedioPico.toFixed(1));
+  logger.dev('Ocupación Valle promedio:', ocupacionPromedioValle.toFixed(1));
+  logger.dev('Ocupación Total promedio:', ocupacionPromedioTotal.toFixed(1));
+  logger.dev('=== END ===');
   
   return {
     pico: Math.round(ocupacionPromedioPico),
@@ -136,7 +137,7 @@ export default function ActivityMonthlyOccupationEditor({
   // Base occupation from schedules - WITH WEIGHTED HOURS
   const ocupacionBase = useMemo(() => {
     const result = calculateAverageOccupationByType(config.horarios || []);
-    console.log('Occupation base calculated:', result);
+    logger.dev('Occupation base calculated:', result);
     return result;
   }, [config.horarios]);
   
@@ -212,9 +213,9 @@ export default function ActivityMonthlyOccupationEditor({
     const basePico = ocupacionBase.pico || calculatedPico || 50;
     const baseValle = ocupacionBase.valle || calculatedValle || 30;
     
-    console.log('=== GENERATING MONTHLY PROJECTION ===');
-    console.log('Base Pico:', basePico, 'Base Valle:', baseValle);
-    console.log('Inicio factor:', inicioFactor, 'Madurez factor:', maduracionFactor);
+    logger.dev('=== GENERATING MONTHLY PROJECTION ===');
+    logger.dev('Base Pico:', basePico, 'Base Valle:', baseValle);
+    logger.dev('Inicio factor:', inicioFactor, 'Madurez factor:', maduracionFactor);
     
     // Month 1 starts at inicio factor of base
     // Month 12 ends at maduracion factor of base
@@ -223,8 +224,8 @@ export default function ActivityMonthlyOccupationEditor({
     const endPico = Math.min(100, Math.round(basePico * maduracionFactor));
     const endValle = Math.min(100, Math.round(baseValle * maduracionFactor));
     
-    console.log('Start Pico:', startPico, 'Start Valle:', startValle);
-    console.log('End Pico:', endPico, 'End Valle:', endValle);
+    logger.dev('Start Pico:', startPico, 'Start Valle:', startValle);
+    logger.dev('End Pico:', endPico, 'End Valle:', endValle);
     
     const newOccupation: OccupationMonth[] = [];
     
@@ -246,18 +247,18 @@ export default function ActivityMonthlyOccupationEditor({
       });
     }
     
-    console.log('Generated occupations:', newOccupation);
-    console.log('Month 1:', newOccupation[0]);
-    console.log('Month 7:', newOccupation[6]);
-    console.log('Month 12:', newOccupation[11]);
-    console.log('=== END GENERATION ===');
+    logger.dev('Generated occupations:', newOccupation);
+    logger.dev('Month 1:', newOccupation[0]);
+    logger.dev('Month 7:', newOccupation[6]);
+    logger.dev('Month 12:', newOccupation[11]);
+    logger.dev('=== END GENERATION ===');
     
     onUpdate({ ocupacionMensual: newOccupation });
   };
   
   // Force regeneration clearing old data first
   const forceRegenerateProjection = () => {
-    console.log('=== FORCE REGENERATE: Clearing old data ===');
+    logger.dev('=== FORCE REGENERATE: Clearing old data ===');
     // Clear existing monthly data first, then regenerate
     onUpdate({ ocupacionMensual: [] });
     // Use setTimeout to ensure state update propagates before regenerating
