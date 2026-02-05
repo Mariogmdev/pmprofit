@@ -79,11 +79,17 @@ export const InfrastructureSummary = ({ projectId, currency }: InfrastructureSum
 
     // 2. CAPEX Espacios (equipment/furniture only)
     const capexEspacios = spaces.reduce((sum, space) => {
+      // CAPEX from area × cost per m²
+      const areaCapex = (space.area || 0) * (space.capex_por_m2 || 0);
+      
+      // CAPEX from breakdown items
       const breakdownTotal = (space.breakdown || []).reduce(
         (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)),
         0
       );
-      return sum + breakdownTotal;
+      
+      // Total = both components (matches SpaceCard calculation)
+      return sum + areaCapex + breakdownTotal;
     }, 0);
 
     // 3. CAPEX Obra Civil (common areas construction - WITHOUT contingencies)
