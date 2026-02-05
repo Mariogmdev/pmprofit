@@ -160,10 +160,16 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }, 0);
 
     const capexEspacios = spaces.reduce((sum, space) => {
+      // CAPEX from area × cost per m² (matches SpaceCard calculation)
+      const areaCapex = (space.area || 0) * ((space as any).capex_por_m2 || 0);
+      
+      // CAPEX from breakdown items
       const breakdownTotal = ((space.breakdown as Array<{cantidad?: number; precioUnitario?: number}>) || []).reduce(
         (s: number, item: {cantidad?: number; precioUnitario?: number}) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
       );
-      return sum + breakdownTotal;
+      
+      // Total = both components (areaCapex + breakdownTotal)
+      return sum + areaCapex + breakdownTotal;
     }, 0);
 
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
