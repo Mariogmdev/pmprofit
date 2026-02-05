@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronUp, MoreVertical, Trash2, Copy, Save, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useActivityCalculations } from '@/hooks/useActivityCalculations';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
-import { getWeeksPerMonth } from '@/lib/timeHelpers';
+import { monthlyFinancialsWithOccupancy } from '@/lib/monthlyFinancials';
 import ActivityBasicConfig from './ActivityBasicConfig';
 import ActivityRevenueModelEditor from './ActivityRevenueModelEditor';
 import ActivityScheduleEditor from './ActivityScheduleEditor';
@@ -144,45 +144,20 @@ export default function ActivityCard({
     }
   };
 
-  // Calculate monthly income for occupation editor
-  // CRITICAL: Properly weights L-V (5 days/week) and S-D (2 days/week)
-  // Uses dynamic weeks/month based on project daysPerMonth configuration
+  // ============================================================
+  // CENTRALIZED: Use monthlyFinancialsWithOccupancy for ALL income calculations
+  // This ensures consistency with Dashboard and eliminates duplicate logic
+  // ============================================================
   const calculateMonthlyIncome = useCallback((picoOcupacion: number, valleOcupacion: number): number => {
-    const horarios = activity.config.horarios || [];
-    const cantidad = activity.config.cantidad || 1;
-    const duracion = activity.config.duracionReserva || 1.5;
-    const weeksPerMonth = getWeeksPerMonth(daysPerMonth);
-
-    // Separate schedules by day type
-    const horariosLV = horarios.filter((h: any) => h.diaSemana === 'LV' || !h.diaSemana);
-    const horariosSD = horarios.filter((h: any) => h.diaSemana === 'SD');
-
-    let totalIncome = 0;
-
-    // L-V: 5 days per week
-    horariosLV.forEach((h: any) => {
-      const horas = Math.max(0, (h.fin || 0) - (h.inicio || 0));
-      const turnosHorario = (horas / duracion) * cantidad;
-      const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
-      const reservas = turnosHorario * (ocupacion / 100);
-      const tarifa = h.tarifa || 0;
-      // 5 days/week × dynamic weeks/month
-      totalIncome += reservas * tarifa * 5 * weeksPerMonth;
-    });
-
-    // S-D: 2 days per week
-    horariosSD.forEach((h: any) => {
-      const horas = Math.max(0, (h.fin || 0) - (h.inicio || 0));
-      const turnosHorario = (horas / duracion) * cantidad;
-      const ocupacion = h.tipo === 'pico' ? picoOcupacion : valleOcupacion;
-      const reservas = turnosHorario * (ocupacion / 100);
-      const tarifa = h.tarifa || 0;
-      // 2 days/week × dynamic weeks/month
-      totalIncome += reservas * tarifa * 2 * weeksPerMonth;
-    });
-
-    return totalIncome;
-  }, [activity.config, daysPerMonth]);
+    const result = monthlyFinancialsWithOccupancy(
+      activity.config,
+      daysPerMonth,
+      picoOcupacion,
+      valleOcupacion,
+      totalClubUsers
+    );
+    return result.ingresos.total;
+  }, [activity.config, daysPerMonth, totalClubUsers]);
 
   // Show schedule/occupation for reservation and mixed models
   const showSchedules = ['reserva', 'mixto'].includes(activity.config.modeloIngreso);
