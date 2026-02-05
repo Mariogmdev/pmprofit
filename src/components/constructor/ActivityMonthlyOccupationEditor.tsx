@@ -525,11 +525,11 @@ export default function ActivityMonthlyOccupationEditor({
                   <Info className="h-4 w-4 text-blue-600 mt-0.5" />
                   <div className="text-sm">
                     <p className="text-blue-700 dark:text-blue-300 font-medium">
-                      Distribución de horas (semanal):
+                      Distribución de horas por unidad (semanal):
                     </p>
                     <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">
-                      <strong>Pico:</strong> {horasPicoCalculadas.toFixed(1)} hrs/semana ({porcentajePico.toFixed(0)}%) • 
-                      <strong>Valle:</strong> {horasValleCalculadas.toFixed(1)} hrs/semana ({porcentajeValle.toFixed(0)}%)
+                      <strong>Pico:</strong> {horasPicoCalculadas.toFixed(1)} hrs/sem por unidad ({porcentajePico.toFixed(0)}%) • 
+                      <strong>Valle:</strong> {horasValleCalculadas.toFixed(1)} hrs/sem por unidad ({porcentajeValle.toFixed(0)}%)
                     </p>
                     <p className="text-blue-600/80 dark:text-blue-400/80 text-xs mt-1">
                       El promedio de cada mes se calcula: (Pico × {porcentajePico.toFixed(0)}% + Valle × {porcentajeValle.toFixed(0)}%) 

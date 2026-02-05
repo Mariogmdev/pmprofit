@@ -245,14 +245,14 @@ export default function ActivityScheduleEditor({
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-muted-foreground">Horas Pico:</span>
-                <span className="ml-2 font-medium text-orange-600">
+                <span className="text-muted-foreground">Horas Pico (por unidad):</span>
+                <span className="ml-1 font-medium text-orange-600">
                   {calculations.totalHorasPico.toFixed(1)} hrs/sem ({calculations.porcentajePico.toFixed(0)}%)
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">Horas Valle:</span>
-                <span className="ml-2 font-medium text-blue-600">
+                <span className="text-muted-foreground">Horas Valle (por unidad):</span>
+                <span className="ml-1 font-medium text-blue-600">
                   {calculations.totalHorasValle.toFixed(1)} hrs/sem ({calculations.porcentajeValle.toFixed(0)}%)
                 </span>
               </div>
