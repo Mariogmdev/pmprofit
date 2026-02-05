@@ -566,8 +566,8 @@ export default function ActivityRevenueModelEditor({
           </div>
         )}
 
-        {/* RESERVATION MODEL - Show duration options */}
-        {config.modeloIngreso === 'reserva' && (
+        {/* RESERVATION/MIXED MODEL - Show duration options */}
+        {['reserva', 'mixto'].includes(config.modeloIngreso) && (
           <div className="p-4 border rounded-lg space-y-3 bg-muted/20">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">

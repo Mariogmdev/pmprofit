@@ -431,8 +431,8 @@ export function calculateYear1IncomeFromProjection(
   daysPerMonth: number = 30,
   totalClubUsersFromProject: number = 0
 ): { totalYear1: number; monthlyAverage: number; months: number[] } {
-  // For non-reservation models, use base calculation
-  if (config.modeloIngreso !== 'reserva') {
+  // For non-reservation/non-mixed models, use base calculation
+  if (!['reserva', 'mixto'].includes(config.modeloIngreso)) {
     const financials = calculateActivityFinancials(config, daysPerMonth, totalClubUsersFromProject);
     const monthlyBase = financials.ingresosMensuales;
     return {

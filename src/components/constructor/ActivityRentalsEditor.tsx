@@ -35,8 +35,8 @@ export default function ActivityRentalsEditor({ config, onUpdate }: ActivityRent
     });
   };
 
-  // Only show for reservation model (other models have different complementary income structures)
-  if (config.modeloIngreso !== 'reserva') {
+  // Only show for reservation and mixed models (other models have different complementary income structures)
+  if (!['reserva', 'mixto'].includes(config.modeloIngreso)) {
     return null;
   }
 
