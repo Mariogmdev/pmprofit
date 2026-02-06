@@ -565,88 +565,88 @@ function explainVAN(metrics: DashboardMetrics, currency: CurrencyCode): Calculat
 
 // === PAYBACK ===
 function explainPayback(metrics: DashboardMetrics, currency: CurrencyCode): CalculationExplanation {
-  let flujoAcumulado = -metrics.capexTotal;
   const { workingCapital } = metrics.capexBreakdown;
   const capexActivos = metrics.capexTotal - workingCapital;
+  
+  // EBITDA de madurez (usado para Payback Simple)
+  const ebitdaMadurez = metrics.ebitdaMensualBase;
+  
+  // Payback Simple = CAPEX / EBITDA Madurez
+  const paybackSimple = metrics.paybackMeses;
+  const paybackReal = metrics.paybackMesesReal;
   
   const steps: CalculationStep[] = [
     {
       label: '1. Inversión en Activos',
       formula: 'CAPEX sin capital de trabajo',
-      value: -capexActivos,
-      formattedValue: formatCurrency(-capexActivos, currency),
+      value: capexActivos,
+      formattedValue: formatCurrency(capexActivos, currency),
       explanation: 'Inversión en activos fijos + imprevistos',
     },
     {
       label: '2. Capital de Trabajo',
       formula: `OPEX mensual × ${metrics.workingCapitalMonths} meses`,
-      value: -workingCapital,
-      formattedValue: formatCurrency(-workingCapital, currency),
+      value: workingCapital,
+      formattedValue: formatCurrency(workingCapital, currency),
       explanation: 'Reserva de liquidez para operación inicial',
     },
     {
       label: '3. Inversión Total (CAPEX)',
-      formula: 'Activos + Capital de Trabajo',
-      value: -metrics.capexTotal,
-      formattedValue: formatCurrency(-metrics.capexTotal, currency),
-      explanation: 'Punto de partida (flujo negativo)',
+      formula: `${formatCurrency(capexActivos, currency)} + ${formatCurrency(workingCapital, currency)}`,
+      value: metrics.capexTotal,
+      formattedValue: formatCurrency(metrics.capexTotal, currency),
+      explanation: 'Monto total a recuperar',
+    },
+    {
+      label: '4. EBITDA Mensual de Madurez',
+      formula: 'Ingresos Madurez - OPEX Madurez',
+      value: ebitdaMadurez,
+      formattedValue: formatCurrency(ebitdaMadurez, currency),
+      explanation: 'EBITDA cuando el negocio alcanza ocupación objetivo (estable)',
+    },
+    {
+      label: '5. Payback Simple',
+      formula: `${formatCurrency(metrics.capexTotal, currency)} ÷ ${formatCurrency(ebitdaMadurez, currency)}`,
+      value: paybackSimple,
+      formattedValue: `${paybackSimple} meses`,
+      explanation: 'Meses para recuperar inversión asumiendo flujo constante de madurez',
     },
   ];
   
-  for (let year = 1; year <= metrics.proyeccion.length; year++) {
-    const yearData = metrics.proyeccion[year - 1];
-    if (!yearData) continue;
+  // Add Payback Real if different from Simple
+  if (paybackReal !== paybackSimple) {
+    steps.push({
+      label: '6. Payback Real',
+      formula: 'Acumulado mes a mes con curva de maduración',
+      value: paybackReal,
+      formattedValue: `${paybackReal} meses`,
+      explanation: 'Periodo real considerando que Año 1 tiene ocupación creciente',
+    });
     
-    const ebitdaMensual = yearData.ebitdaMensual;
-    
-    for (let mes = 1; mes <= 12; mes++) {
-      flujoAcumulado += ebitdaMensual;
-      const mesAbsoluto = (year - 1) * 12 + mes;
-      
-      if (flujoAcumulado >= 0 || mesAbsoluto === metrics.paybackMeses) {
-        steps.push({
-          label: `4. EBITDA Mensual Año ${year}`,
-          formula: 'Utilidad operativa mensual',
-          value: ebitdaMensual,
-          formattedValue: formatCurrency(ebitdaMensual, currency),
-          explanation: `Flujo mensual que recupera la inversión`,
-        });
-        
-        steps.push({
-          label: `5. Punto de Recuperación (Simple)`,
-          formula: `Mes ${metrics.paybackMeses} ≈ ${(metrics.paybackMeses / 12).toFixed(1)} años`,
-          value: metrics.paybackMeses,
-          formattedValue: `${metrics.paybackMeses} meses`,
-          explanation: 'Momento en que el flujo acumulado se vuelve positivo',
-        });
-        
-        steps.push({
-          label: '6. Flujo Acumulado al Payback',
-          formula: 'Inversión + Suma EBITDA',
-          value: flujoAcumulado,
-          formattedValue: formatCurrency(Math.max(0, flujoAcumulado), currency),
-          explanation: 'Saldo después de recuperar la inversión',
-        });
-        
-        break;
-      }
-    }
-    
-    if (flujoAcumulado >= 0) break;
+    const diferencia = paybackReal - paybackSimple;
+    steps.push({
+      label: '7. Diferencia por Rampa de Arranque',
+      formula: `${paybackReal} - ${paybackSimple} meses`,
+      value: diferencia,
+      formattedValue: `+${diferencia} meses`,
+      explanation: 'Tiempo adicional por la curva de maduración del primer año',
+    });
   }
   
   return {
     title: 'Periodo de Recuperación (Payback)',
     subtitle: 'Tiempo para recuperar la inversión',
-    result: metrics.paybackMeses,
-    formattedResult: `${metrics.paybackMeses} meses`,
+    result: paybackSimple,
+    formattedResult: `${paybackSimple} meses`,
     steps,
     notes: [
-      '⚠️ El payback simple asume flujo constante desde el mes 1',
-      '📊 Payback < 36 meses es excelente para proyectos deportivos',
-      '🎯 Payback 36-60 meses es aceptable',
-      '💡 El capital de trabajo se recupera junto con los activos fijos',
-    ],
+      '💡 Payback Simple usa EBITDA de madurez (ocupación target)',
+      paybackReal !== paybackSimple 
+        ? `📊 Payback Real (${paybackReal} meses) considera la rampa de crecimiento del Año 1`
+        : null,
+      '🎯 Payback < 36 meses es excelente para proyectos deportivos',
+      '⚠️ Payback 36-60 meses es aceptable para proyectos deportivos grandes',
+    ].filter(Boolean) as string[],
   };
 }
 

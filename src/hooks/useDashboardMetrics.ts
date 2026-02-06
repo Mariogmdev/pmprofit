@@ -63,15 +63,18 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }));
     
     // Calculate financials for each activity using centralized function
-    // IMPORTANT: For Year 1, we need to consider the monthly occupation projection (maturity curve)
+    // IMPORTANT: 
+    // - financials = MATURITY values (100% target occupancy) - used for Payback, TIR, VAN
+    // - year1Income = Year 1 with maturity curve - used for Year 1 projections
     const activityFinancials = activities.map(act => {
+      // financials is at TARGET occupancy (maturity)
       const financials = calculateActivityFinancials(
         act.config,
         daysPerMonth,
         act.config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
       );
       
-      // Calculate Year 1 income considering monthly occupation projection
+      // Calculate Year 1 income considering monthly occupation projection (maturity curve)
       const year1Income = calculateYear1IncomeFromProjection(
         act.config,
         daysPerMonth,
@@ -80,14 +83,17 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       
       return {
         activity: act,
-        financials,
-        year1Income,
+        financials, // At maturity (target occupancy)
+        year1Income, // Year 1 with ramp
       };
     });
     
     // Sum up total income from all activities
-    // Use Year 1 monthly average (which considers maturity curve)
-    let ingresosBrutosAno1 = 0;
+    // CRITICAL: Two separate totals:
+    // - ingresosMadurez = at target occupancy (for Payback, TIR, VAN)
+    // - ingresosBrutosAno1 = Year 1 average with maturity curve (for Year 1 projections)
+    let ingresosMadurez = 0; // At 100% target occupancy
+    let ingresosBrutosAno1 = 0; // Year 1 average (with maturity ramp)
     let ingresosOperacionales = 0;
     let totalReservas = 0;
     let ocupacionTotal = 0;
@@ -102,11 +108,14 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const year1IncomeMonths = Array(12).fill(0) as number[];
 
     activityFinancials.forEach(({ activity, financials, year1Income }, idx) => {
-      // Use Year 1 monthly average (considers maturity curve)
-      const ingresoEstimado = year1Income.monthlyAverage;
+      // MATURITY income (at target occupancy) - for metrics and projections Year 2+
+      ingresosMadurez += financials.ingresosMensuales;
       
-      ingresosBrutosAno1 += ingresoEstimado;
-      ingresosOperacionales += ingresoEstimado;
+      // Year 1 monthly average (considers maturity curve)
+      const ingresoYear1Promedio = year1Income.monthlyAverage;
+      
+      ingresosBrutosAno1 += ingresoYear1Promedio;
+      ingresosOperacionales += financials.ingresosMensuales; // Use maturity for operational
       totalReservas += financials.totalUsuariosMes;
       
       // Calculate weighted occupancy
@@ -124,10 +133,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         ticketCount++;
       }
 
-      if (ingresoEstimado > 0) {
+      // Use MATURITY income for pie chart (represents true capacity)
+      if (financials.ingresosMensuales > 0) {
         ingresosPorActividad.push({
           nombre: activity.name,
-          valor: ingresoEstimado,
+          valor: financials.ingresosMensuales,
           porcentaje: 0, // Will calculate after total
           color: CHART_COLORS.activities[idx % CHART_COLORS.activities.length],
         });
@@ -143,12 +153,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const year1IncomeTotal = year1IncomeMonths.reduce((sum, v) => sum + v, 0);
     const year1IncomeAvg = year1IncomeTotal / 12;
 
-    // Calculate percentages
+    // Calculate percentages based on MATURITY income
     ingresosPorActividad.forEach(item => {
-      item.porcentaje = ingresosBrutosAno1 > 0 ? (item.valor / ingresosBrutosAno1) * 100 : 0;
+      item.porcentaje = ingresosMadurez > 0 ? (item.valor / ingresosMadurez) * 100 : 0;
     });
 
-    const ingresosNetos = ingresosBrutosAno1 * 0.85;
+    const ingresosNetos = ingresosMadurez * 0.85;
     const ocupacionPromedio = horasTotal > 0 ? ocupacionTotal / horasTotal : 0;
     const ticketPromedio = ticketCount > 0 ? ticketTotal / ticketCount : 0;
 
@@ -414,22 +424,44 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     };
 
     // === CALCULATE WORKING CAPITAL & FINAL CAPEX ===
-    // Calculate base OPEX (at maturity income) to determine working capital needs
-    const opexMensualBase = calculateOpexMensual(ingresosBrutosAno1, capexSinWorkingCapital);
-    const workingCapitalValue = opexMensualBase * workingCapitalMonths;
+    // CRITICAL: Use MATURITY income (not Year 1 average) for OPEX/Working Capital
+    // This represents the stable operational state of the business
+    const opexMensualMadurez = calculateOpexMensual(ingresosMadurez, capexSinWorkingCapital);
+    const workingCapitalValue = opexMensualMadurez * workingCapitalMonths;
     
     // TOTAL CAPEX = CAPEX sin working capital + Working Capital
     const capexTotal = capexSinWorkingCapital + workingCapitalValue;
+    
+    // === CALCULATE EBITDA AT MATURITY (for Payback Simple, TIR, VAN) ===
+    // CRITICAL: This is the EBITDA when business reaches target occupancy
+    const opexMensualMadurezFinal = calculateOpexMensual(ingresosMadurez, capexTotal);
+    const ebitdaMensualMadurez = ingresosMadurez - opexMensualMadurezFinal;
+    
+    // === PAYBACK SIMPLE ===
+    // Uses MATURITY EBITDA (not Year 1 average) as per financial standards
+    // This represents how long to recover investment once business is mature
+    const paybackSimple = ebitdaMensualMadurez > 0 ? capexTotal / ebitdaMensualMadurez : 999;
 
     // === BUILD 5-YEAR PROJECTION ===
     const proyeccion: ProjectionYear[] = [];
     let flujoAcumulado = -capexTotal;
-    let paybackMeses = 0;
+    let paybackMesesReal = 0;
     let paybackAlcanzado = false;
 
     for (let year = 1; year <= projectionYears; year++) {
-      const growthFactor = Math.pow(1 + inflationRate / 100, year - 1);
-      const ingresosMensuales = ingresosBrutosAno1 * growthFactor;
+      // Year 1: Use Year 1 average (with maturity curve)
+      // Years 2+: Use MATURITY income with inflation growth
+      let ingresosMensuales: number;
+      
+      if (year === 1) {
+        // Year 1 uses the average from maturity curve
+        ingresosMensuales = ingresosBrutosAno1;
+      } else {
+        // Years 2+: Use maturity income with inflation from Year 1
+        const growthFactor = Math.pow(1 + inflationRate / 100, year - 1);
+        ingresosMensuales = ingresosMadurez * growthFactor;
+      }
+      
       const ingresosAnuales = ingresosMensuales * 12;
       const opexMensual = calculateOpexMensual(ingresosMensuales, capexTotal);
       const opexAnual = opexMensual * 12;
@@ -446,7 +478,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         // Calculate exact month within the year
         const flujoAnterior = flujoAcumulado - flujoCaja;
         const mesesEnAno = Math.ceil((-flujoAnterior / flujoCaja) * 12);
-        paybackMeses = (year - 1) * 12 + Math.min(mesesEnAno, 12);
+        paybackMesesReal = (year - 1) * 12 + Math.min(mesesEnAno, 12);
       }
       
       const roiAcumulado = capexTotal > 0 ? (flujoAcumulado / capexTotal) * 100 : 0;
@@ -469,14 +501,15 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
 
     if (!paybackAlcanzado) {
-      paybackMeses = projectionYears * 12 + 12; // Beyond projection
+      paybackMesesReal = projectionYears * 12 + 12; // Beyond projection
     }
 
-    const baseOpexMensualAno1 = proyeccion[0]?.opexMensual || 0;
+    // Year 1 monthly breakdown (uses actual maturity curve, not projections)
+    const opexYear1Promedio = proyeccion[0]?.opexMensual || 0;
     const year1Monthly: DashboardMetrics['year1Monthly'] = MONTH_NAMES.map((mes, idx) => {
       const ingresos = year1IncomeMonths[idx] || 0;
       const factor = year1IncomeAvg > 0 ? ingresos / year1IncomeAvg : 1;
-      const opex = baseOpexMensualAno1 * factor;
+      const opex = opexYear1Promedio * factor;
       const ebitda = ingresos - opex;
       return { mes, ingresos, opex, ebitda };
     });
@@ -663,10 +696,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     // === GENERATE PROJECT INSIGHTS ===
     const insights: DashboardInsight[] = [];
-    const ebitdaMensualBase = proyeccion[0]?.ebitdaMensual || 0;
-    const margenEbitdaBase = proyeccion[0]?.margenEbitda || 0;
-    const opexPorcentaje = ingresosBrutosAno1 > 0 
-      ? ((proyeccion[0]?.opexMensual || 0) / ingresosBrutosAno1) * 100 
+    // Use MATURITY EBITDA for insights (represents stable business state)
+    const ebitdaMensualBase = ebitdaMensualMadurez;
+    const margenEbitdaBase = ingresosMadurez > 0 ? (ebitdaMensualMadurez / ingresosMadurez) * 100 : 0;
+    const opexPorcentaje = ingresosMadurez > 0 
+      ? (opexMensualMadurezFinal / ingresosMadurez) * 100 
       : 0;
 
     // Success insights
@@ -688,12 +722,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    if (paybackMeses <= 36) {
+    if (paybackSimple <= 36) {
       insights.push({
         id: generateId(),
         type: 'success',
         title: 'Recuperación rápida',
-        description: `La inversión se recupera en ${paybackMeses} meses (${(paybackMeses / 12).toFixed(1)} años).`,
+        description: `La inversión se recupera en ${Math.round(paybackSimple)} meses (${(paybackSimple / 12).toFixed(1)} años).`,
       });
     }
 
@@ -718,7 +752,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    if (paybackMeses > 60) {
+    if (paybackSimple > 60) {
       insights.push({
         id: generateId(),
         type: 'warning',
@@ -759,21 +793,22 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
 
     return {
-      // Base/Madurez metrics (100% ocupación objetivo)
-      ingresosMensualesBase: ingresosBrutosAno1,
-      ingresosAnualesBase: ingresosBrutosAno1 * 12,
+      // Base/Madurez metrics (100% target occupancy - stable business state)
+      // CRITICAL: These are MATURITY values, not Year 1 averages
+      ingresosMensualesBase: ingresosMadurez,
+      ingresosAnualesBase: ingresosMadurez * 12,
       ebitdaMensualBase,
       margenEbitdaBase,
       capexTotal,
       tir,
       van,
-      paybackMeses,
-      paybackMesesReal: paybackMeses, // For now, same as simple payback (can be enhanced later)
+      paybackMeses: Math.round(paybackSimple), // Payback Simple (using maturity EBITDA)
+      paybackMesesReal: paybackMesesReal, // Payback Real (considering Year 1 ramp)
       
       // Working Capital
       workingCapitalMonths,
       workingCapitalValue,
-      opexMensualBase,
+      opexMensualBase: opexMensualMadurezFinal,
       
       proyeccion,
       year1Monthly,
