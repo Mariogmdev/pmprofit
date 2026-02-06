@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -9,11 +10,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ProjectionYear, ProjectionViewMode } from '@/types/dashboard';
 import { formatCurrency, formatPercent } from '@/lib/currency';
 import { CurrencyCode } from '@/types';
 import { cn } from '@/lib/utils';
-import { CalendarDays, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
+import { CalendarDays, TrendingUp, TrendingDown, CheckCircle2, Calculator, Info } from 'lucide-react';
+import { generateQuarterlyProjectionByYear } from '@/lib/projectionCalculations';
 
 interface ProjectionTableProps {
   proyeccion: ProjectionYear[];
@@ -45,25 +53,8 @@ export const ProjectionTable = ({
     });
   })();
 
-  // Generate quarterly data - EBITDA is CALCULATED, not distributed independently
-  // This guarantees the accounting identity: EBITDA = Ingresos - OPEX
-  const generateQuarterlyData = () => {
-    // Distribution weights per quarter (uniform 25% each)
-    // Can be made configurable for seasonality in future
-    const weights = [0.25, 0.25, 0.25, 0.25];
-    const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
-    
-    return proyeccion.map(year => ({
-      year: year.year,
-      quarters: weights.map((weight, idx) => {
-        const ingresos = year.ingresosAnuales * weight;
-        const opex = year.opexAnual * weight;
-        // CRITICAL: Calculate EBITDA to preserve accounting identity
-        const ebitda = ingresos - opex;
-        return { q: quarterNames[idx], ingresos, opex, ebitda };
-      })
-    }));
-  };
+  // Use centralized function that guarantees EBITDA = Ingresos - OPEX
+  const quarterlyData = generateQuarterlyProjectionByYear(proyeccion);
 
   return (
     <Card className="border-2 animate-fade-in" style={{ animationDelay: '0.7s' }}>
@@ -200,39 +191,66 @@ export const ProjectionTable = ({
           )}
 
           {viewMode === 'trimestral' && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">Periodo</TableHead>
-                  <TableHead className="text-right">Ingresos</TableHead>
-                  <TableHead className="text-right">OPEX</TableHead>
-                  <TableHead className="text-right">EBITDA</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {generateQuarterlyData().map((yearData) => (
-                  yearData.quarters.map((q, qIdx) => (
-                    <TableRow key={`${yearData.year}-${qIdx}`}>
-                      <TableCell className="font-medium">
-                        A{yearData.year} {q.q}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(q.ingresos, currency)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-red-600 dark:text-red-400">
-                        {formatCurrency(q.opex, currency)}
-                      </TableCell>
-                      <TableCell className={cn(
-                        "text-right font-mono font-semibold",
-                        q.ebitda >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                      )}>
-                        {formatCurrency(q.ebitda, currency)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              <div className="mb-3 flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="secondary" className="gap-1 cursor-help">
+                        <Calculator className="w-3 h-3" />
+                        EBITDA Calculado
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">
+                        <strong>Identidad contable preservada:</strong><br />
+                        EBITDA = Ingresos - OPEX<br /><br />
+                        El EBITDA se calcula automáticamente para cada trimestre, 
+                        garantizando consistencia matemática con los valores anuales.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[80px]">Periodo</TableHead>
+                    <TableHead className="text-right">Ingresos</TableHead>
+                    <TableHead className="text-right">OPEX</TableHead>
+                    <TableHead className="text-right">
+                      <span className="flex items-center justify-end gap-1">
+                        EBITDA
+                        <Info className="w-3 h-3 text-muted-foreground" />
+                      </span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {quarterlyData.map((yearData) => (
+                    yearData.quarters.map((q, qIdx) => (
+                      <TableRow key={`${yearData.year}-${qIdx}`}>
+                        <TableCell className="font-medium">
+                          A{yearData.year} {q.q}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatCurrency(q.ingresos, currency)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-destructive">
+                          {formatCurrency(q.opex, currency)}
+                        </TableCell>
+                        <TableCell className={cn(
+                          "text-right font-mono font-semibold",
+                          q.ebitda >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"
+                        )}>
+                          {formatCurrency(q.ebitda, currency)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ))}
+                </TableBody>
+              </Table>
+            </>
           )}
         </div>
 

@@ -205,6 +205,105 @@ export function getDefaultCurveParams(modeloIngreso: string): { inicio: number; 
     case 'reserva':
     default:
       // Reservation-based activities
-      return { inicio: 70, madurez: 100, curva: 'lineal' };
+    return { inicio: 70, madurez: 100, curva: 'lineal' };
   }
+}
+
+/**
+ * Quarterly projection item with accounting identity preserved
+ */
+export interface QuarterlyProjectionItem {
+  q: string;
+  ingresos: number;
+  opex: number;
+  ebitda: number; // Always calculated as ingresos - opex
+}
+
+export interface QuarterlyProjectionYear {
+  year: number;
+  quarters: QuarterlyProjectionItem[];
+}
+
+/**
+ * Distribution weights for quarterly calculations
+ * Default is uniform (25% each quarter)
+ * Can be customized for seasonality
+ */
+export interface QuarterlyWeights {
+  ingresos: [number, number, number, number]; // Must sum to 1.0
+  opex: [number, number, number, number];     // Must sum to 1.0
+}
+
+export const DEFAULT_QUARTERLY_WEIGHTS: QuarterlyWeights = {
+  ingresos: [0.25, 0.25, 0.25, 0.25],
+  opex: [0.25, 0.25, 0.25, 0.25]
+};
+
+/**
+ * Calculate quarterly projection preserving accounting identity
+ * 
+ * CRITICAL: EBITDA is ALWAYS calculated as Ingresos - OPEX
+ * Never distributed independently to maintain integrity
+ * 
+ * @param annual - Annual financial data
+ * @param weights - Optional custom weights (defaults to uniform 25%)
+ * @returns Quarterly breakdown with calculated EBITDA
+ */
+export function calculateQuarterlyProjection(
+  annual: {
+    ingresosAnuales: number;
+    opexAnual: number;
+    ebitdaAnual: number; // Only used for validation
+  },
+  weights: QuarterlyWeights = DEFAULT_QUARTERLY_WEIGHTS
+): QuarterlyProjectionItem[] {
+  const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
+  
+  const quarters = quarterNames.map((q, idx) => {
+    const ingresos = annual.ingresosAnuales * weights.ingresos[idx];
+    const opex = annual.opexAnual * weights.opex[idx];
+    // CRITICAL: Calculate EBITDA to preserve accounting identity
+    // EBITDA = Ingresos - OPEX (never use weights for EBITDA)
+    const ebitda = ingresos - opex;
+    
+    return { q, ingresos, opex, ebitda };
+  });
+  
+  // Validation: sum should match annual (within floating point tolerance)
+  const totalEbitda = quarters.reduce((sum, q) => sum + q.ebitda, 0);
+  const diff = Math.abs(totalEbitda - annual.ebitdaAnual);
+  const tolerance = Math.abs(annual.ebitdaAnual) * 0.001; // 0.1%
+  
+  if (diff > tolerance && annual.ebitdaAnual !== 0) {
+    console.warn(
+      `Quarterly EBITDA sum (${totalEbitda.toFixed(0)}) differs from annual (${annual.ebitdaAnual.toFixed(0)}) by ${diff.toFixed(0)}`
+    );
+  }
+  
+  return quarters;
+}
+
+/**
+ * Generate quarterly data for multiple years
+ */
+export function generateQuarterlyProjectionByYear(
+  proyeccion: Array<{
+    year: number;
+    ingresosAnuales: number;
+    opexAnual: number;
+    ebitdaAnual: number;
+  }>,
+  weights: QuarterlyWeights = DEFAULT_QUARTERLY_WEIGHTS
+): QuarterlyProjectionYear[] {
+  return proyeccion.map(year => ({
+    year: year.year,
+    quarters: calculateQuarterlyProjection(
+      {
+        ingresosAnuales: year.ingresosAnuales,
+        opexAnual: year.opexAnual,
+        ebitdaAnual: year.ebitdaAnual
+      },
+      weights
+    )
+  }));
 }
