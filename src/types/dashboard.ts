@@ -172,6 +172,15 @@ export interface DashboardMetrics {
   // NEW: Traffic breakdown
   trafficActivities: TrafficActivityBreakdown[];
   totalClubUsers: number;
+  
+  // NEW: Club users breakdown by activity
+  clubUsersBreakdown: Array<{
+    activityId: string;
+    nombre: string;
+    icon: string;
+    usuarios: number;
+    porcentaje: number;
+  }>;
 }
 
 export interface DashboardInsight {

@@ -45,20 +45,33 @@ export interface TrafficActivityData {
   margenBruto: number;
 }
 
+interface ClubUserBreakdown {
+  activityId: string;
+  nombre: string;
+  icon: string;
+  usuarios: number;
+  porcentaje: number;
+}
+
 interface TrafficBreakdownSectionProps {
   trafficActivities: TrafficActivityData[];
   currency: CurrencyCode;
   totalClubUsers: number;
+  clubUsersBreakdown: ClubUserBreakdown[];
 }
 
 export const TrafficBreakdownSection = ({ 
   trafficActivities, 
   currency,
-  totalClubUsers 
+  totalClubUsers,
+  clubUsersBreakdown 
 }: TrafficBreakdownSectionProps) => {
   if (trafficActivities.length === 0) {
     return null;
   }
+
+  // Sort breakdown by usuarios descending
+  const sortedBreakdown = [...clubUsersBreakdown].sort((a, b) => b.usuarios - a.usuarios);
 
   // Calculate totals
   const totals = trafficActivities.reduce((acc, act) => ({
@@ -128,25 +141,76 @@ export const TrafficBreakdownSection = ({
         </div>
       </div>
 
-      {/* Traffic Source Summary */}
+      {/* Traffic Source Summary with Breakdown */}
       <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Users className="w-4 h-4 text-amber-600" />
             Fuente de Tráfico Total
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <Info className="w-3 h-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs p-3">
+                <p className="text-xs">
+                  Los usuarios del club provienen de las actividades deportivas configuradas.
+                  Cada actividad aporta un número de usuarios/mes basado en sus reservas, 
+                  membresías o pases.
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-center">
+        <CardContent className="space-y-4">
+          {/* Breakdown by Activity */}
+          {sortedBreakdown.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Desglose por Actividad:</p>
+              <div className="space-y-1.5">
+                {sortedBreakdown.map((activity) => (
+                  <div 
+                    key={activity.activityId}
+                    className="flex items-center justify-between p-2 bg-background/60 rounded-lg text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{activity.icon}</span>
+                      <span className="font-medium">{activity.nombre}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-amber-600">
+                        {Math.round(activity.usuarios).toLocaleString()}
+                      </span>
+                      <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                        {activity.porcentaje.toFixed(1)}%
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Total */}
+              <div className="flex items-center justify-between p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded-lg text-sm border border-amber-200">
+                <span className="font-medium">Total Usuarios Club</span>
+                <span className="font-bold text-lg text-amber-600">
+                  {totalClubUsers.toLocaleString()}/mes
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Conversion summary */}
+          <div className="grid grid-cols-3 gap-4 text-center pt-2 border-t">
             <div className="p-3 bg-background/60 rounded-lg">
               <p className="text-xs text-muted-foreground mb-1">Usuarios Club</p>
               <p className="text-lg font-bold text-amber-600">
                 {totalClubUsers.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">/mes</p>
             </div>
             <div className="p-3 bg-background/60 rounded-lg flex flex-col items-center justify-center">
               <ArrowRight className="w-6 h-6 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground mt-1">Consumen</p>
             </div>
             <div className="p-3 bg-background/60 rounded-lg">
               <p className="text-xs text-muted-foreground mb-1">Consumidores</p>
