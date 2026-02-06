@@ -12,6 +12,10 @@ const createMockMetrics = (overrides: Partial<DashboardMetrics> = {}): Dashboard
   tir: 25,
   van: 300_000_000,
   paybackMeses: 36,
+  paybackMesesReal: 40,
+  workingCapitalMonths: 3,
+  workingCapitalValue: 50_000_000,
+  opexMensualBase: 60_000_000,
   proyeccion: [
     {
       year: 1,
@@ -53,6 +57,8 @@ const createMockMetrics = (overrides: Partial<DashboardMetrics> = {}): Dashboard
     actividades: 300_000_000,
     infraestructura: 100_000_000,
     obraCivil: 50_000_000,
+    imprevistos: 45_000_000,
+    workingCapital: 50_000_000,
   },
   puntoEquilibrioMes: 36,
   ocupacionPromedio: 65,

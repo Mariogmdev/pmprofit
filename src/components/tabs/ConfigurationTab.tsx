@@ -51,6 +51,7 @@ const configSchema = z.object({
   discount_rate: z.number().min(0).max(100, 'Debe ser entre 0% y 100%'),
   inflation_rate: z.number().min(-10).max(50, 'Debe ser entre -10% y 50%'),
   projection_years: z.number(),
+  working_capital_months: z.number().min(0).max(12, 'Debe ser entre 0 y 12 meses'),
   opening_hour: z.number().min(0).max(23),
   opening_minute: z.number(),
   closing_hour: z.number().min(0).max(23),
@@ -82,6 +83,7 @@ export default function ConfigurationTab() {
     discount_rate: project?.discount_rate || 15,
     inflation_rate: project?.inflation_rate || 3.5,
     projection_years: project?.projection_years || 5,
+    working_capital_months: project?.working_capital_months ?? 3,
     opening_hour: project?.opening_hour || 6,
     opening_minute: project?.opening_minute || 0,
     closing_hour: project?.closing_hour || 22,
@@ -142,6 +144,7 @@ export default function ConfigurationTab() {
       discount_rate: data.discount_rate,
       inflation_rate: data.inflation_rate,
       projection_years: data.projection_years,
+      working_capital_months: data.working_capital_months,
       opening_hour: data.opening_hour,
       opening_minute: data.opening_minute,
       closing_hour: data.closing_hour,
@@ -440,6 +443,35 @@ export default function ConfigurationTab() {
                     </Select>
                   )}
                 />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="working_capital_months" className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4" />
+                  Capital de Trabajo (meses OPEX)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="working_capital_months"
+                    type="number"
+                    min="0"
+                    max="12"
+                    step="1"
+                    {...register('working_capital_months', { valueAsNumber: true })}
+                    className={errors.working_capital_months ? 'border-destructive pr-16' : 'pr-16'}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    meses
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Reserva de liquidez para cubrir operación inicial. Típicamente 2-4 meses.
+                </p>
+                {errors.working_capital_months && (
+                  <p className="input-error">{errors.working_capital_months.message}</p>
+                )}
               </div>
             </div>
           </div>

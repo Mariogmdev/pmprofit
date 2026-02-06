@@ -393,9 +393,9 @@ function explainYearlyEbitda(metrics: DashboardMetrics, currency: CurrencyCode):
 
 // === CAPEX TOTAL ===
 function explainCapexTotal(metrics: DashboardMetrics, currency: CurrencyCode): CalculationExplanation {
-  const { actividades, infraestructura, obraCivil } = metrics.capexBreakdown;
+  const { actividades, infraestructura, obraCivil, imprevistos, workingCapital } = metrics.capexBreakdown;
   const subtotal = actividades + infraestructura + obraCivil;
-  const imprevistos = metrics.capexTotal - subtotal;
+  const subtotalConImprevistos = subtotal + imprevistos;
   
   const steps: CalculationStep[] = [
     {
@@ -420,11 +420,11 @@ function explainCapexTotal(metrics: DashboardMetrics, currency: CurrencyCode): C
       explanation: 'Cimientos, estructura, acabados generales',
     },
     {
-      label: '4. Subtotal',
+      label: '4. Subtotal Activos',
       formula: `${formatCurrency(actividades, currency)} + ${formatCurrency(infraestructura, currency)} + ${formatCurrency(obraCivil, currency)}`,
       value: subtotal,
       formattedValue: formatCurrency(subtotal, currency),
-      explanation: 'Suma de todas las inversiones directas',
+      explanation: 'Suma de todas las inversiones en activos fijos',
     },
     {
       label: '5. Imprevistos (Contingencia)',
@@ -434,11 +434,25 @@ function explainCapexTotal(metrics: DashboardMetrics, currency: CurrencyCode): C
       explanation: 'Reserva para gastos no previstos',
     },
     {
-      label: '6. CAPEX Total',
+      label: '6. Subtotal con Imprevistos',
       formula: `${formatCurrency(subtotal, currency)} + ${formatCurrency(imprevistos, currency)}`,
+      value: subtotalConImprevistos,
+      formattedValue: formatCurrency(subtotalConImprevistos, currency),
+      explanation: 'Inversión total en activos',
+    },
+    {
+      label: '7. Capital de Trabajo',
+      formula: `OPEX mensual × ${metrics.workingCapitalMonths} meses = ${formatCurrency(metrics.opexMensualBase, currency)} × ${metrics.workingCapitalMonths}`,
+      value: workingCapital,
+      formattedValue: formatCurrency(workingCapital, currency),
+      explanation: `Reserva de liquidez para cubrir ${metrics.workingCapitalMonths} meses de operación inicial`,
+    },
+    {
+      label: '8. CAPEX Total',
+      formula: `${formatCurrency(subtotalConImprevistos, currency)} + ${formatCurrency(workingCapital, currency)}`,
       value: metrics.capexTotal,
       formattedValue: formatCurrency(metrics.capexTotal, currency),
-      explanation: 'Inversión total requerida para el proyecto',
+      explanation: 'Inversión total requerida para arrancar el proyecto',
     },
   ];
   
@@ -449,8 +463,9 @@ function explainCapexTotal(metrics: DashboardMetrics, currency: CurrencyCode): C
     formattedResult: formatCurrency(metrics.capexTotal, currency),
     steps,
     notes: [
-      'CAPEX = Capital Expenditure (Gastos de Capital)',
-      'Se recomienda mantener imprevistos entre 10-15% del subtotal.',
+      '💡 El capital de trabajo asegura liquidez durante el arranque',
+      '⚠️ Considera este monto para el plan de financiamiento',
+      `📊 Capital de trabajo representa ${metrics.capexTotal > 0 ? formatPercent((workingCapital / metrics.capexTotal) * 100) : '0%'} del CAPEX total`,
     ],
   };
 }
@@ -551,11 +566,27 @@ function explainVAN(metrics: DashboardMetrics, currency: CurrencyCode): Calculat
 // === PAYBACK ===
 function explainPayback(metrics: DashboardMetrics, currency: CurrencyCode): CalculationExplanation {
   let flujoAcumulado = -metrics.capexTotal;
+  const { workingCapital } = metrics.capexBreakdown;
+  const capexActivos = metrics.capexTotal - workingCapital;
   
   const steps: CalculationStep[] = [
     {
-      label: '1. Inversión Inicial',
-      formula: 'CAPEX Total',
+      label: '1. Inversión en Activos',
+      formula: 'CAPEX sin capital de trabajo',
+      value: -capexActivos,
+      formattedValue: formatCurrency(-capexActivos, currency),
+      explanation: 'Inversión en activos fijos + imprevistos',
+    },
+    {
+      label: '2. Capital de Trabajo',
+      formula: `OPEX mensual × ${metrics.workingCapitalMonths} meses`,
+      value: -workingCapital,
+      formattedValue: formatCurrency(-workingCapital, currency),
+      explanation: 'Reserva de liquidez para operación inicial',
+    },
+    {
+      label: '3. Inversión Total (CAPEX)',
+      formula: 'Activos + Capital de Trabajo',
       value: -metrics.capexTotal,
       formattedValue: formatCurrency(-metrics.capexTotal, currency),
       explanation: 'Punto de partida (flujo negativo)',
@@ -574,7 +605,7 @@ function explainPayback(metrics: DashboardMetrics, currency: CurrencyCode): Calc
       
       if (flujoAcumulado >= 0 || mesAbsoluto === metrics.paybackMeses) {
         steps.push({
-          label: `2. EBITDA Mensual Año ${year}`,
+          label: `4. EBITDA Mensual Año ${year}`,
           formula: 'Utilidad operativa mensual',
           value: ebitdaMensual,
           formattedValue: formatCurrency(ebitdaMensual, currency),
@@ -582,7 +613,7 @@ function explainPayback(metrics: DashboardMetrics, currency: CurrencyCode): Calc
         });
         
         steps.push({
-          label: `3. Punto de Recuperación`,
+          label: `5. Punto de Recuperación (Simple)`,
           formula: `Mes ${metrics.paybackMeses} ≈ ${(metrics.paybackMeses / 12).toFixed(1)} años`,
           value: metrics.paybackMeses,
           formattedValue: `${metrics.paybackMeses} meses`,
@@ -590,7 +621,7 @@ function explainPayback(metrics: DashboardMetrics, currency: CurrencyCode): Calc
         });
         
         steps.push({
-          label: '4. Flujo Acumulado al Payback',
+          label: '6. Flujo Acumulado al Payback',
           formula: 'Inversión + Suma EBITDA',
           value: flujoAcumulado,
           formattedValue: formatCurrency(Math.max(0, flujoAcumulado), currency),
@@ -611,9 +642,10 @@ function explainPayback(metrics: DashboardMetrics, currency: CurrencyCode): Calc
     formattedResult: `${metrics.paybackMeses} meses`,
     steps,
     notes: [
-      'Payback < 36 meses es excelente para proyectos deportivos.',
-      'Payback 36-60 meses es aceptable.',
-      'Payback > 60 meses indica alto riesgo de recuperación.',
+      '⚠️ El payback simple asume flujo constante desde el mes 1',
+      '📊 Payback < 36 meses es excelente para proyectos deportivos',
+      '🎯 Payback 36-60 meses es aceptable',
+      '💡 El capital de trabajo se recupera junto con los activos fijos',
     ],
   };
 }

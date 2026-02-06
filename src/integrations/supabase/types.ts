@@ -406,6 +406,7 @@ export type Database = {
           weekend_closing_hour: number | null
           weekend_different: boolean | null
           weekend_opening_hour: number | null
+          working_capital_months: number | null
         }
         Insert: {
           area_total?: number | null
@@ -431,6 +432,7 @@ export type Database = {
           weekend_closing_hour?: number | null
           weekend_different?: boolean | null
           weekend_opening_hour?: number | null
+          working_capital_months?: number | null
         }
         Update: {
           area_total?: number | null
@@ -456,6 +458,7 @@ export type Database = {
           weekend_closing_hour?: number | null
           weekend_different?: boolean | null
           weekend_opening_hour?: number | null
+          working_capital_months?: number | null
         }
         Relationships: [
           {

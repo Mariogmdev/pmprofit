@@ -24,6 +24,7 @@ export interface Project {
   discount_rate: number;
   inflation_rate: number;
   projection_years: number;
+  working_capital_months: number; // Meses de OPEX para capital de trabajo
   
   // Horarios operación
   opening_hour: number;
