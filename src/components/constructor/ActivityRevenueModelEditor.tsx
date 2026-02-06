@@ -93,7 +93,8 @@ export default function ActivityRevenueModelEditor({
             const updates: Partial<ActivityConfig> = { modeloIngreso: value };
             
             // Initialize default configs based on model
-            if (value === 'membresia' && !config.membershipConfig) {
+            // CRITICAL: 'mixto' needs BOTH membership AND daily pass configs
+            if ((value === 'membresia' || value === 'mixto') && !config.membershipConfig) {
               updates.membershipConfig = DEFAULT_MEMBERSHIP_CONFIG;
             }
             if ((value === 'pase-diario' || value === 'mixto') && !config.dailyPassConfig) {
