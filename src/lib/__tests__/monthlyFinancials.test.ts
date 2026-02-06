@@ -101,6 +101,62 @@ describe('monthlyFinancialsWithOccupancy', () => {
     expect(result.usuarios).toBe(100);
   });
 
+  /**
+   * CRITICAL BUG TEST: Modelo Mixto must include ALL income components
+   * - Reservations (from schedules)
+   * - Memberships (from membershipConfig)
+   * - Daily passes (from dailyPassConfig)
+   * - Complementary income (rentals)
+   */
+  it('modelo mixto includes memberships + daily passes + reservations', () => {
+    const config: ActivityConfig = {
+      ...DEFAULT_ACTIVITY_CONFIG,
+      cantidad: 4,
+      modeloIngreso: 'mixto',
+      duracionReserva: 1.5,
+      horarios: [
+        { id: '1', inicio: 6, fin: 22, nombre: 'Pico LV', tarifa: 50000, tipo: 'pico', diaSemana: 'LV', ocupacion: 70 },
+      ],
+      membershipConfig: {
+        precioMembresia: 100000,
+        capacidadMaxima: 50,
+        miembrosProyectados: [200, 220, 240, 260, 280],
+        crecimientoAutomatico: false,
+        tasaCrecimiento: 15,
+        maximoMiembros: 500,
+      },
+      dailyPassConfig: {
+        precioPase: 50000,
+        capacidadMaxima: 50,
+        pasesProyectadosDia: 10,
+      },
+      ocupacionAnual: [{ ano: 1, pico: 60, valle: 30 }],
+    };
+
+    const result = monthlyFinancialsWithOccupancy(config, 30, 60, 30, 0);
+
+    // Memberships: 200 × $100,000 = $20,000,000
+    expect(result.ingresos.membresias).toBe(200 * 100000);
+    
+    // Daily passes: 10/day × 30 days × $50,000 = $15,000,000
+    expect(result.ingresos.pases).toBe(10 * 30 * 50000);
+    
+    // Reservations should be > 0
+    expect(result.ingresos.reservas).toBeGreaterThan(0);
+    
+    // Total must include ALL components
+    const expectedTotal = result.ingresos.reservas + 
+                          result.ingresos.complementarios + 
+                          result.ingresos.clases + 
+                          result.ingresos.membresias + 
+                          result.ingresos.pases + 
+                          result.ingresos.trafico;
+    
+    expect(result.ingresos.total).toBe(expectedTotal);
+    // Total must be > memberships + passes alone (proves reservas are included)
+    expect(result.ingresos.total).toBeGreaterThan(result.ingresos.membresias + result.ingresos.pases);
+  });
+
   it('occupancy affects reservation income proportionally', () => {
     const config: ActivityConfig = {
       ...DEFAULT_ACTIVITY_CONFIG,
