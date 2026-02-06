@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { DashboardMetrics } from '@/types/dashboard';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/currency';
 import { CurrencyCode } from '@/types';
+import { CalculationModal } from './CalculationModal';
+import { CalculationType } from '@/lib/calculationExplainer';
 import { 
   Percent, 
   Banknote, 
@@ -9,7 +13,8 @@ import {
   MapPin, 
   Ticket, 
   Ruler,
-  Info
+  Info,
+  Calculator
 } from 'lucide-react';
 import {
   Tooltip,
@@ -30,6 +35,7 @@ interface MetricCardData {
   sublabel: string;
   color: string;
   valueClassName?: string;
+  calculationType?: CalculationType;
   tooltip: {
     title: string;
     description: string;
@@ -40,6 +46,19 @@ interface MetricCardData {
 }
 
 export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => {
+  const [calculationModal, setCalculationModal] = useState<{
+    isOpen: boolean;
+    type: CalculationType;
+  }>({ isOpen: false, type: 'tir' });
+
+  const openCalculation = (type: CalculationType) => {
+    setCalculationModal({ isOpen: true, type });
+  };
+
+  const closeCalculation = () => {
+    setCalculationModal({ ...calculationModal, isOpen: false });
+  };
+
   const getValueClassName = (metric: string): string => {
     switch (metric) {
       case 'tir':
@@ -67,6 +86,7 @@ export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => 
       sublabel: 'Tasa Interna de Retorno',
       color: 'blue',
       valueClassName: getValueClassName('tir'),
+      calculationType: 'tir',
       tooltip: {
         title: 'Tasa Interna de Retorno (TIR)',
         description: 'Rentabilidad promedio anual del proyecto. Considera todos los flujos de caja (inversión inicial y utilidades futuras).',
@@ -85,6 +105,7 @@ export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => 
       sublabel: 'Valor Actual Neto',
       color: 'green',
       valueClassName: getValueClassName('van'),
+      calculationType: 'van',
       tooltip: {
         title: 'Valor Actual Neto (VAN)',
         description: `Valor presente de todos los flujos futuros, descontados a una tasa del ${12}% anual. Representa la riqueza neta que genera el proyecto.`,
@@ -101,6 +122,7 @@ export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => 
       value: `Mes ${metrics.puntoEquilibrioMes}`,
       sublabel: `≈ ${(metrics.puntoEquilibrioMes / 12).toFixed(1)} años`,
       color: 'purple',
+      calculationType: 'break_even',
       tooltip: {
         title: 'Punto de Equilibrio',
         description: 'Mes en el que el flujo acumulado recupera la inversión inicial (CAPEX). A partir de este punto, el proyecto genera retorno positivo.',
@@ -120,6 +142,7 @@ export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => 
       sublabel: 'Año 1 proyectado',
       color: 'orange',
       valueClassName: getValueClassName('ocupacion'),
+      calculationType: 'occupancy',
       tooltip: {
         title: 'Ocupación Promedio',
         description: 'Porcentaje promedio de utilización de todas las actividades, ponderado por horas de operación. Diferencia horarios pico y valle.',
@@ -151,6 +174,7 @@ export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => 
       value: formatCurrency(metrics.ingresosPorM2Anual, currency),
       sublabel: 'Anual por m²',
       color: 'cyan',
+      calculationType: 'revenue_per_m2',
       tooltip: {
         title: 'Ingresos por m²',
         description: 'Productividad del espacio. Mide cuántos ingresos genera cada metro cuadrado del proyecto al año.',
@@ -167,74 +191,104 @@ export const DetailedMetrics = ({ metrics, currency }: DetailedMetricsProps) => 
   ];
 
   return (
-    <div className="animate-fade-in" style={{ animationDelay: '0.8s' }}>
-      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Scale className="w-5 h-5 text-muted-foreground" />
-        Métricas Detalladas
-      </h3>
-      
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {metricCards.map((card, idx) => (
-          <Card 
-            key={idx} 
-            className="border-2 hover:shadow-md transition-shadow"
-          >
-            <CardContent className="pt-4 pb-3 text-center relative">
-              {/* Tooltip icon in top-right corner */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors">
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs p-4">
-                  <div className="space-y-2">
-                    <p className="font-semibold text-sm">{card.tooltip.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {card.tooltip.description}
-                    </p>
-                    
-                    {card.tooltip.formula && (
-                      <p className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                        {card.tooltip.formula}
-                      </p>
-                    )}
-                    
-                    {card.tooltip.benchmarks && (
-                      <div className="space-y-1 pt-1 border-t">
-                        {card.tooltip.benchmarks.map((b, i) => (
-                          <p key={i} className={cn("text-xs", b.className)}>
-                            {b.label}
+    <>
+      <div className="animate-fade-in" style={{ animationDelay: '0.8s' }}>
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Scale className="w-5 h-5 text-muted-foreground" />
+          Métricas Detalladas
+        </h3>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {metricCards.map((card, idx) => (
+            <Card 
+              key={idx} 
+              className="border-2 hover:shadow-md transition-shadow"
+            >
+              <CardContent className="pt-4 pb-3 text-center relative">
+                {/* Action buttons in top-right corner */}
+                <div className="absolute top-2 right-2 flex gap-1">
+                  {card.calculationType && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0 hover:bg-muted"
+                          onClick={() => openCalculation(card.calculationType!)}
+                        >
+                          <Calculator className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">
+                        <p className="text-xs">Ver cálculo</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="text-muted-foreground hover:text-foreground transition-colors">
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs p-4">
+                      <div className="space-y-2">
+                        <p className="font-semibold text-sm">{card.tooltip.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {card.tooltip.description}
+                        </p>
+                        
+                        {card.tooltip.formula && (
+                          <p className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                            {card.tooltip.formula}
                           </p>
-                        ))}
+                        )}
+                        
+                        {card.tooltip.benchmarks && (
+                          <div className="space-y-1 pt-1 border-t">
+                            {card.tooltip.benchmarks.map((b, i) => (
+                              <p key={i} className={cn("text-xs", b.className)}>
+                                {b.label}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {card.tooltip.note && (
+                          <p className="text-xs text-muted-foreground italic pt-1 border-t">
+                            💡 {card.tooltip.note}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    
-                    {card.tooltip.note && (
-                      <p className="text-xs text-muted-foreground italic pt-1 border-t">
-                        💡 {card.tooltip.note}
-                      </p>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-              
-              <div className="flex justify-center mb-2">
-                {card.icon}
-              </div>
-              <p className="text-xs text-muted-foreground font-medium mb-1">
-                {card.label}
-              </p>
-              <p className={cn("text-lg font-bold", card.valueClassName)}>
-                {card.value}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {card.sublabel}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                
+                <div className="flex justify-center mb-2">
+                  {card.icon}
+                </div>
+                <p className="text-xs text-muted-foreground font-medium mb-1">
+                  {card.label}
+                </p>
+                <p className={cn("text-lg font-bold", card.valueClassName)}>
+                  {card.value}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {card.sublabel}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Calculation Modal */}
+      <CalculationModal
+        isOpen={calculationModal.isOpen}
+        onClose={closeCalculation}
+        calculationType={calculationModal.type}
+        metrics={metrics}
+        currency={currency}
+      />
+    </>
   );
 };
