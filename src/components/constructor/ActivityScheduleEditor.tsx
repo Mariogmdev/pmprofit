@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -176,11 +177,10 @@ export default function ActivityScheduleEditor({
                       {/* Rate */}
                       <div className="space-y-2">
                         <Label>Tarifa por Reserva</Label>
-                        <Input
-                          type="number"
-                          min={0}
+                        <CurrencyInput
                           value={schedule.tarifa}
-                          onChange={(e) => updateSchedule(schedule.id, { tarifa: parseFloat(e.target.value) || 0 })}
+                          onChange={(value) => updateSchedule(schedule.id, { tarifa: value })}
+                          currency={currency as CurrencyCode}
                         />
                       </div>
                     </div>
