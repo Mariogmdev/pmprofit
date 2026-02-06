@@ -55,17 +55,23 @@ export default function ActivityRevenueModelEditor({
     });
   };
 
-  // Calculate traffic users
+  // Calculate traffic users and financials
   const usuariosDeportivos = Math.round(totalClubUsers * (trafficConfig.porcentajeUsuariosClub / 100));
   const usuariosExternos = trafficConfig.visitantesExternosDia * daysPerMonth;
   const traficoTotal = usuariosDeportivos + usuariosExternos;
   
-  // Traffic income calculation
+  // Traffic income calculation - detailed breakdown
+  let ingresosBrutosTrafico = 0;
+  let costoVentasTrafico = 0;
   let ingresosTrafico = 0;
+  
   if (trafficConfig.modeloOperacion === 'propia') {
-    const ingresosBrutos = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
-    ingresosTrafico = ingresosBrutos * (1 - trafficConfig.costoVentas / 100);
+    ingresosBrutosTrafico = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
+    costoVentasTrafico = ingresosBrutosTrafico * (trafficConfig.costoVentas / 100);
+    ingresosTrafico = ingresosBrutosTrafico - costoVentasTrafico;
   } else {
+    ingresosBrutosTrafico = trafficConfig.ventasOperador;
+    costoVentasTrafico = ingresosBrutosTrafico * (1 - trafficConfig.comisionConcesion / 100);
     ingresosTrafico = trafficConfig.ventasOperador * (trafficConfig.comisionConcesion / 100);
   }
 
@@ -465,11 +471,10 @@ export default function ActivityRevenueModelEditor({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs">Ticket Promedio</Label>
-                  <Input
-                    type="number"
-                    min={0}
+                  <CurrencyInput
                     value={trafficConfig.ticketPromedio}
-                    onChange={(e) => updateTraffic({ ticketPromedio: parseFloat(e.target.value) || 0 })}
+                    onChange={(value) => updateTraffic({ ticketPromedio: value })}
+                    currency={currency as CurrencyCode}
                   />
                 </div>
                 <div className="space-y-2">
@@ -552,16 +557,79 @@ export default function ActivityRevenueModelEditor({
               )}
             </div>
 
-            {/* Traffic Summary */}
-            <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">
-                  {trafficConfig.modeloOperacion === 'propia' ? 'Margen Bruto Mensual:' : 'Ingreso Concesión/mes:'}
-                </span>
-                <span className="font-semibold text-primary">
-                  {formatCurrency(ingresosTrafico, currency as CurrencyCode)}
-                </span>
+            {/* Traffic Summary - COMPLETE BREAKDOWN FOR AUDITABILITY */}
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-3">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                📊 Desglose Completo de Tráfico
+              </h4>
+              
+              {/* Users breakdown */}
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="p-2 bg-background rounded text-center">
+                  <p className="text-xs text-muted-foreground">Usuarios Club</p>
+                  <p className="font-medium">{usuariosDeportivos.toLocaleString()}</p>
+                </div>
+                <div className="p-2 bg-background rounded text-center">
+                  <p className="text-xs text-muted-foreground">Visitantes</p>
+                  <p className="font-medium">{usuariosExternos.toLocaleString()}</p>
+                </div>
+                <div className="p-2 bg-primary/10 rounded text-center">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="font-bold text-primary">{traficoTotal.toLocaleString()}</p>
+                </div>
               </div>
+              
+              {/* Financial breakdown */}
+              <div className="space-y-2 border-t pt-3">
+                {trafficConfig.modeloOperacion === 'propia' ? (
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">
+                        {traficoTotal.toLocaleString()} personas × {formatCurrency(trafficConfig.ticketPromedio, currency as CurrencyCode)} × {trafficConfig.consumosPorPersona}x
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Ingresos Brutos:</span>
+                      <span className="font-medium">{formatCurrency(ingresosBrutosTrafico, currency as CurrencyCode)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm text-destructive">
+                      <span>Costo de Ventas ({trafficConfig.costoVentas}%):</span>
+                      <span>-{formatCurrency(costoVentasTrafico, currency as CurrencyCode)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Ventas Operador:</span>
+                      <span className="font-medium">{formatCurrency(trafficConfig.ventasOperador, currency as CurrencyCode)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Comisión ({trafficConfig.comisionConcesion}%):</span>
+                    </div>
+                  </>
+                )}
+                
+                {/* Net income - highlighted */}
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="font-medium">
+                    {trafficConfig.modeloOperacion === 'propia' ? 'Ingresos Netos:' : 'Ingreso Concesión:'}
+                  </span>
+                  <span className="font-bold text-lg text-primary">
+                    {formatCurrency(ingresosTrafico, currency as CurrencyCode)}/mes
+                  </span>
+                </div>
+              </div>
+              
+              {/* Margin indicator for own operation */}
+              {trafficConfig.modeloOperacion === 'propia' && ingresosBrutosTrafico > 0 && (
+                <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                  Margen Bruto: {((ingresosTrafico / ingresosBrutosTrafico) * 100).toFixed(1)}%
+                  {(ingresosTrafico / ingresosBrutosTrafico) < 0.5 && (
+                    <span className="text-amber-600 ml-2">⚠️ Margen bajo (típico F&B: 55-65%)</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
