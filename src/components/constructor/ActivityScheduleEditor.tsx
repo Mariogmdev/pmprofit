@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { Plus, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { ActivityConfig, ActivitySchedule, ActivityCalculations, generateId } fr
 import { CurrencyCode } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
+import { useDebouncedInput, useDebouncedNumber } from '@/hooks/useDebouncedValue';
 
 interface ActivityScheduleEditorProps {
   config: ActivityConfig;
@@ -28,6 +29,162 @@ interface ActivityScheduleEditorProps {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+// Memoized schedule item to prevent excessive re-renders
+interface ScheduleItemProps {
+  schedule: ActivitySchedule;
+  index: number;
+  currency: string;
+  onUpdate: (id: string, updates: Partial<ActivitySchedule>) => void;
+  onDelete: (id: string) => void;
+}
+
+const ScheduleItem = memo(function ScheduleItem({ 
+  schedule, 
+  index, 
+  currency, 
+  onUpdate, 
+  onDelete 
+}: ScheduleItemProps) {
+  // Debounced inputs for responsive UI
+  const [localNombre, setLocalNombre, flushNombre] = useDebouncedInput(
+    schedule.nombre,
+    (value) => onUpdate(schedule.id, { nombre: value }),
+    300
+  );
+
+  const [localOcupacion, setLocalOcupacion] = useDebouncedNumber(
+    schedule.ocupacion,
+    (value) => onUpdate(schedule.id, { ocupacion: value }),
+    150 // Faster for slider
+  );
+
+  return (
+    <div 
+      className={cn(
+        "border rounded-lg p-4 space-y-4",
+        schedule.tipo === 'pico' 
+          ? "border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20" 
+          : "border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-medium">Horario {index + 1}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDelete(schedule.id)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Name - debounced */}
+        <div className="space-y-2">
+          <Label>Nombre</Label>
+          <Input
+            value={localNombre}
+            onChange={(e) => setLocalNombre(e.target.value)}
+            onBlur={flushNombre}
+            placeholder="Ej: Mañana"
+          />
+        </div>
+
+        {/* Start Time - Select (no debounce needed) */}
+        <div className="space-y-2">
+          <Label>Inicio</Label>
+          <Select
+            value={schedule.inicio.toString()}
+            onValueChange={(v) => onUpdate(schedule.id, { inicio: parseInt(v) })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {HOURS.map((h) => (
+                <SelectItem key={h} value={h.toString()}>
+                  {h.toString().padStart(2, '0')}:00
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* End Time - Select (no debounce needed) */}
+        <div className="space-y-2">
+          <Label>Fin</Label>
+          <Select
+            value={schedule.fin.toString()}
+            onValueChange={(v) => onUpdate(schedule.id, { fin: parseInt(v) })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {HOURS.filter((h) => h > schedule.inicio).map((h) => (
+                <SelectItem key={h} value={h.toString()}>
+                  {h.toString().padStart(2, '0')}:00
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Rate - CurrencyInput already has blur handling */}
+        <div className="space-y-2">
+          <Label>Tarifa por Reserva</Label>
+          <CurrencyInput
+            value={schedule.tarifa}
+            onChange={(value) => onUpdate(schedule.id, { tarifa: value })}
+            currency={currency as CurrencyCode}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Type - Radio (no debounce needed) */}
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <RadioGroup
+            value={schedule.tipo}
+            onValueChange={(v: 'pico' | 'valle') => onUpdate(schedule.id, { tipo: v })}
+            className="flex gap-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="pico" id={`pico-${schedule.id}`} />
+              <Label htmlFor={`pico-${schedule.id}`} className="font-normal cursor-pointer text-orange-600">
+                Pico
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="valle" id={`valle-${schedule.id}`} />
+              <Label htmlFor={`valle-${schedule.id}`} className="font-normal cursor-pointer text-blue-600">
+                Valle
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        {/* Occupation Slider - debounced */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Ocupación Esperada</Label>
+            <span className="text-sm font-medium">{localOcupacion}%</span>
+          </div>
+          <Slider
+            value={[localOcupacion]}
+            onValueChange={([value]) => setLocalOcupacion(value)}
+            min={0}
+            max={100}
+            step={5}
+            className="w-full"
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function ActivityScheduleEditor({ 
   config, 
@@ -42,7 +199,7 @@ export default function ActivityScheduleEditor({
     SD: config.horarios.filter((h) => h.diaSemana === 'SD'),
   };
 
-  const addSchedule = () => {
+  const addSchedule = useCallback(() => {
     const newSchedule: ActivitySchedule = {
       id: generateId(),
       nombre: 'Nuevo Horario',
@@ -56,21 +213,21 @@ export default function ActivityScheduleEditor({
     onUpdate({
       horarios: [...config.horarios, newSchedule],
     });
-  };
+  }, [activeTab, config.horarios, onUpdate]);
 
-  const updateSchedule = (id: string, updates: Partial<ActivitySchedule>) => {
+  const updateSchedule = useCallback((id: string, updates: Partial<ActivitySchedule>) => {
     onUpdate({
       horarios: config.horarios.map((h) =>
         h.id === id ? { ...h, ...updates } : h
       ),
     });
-  };
+  }, [config.horarios, onUpdate]);
 
-  const deleteSchedule = (id: string) => {
+  const deleteSchedule = useCallback((id: string) => {
     onUpdate({
       horarios: config.horarios.filter((h) => h.id !== id),
     });
-  };
+  }, [config.horarios, onUpdate]);
 
   const currentSchedules = schedulesByDay[activeTab];
 
@@ -103,129 +260,14 @@ export default function ActivityScheduleEditor({
             ) : (
               <div className="space-y-4">
                 {currentSchedules.map((schedule, index) => (
-                  <div 
-                    key={schedule.id} 
-                    className={cn(
-                      "border rounded-lg p-4 space-y-4",
-                      schedule.tipo === 'pico' 
-                        ? "border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20" 
-                        : "border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Horario {index + 1}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteSchedule(schedule.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Name */}
-                      <div className="space-y-2">
-                        <Label>Nombre</Label>
-                        <Input
-                          value={schedule.nombre}
-                          onChange={(e) => updateSchedule(schedule.id, { nombre: e.target.value })}
-                          placeholder="Ej: Mañana"
-                        />
-                      </div>
-
-                      {/* Start Time */}
-                      <div className="space-y-2">
-                        <Label>Inicio</Label>
-                        <Select
-                          value={schedule.inicio.toString()}
-                          onValueChange={(v) => updateSchedule(schedule.id, { inicio: parseInt(v) })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {HOURS.map((h) => (
-                              <SelectItem key={h} value={h.toString()}>
-                                {h.toString().padStart(2, '0')}:00
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* End Time */}
-                      <div className="space-y-2">
-                        <Label>Fin</Label>
-                        <Select
-                          value={schedule.fin.toString()}
-                          onValueChange={(v) => updateSchedule(schedule.id, { fin: parseInt(v) })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {HOURS.filter((h) => h > schedule.inicio).map((h) => (
-                              <SelectItem key={h} value={h.toString()}>
-                                {h.toString().padStart(2, '0')}:00
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Rate */}
-                      <div className="space-y-2">
-                        <Label>Tarifa por Reserva</Label>
-                        <CurrencyInput
-                          value={schedule.tarifa}
-                          onChange={(value) => updateSchedule(schedule.id, { tarifa: value })}
-                          currency={currency as CurrencyCode}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Type */}
-                      <div className="space-y-2">
-                        <Label>Tipo</Label>
-                        <RadioGroup
-                          value={schedule.tipo}
-                          onValueChange={(v: 'pico' | 'valle') => updateSchedule(schedule.id, { tipo: v })}
-                          className="flex gap-4"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="pico" id={`pico-${schedule.id}`} />
-                            <Label htmlFor={`pico-${schedule.id}`} className="font-normal cursor-pointer text-orange-600">
-                              Pico
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="valle" id={`valle-${schedule.id}`} />
-                            <Label htmlFor={`valle-${schedule.id}`} className="font-normal cursor-pointer text-blue-600">
-                              Valle
-                            </Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-
-                      {/* Occupation Slider */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Ocupación Esperada</Label>
-                          <span className="text-sm font-medium">{schedule.ocupacion}%</span>
-                        </div>
-                        <Slider
-                          value={[schedule.ocupacion]}
-                          onValueChange={([value]) => updateSchedule(schedule.id, { ocupacion: value })}
-                          min={0}
-                          max={100}
-                          step={5}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <ScheduleItem
+                    key={schedule.id}
+                    schedule={schedule}
+                    index={index}
+                    currency={currency}
+                    onUpdate={updateSchedule}
+                    onDelete={deleteSchedule}
+                  />
                 ))}
 
                 <Button variant="outline" onClick={addSchedule} className="w-full">
