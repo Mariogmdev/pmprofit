@@ -184,10 +184,10 @@ export function useActivityCalculations(
       opexCostoVentas: financials.opexCostoVentas,
       opexMensual: financials.opexMensual,
       
-      // Financial metrics
-      margen: financials.ebitdaMensual,
-      margenPorcentaje: financials.margenEbitda,
-      payback: financials.paybackMeses,
+      // Contribution Margin metrics (NOT consolidated EBITDA)
+      margenContribucion: financials.margenContribucionMensual,
+      margenContribucionPorcentaje: financials.margenContribucionPorcentaje,
+      paybackActividad: financials.paybackActividadMeses,
     };
   }, [config, daysPerMonth, totalClubUsersFromProject]);
 }

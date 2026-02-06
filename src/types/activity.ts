@@ -197,10 +197,12 @@ export interface ActivityCalculations {
   opexCostoVentas: number;
   opexMensual: number;
   
-  // Metrics
-  margen: number;
-  margenPorcentaje: number;
-  payback: number;
+  // Contribution Margin Metrics (NOT consolidated EBITDA)
+  // These represent Activity Revenue - Direct Activity Costs only
+  // Does NOT include: rent, admin, utilities, marketing, etc.
+  margenContribucion: number;         // Previously: margen
+  margenContribucionPorcentaje: number; // Previously: margenPorcentaje
+  paybackActividad: number;           // Payback for this activity only
 }
 
 // Default monthly occupation for Year 1

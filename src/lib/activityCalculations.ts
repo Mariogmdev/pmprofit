@@ -34,7 +34,7 @@ export interface ActivityFinancials {
   capexConsumibles: number;
   capexMobiliario: number;
   
-  // OPEX breakdown
+  // OPEX breakdown (direct costs only)
   opexMensual: number;
   opexPersonal: number;
   opexMantenimiento: number;
@@ -42,10 +42,29 @@ export interface ActivityFinancials {
   opexProfesores: number;
   opexCostoVentas: number;
   
-  // Calculated metrics
-  ebitdaMensual: number;
-  margenEbitda: number;
-  paybackMeses: number;
+  /**
+   * CONTRIBUTION MARGIN (Margen de Contribución)
+   * 
+   * IMPORTANT: This is NOT the project's consolidated EBITDA.
+   * 
+   * Contribution Margin = Activity Revenue - Direct Activity Costs
+   * 
+   * DOES NOT INCLUDE:
+   * - Rent (arrendamiento)
+   * - Administrative payroll
+   * - Utilities (servicios públicos)
+   * - Marketing
+   * - Technology
+   * - Security
+   * - Insurance
+   * - General maintenance
+   * - Other global overhead
+   * 
+   * For the complete project EBITDA (with all overhead), see the Dashboard.
+   */
+  margenContribucionMensual: number;   // Previously: ebitdaMensual
+  margenContribucionPorcentaje: number; // Previously: margenEbitda
+  paybackActividadMeses: number;       // Previously: paybackMeses
   roiAnual: number;
   
   // Operational metrics
@@ -301,11 +320,24 @@ export function calculateActivityFinancials(
   // opexCostoVentas is already deducted from ingresosTrafico
   const opexMensual = opexPersonal + opexMantenimiento + opexReposicion + opexProfesores;
 
-  // Metrics
-  const ebitdaMensual = ingresosMensuales - opexMensual;
-  const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
-  const paybackMeses = ebitdaMensual > 0 ? Math.ceil(capexTotal / ebitdaMensual) : 999;
-  const roiAnual = capexTotal > 0 ? ((ebitdaMensual * 12) / capexTotal) * 100 : 0;
+  /**
+   * CONTRIBUTION MARGIN (Margen de Contribución)
+   * 
+   * This represents: Activity Revenue - Direct Activity Costs
+   * It does NOT include global overhead (rent, admin, utilities, etc.)
+   * 
+   * For the complete project EBITDA, see the Dashboard metrics.
+   */
+  const margenContribucionMensual = ingresosMensuales - opexMensual;
+  const margenContribucionPorcentaje = ingresosMensuales > 0 
+    ? (margenContribucionMensual / ingresosMensuales) * 100 
+    : 0;
+  const paybackActividadMeses = margenContribucionMensual > 0 
+    ? Math.ceil(capexTotal / margenContribucionMensual) 
+    : 999;
+  const roiAnual = capexTotal > 0 
+    ? ((margenContribucionMensual * 12) / capexTotal) * 100 
+    : 0;
 
   return {
     ingresosMensuales,
@@ -325,9 +357,9 @@ export function calculateActivityFinancials(
     opexReposicion,
     opexProfesores,
     opexCostoVentas,
-    ebitdaMensual,
-    margenEbitda,
-    paybackMeses,
+    margenContribucionMensual,
+    margenContribucionPorcentaje,
+    paybackActividadMeses,
     roiAnual,
     ocupacionPromedio,
     totalUsuariosMes,

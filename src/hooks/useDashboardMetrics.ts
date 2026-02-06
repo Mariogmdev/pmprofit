@@ -819,10 +819,10 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       // Generate activity-specific insights
       const actInsights: ActivityInsight['insights'] = [];
       
-      if (financials.margenEbitda >= 40) {
+      if (financials.margenContribucionPorcentaje >= 40) {
         actInsights.push({ type: 'success', message: 'Margen saludable (>40%)', action: undefined });
-      } else if (financials.margenEbitda < 20) {
-        actInsights.push({ type: 'warning', message: `Margen bajo (${financials.margenEbitda.toFixed(0)}%). Revisar tarifas o costos.` });
+      } else if (financials.margenContribucionPorcentaje < 20) {
+        actInsights.push({ type: 'warning', message: `Margen bajo (${financials.margenContribucionPorcentaje.toFixed(0)}%). Revisar tarifas o costos.` });
       }
       
       if (financials.ocupacionPromedio >= ocupacionTarget * 0.9) {
@@ -831,18 +831,18 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         actInsights.push({ type: 'warning', message: `Ocupación baja (${financials.ocupacionPromedio.toFixed(0)}% vs ${ocupacionTarget.toFixed(0)}% target)` });
       }
       
-      if (financials.paybackMeses <= 24) {
-        actInsights.push({ type: 'success', message: `Payback rápido: ${financials.paybackMeses} meses` });
-      } else if (financials.paybackMeses > 48) {
-        actInsights.push({ type: 'warning', message: `Payback largo: ${financials.paybackMeses} meses` });
+      if (financials.paybackActividadMeses <= 24) {
+        actInsights.push({ type: 'success', message: `Payback rápido: ${financials.paybackActividadMeses} meses` });
+      } else if (financials.paybackActividadMeses > 48) {
+        actInsights.push({ type: 'warning', message: `Payback largo: ${financials.paybackActividadMeses} meses` });
       }
       
       if (ingresosMensualesYear1 > 0 && financials.capexTotal === 0) {
         actInsights.push({ type: 'opportunity', message: 'Sin CAPEX registrado - Verificar inversión' });
       }
 
-      if (financials.ebitdaMensual < 0) {
-        actInsights.push({ type: 'warning', message: 'EBITDA negativo - Requiere atención' });
+      if (financials.margenContribucionMensual < 0) {
+        actInsights.push({ type: 'warning', message: 'Margen negativo - Requiere atención' });
       }
       
       return {
@@ -858,7 +858,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         ocupacionTarget,
         capacidadUtilizada: ocupacionTarget > 0 ? (financials.ocupacionPromedio / ocupacionTarget) * 100 : 0,
         capex: financials.capexTotal,
-        paybackMeses: financials.paybackMeses,
+        paybackMeses: financials.paybackActividadMeses,
         roiAnual: financials.roiAnual,
         rankingIngresos: 0, // Will be calculated after
         rankingMargen: 0,

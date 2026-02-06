@@ -1,5 +1,8 @@
-import { TrendingUp, TrendingDown, DollarSign, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Clock, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ActivityCalculations } from '@/types/activity';
 import { CurrencyCode } from '@/types';
 import { formatCurrency } from '@/lib/currency';
@@ -10,7 +13,7 @@ interface ActivityFinancialSummaryProps {
 }
 
 export default function ActivityFinancialSummary({ calculations, currency }: ActivityFinancialSummaryProps) {
-  const isPositiveMargin = calculations.margen > 0;
+  const isPositiveMargin = calculations.margenContribucion > 0;
   
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
@@ -18,6 +21,20 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
         <CardTitle className="text-base flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
           7. Resumen Financiero
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <div className="space-y-2 text-xs">
+                  <p><strong>Margen de Contribución:</strong> Ingresos menos costos directos de esta actividad.</p>
+                  <p><strong>No incluye:</strong> Arriendo, administración, servicios públicos, marketing, etc.</p>
+                  <p className="text-yellow-200 dark:text-yellow-300">💡 Para ver el EBITDA completo del proyecto (con todos los gastos), ir al Dashboard principal.</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -40,34 +57,48 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
           <div className="bg-background rounded-lg p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-destructive mb-1">
               <TrendingDown className="h-4 w-4" />
-              <span className="text-xs font-medium">OPEX/mes</span>
+              <span className="text-xs font-medium">OPEX Directo</span>
             </div>
             <div className="text-lg font-bold text-destructive">
               {formatCurrency(calculations.opexMensual, currency as CurrencyCode)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Costos operativos
+              Solo esta actividad
             </div>
           </div>
 
-          {/* Margin */}
+          {/* Contribution Margin */}
           <div className="bg-background rounded-lg p-3 text-center">
-            <div className="flex items-center justify-center gap-1 mb-1">
-              <DollarSign className="h-4 w-4 text-green-600" />
-              <span className="text-xs font-medium text-green-600">Margen</span>
-            </div>
-            <div className={`text-lg font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
-              {formatCurrency(calculations.margen, currency as CurrencyCode)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {calculations.margenPorcentaje.toFixed(0)}% del ingreso
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <DollarSign className="h-4 w-4 text-green-600" />
+                      <span className="text-xs font-medium text-green-600">Margen Contribución</span>
+                    </div>
+                    <div className={`text-lg font-bold ${isPositiveMargin ? 'text-green-600' : 'text-destructive'}`}>
+                      {formatCurrency(calculations.margenContribucion, currency as CurrencyCode)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {calculations.margenContribucionPorcentaje.toFixed(0)}% del ingreso
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <div className="space-y-1 text-xs">
+                    <p><strong>Margen de Contribución</strong> = Ingresos - Costos Directos</p>
+                    <p className="text-muted-foreground">Este NO es el EBITDA del proyecto. No incluye gastos generales (arriendo, admin, servicios).</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {/* CAPEX */}
           <div className="bg-background rounded-lg p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
-              <span className="text-xs font-medium">CAPEX Total</span>
+              <span className="text-xs font-medium">CAPEX Actividad</span>
             </div>
             <div className="text-lg font-bold">
               {formatCurrency(calculations.capexTotal, currency as CurrencyCode)}
@@ -79,18 +110,32 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
 
           {/* Payback */}
           <div className="bg-background rounded-lg p-3 text-center">
-            <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
-              <Clock className="h-4 w-4" />
-              <span className="text-xs font-medium">Payback</span>
-            </div>
-            <div className="text-lg font-bold text-blue-600">
-              {calculations.payback > 0 && calculations.payback < 999 
-                ? `${calculations.payback.toFixed(1)} meses`
-                : 'N/A'}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Recuperación inversión
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+                      <Clock className="h-4 w-4" />
+                      <span className="text-xs font-medium">Payback Actividad</span>
+                    </div>
+                    <div className="text-lg font-bold text-blue-600">
+                      {calculations.paybackActividad > 0 && calculations.paybackActividad < 999 
+                        ? `${calculations.paybackActividad.toFixed(0)} meses`
+                        : 'N/A'}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Solo esta actividad
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <div className="space-y-1 text-xs">
+                    <p><strong>Payback de Actividad</strong> = CAPEX / Margen Contribución</p>
+                    <p className="text-muted-foreground">Este es el payback teórico solo de esta actividad. El payback real del proyecto (con todos los gastos) se muestra en el Dashboard.</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -159,6 +204,16 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
             </div>
           </div>
         </div>
+
+        {/* Clarification Alert */}
+        <Alert className="mt-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
+            📊 Este margen solo considera <strong>costos directos</strong> de la actividad. 
+            El <strong>EBITDA completo del proyecto</strong> (incluyendo arriendo, administración, servicios públicos, etc.) 
+            se muestra en el <Link to="/dashboard" className="underline hover:text-blue-600 font-medium">Dashboard principal</Link>.
+          </AlertDescription>
+        </Alert>
       </CardContent>
     </Card>
   );
