@@ -150,6 +150,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
           trafficActivities={metrics.trafficActivities}
           currency={currency}
           totalClubUsers={metrics.totalClubUsers}
+          clubUsersBreakdown={metrics.clubUsersBreakdown}
         />
       )}
       

@@ -37,12 +37,30 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const daysPerMonth = currentProject?.days_per_month || 30;
     
     // First pass: calculate total users for traffic-dependent activities
-    const totalClubUsersFromOtherActivities = activities
-      .filter(a => a.config.modeloIngreso !== 'trafico')
-      .reduce((sum, a) => {
-        const financials = calculateActivityFinancials(a.config, daysPerMonth, 0);
-        return sum + financials.totalUsuariosMes;
-      }, 0);
+    // AND build breakdown by activity for transparency
+    const nonTrafficActivities = activities.filter(a => a.config.modeloIngreso !== 'trafico');
+    
+    const clubUsersBreakdownData = nonTrafficActivities.map(a => {
+      const financials = calculateActivityFinancials(a.config, daysPerMonth, 0);
+      return {
+        activityId: a.id,
+        nombre: a.name,
+        icon: a.icon || '⚽',
+        usuarios: financials.totalUsuariosMes,
+      };
+    });
+    
+    const totalClubUsersFromOtherActivities = clubUsersBreakdownData.reduce(
+      (sum, a) => sum + a.usuarios, 0
+    );
+    
+    // Add percentage to breakdown
+    const clubUsersBreakdown = clubUsersBreakdownData.map(a => ({
+      ...a,
+      porcentaje: totalClubUsersFromOtherActivities > 0 
+        ? (a.usuarios / totalClubUsersFromOtherActivities) * 100 
+        : 0,
+    }));
     
     // Calculate financials for each activity using centralized function
     // IMPORTANT: For Year 1, we need to consider the monthly occupation projection (maturity curve)
@@ -765,6 +783,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       // Traffic breakdown
       trafficActivities,
       totalClubUsers: totalClubUsersFromOtherActivities,
+      clubUsersBreakdown,
     };
   }, [currentProject, activities, opex, spaces, obraCivil, loading]);
 
