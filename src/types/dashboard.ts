@@ -121,6 +121,12 @@ export interface DashboardMetrics {
   tir: number;
   van: number;
   paybackMeses: number;
+  paybackMesesReal: number; // Payback considering maturity curve
+  
+  // Working Capital
+  workingCapitalMonths: number;
+  workingCapitalValue: number;
+  opexMensualBase: number;
   
   // Projection 5 years
   proyeccion: ProjectionYear[];
@@ -146,6 +152,8 @@ export interface DashboardMetrics {
     actividades: number;
     infraestructura: number;
     obraCivil: number;
+    imprevistos: number;
+    workingCapital: number;
   };
   
   // Additional metrics

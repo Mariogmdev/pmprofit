@@ -247,17 +247,18 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
     
-    // Subtotal before contingencies
-    const capexSubtotal = capexActividades + capexEspacios + capexObraCivil;
+    // Subtotal before contingencies and working capital
+    const capexSubtotalSinImprevistos = capexActividades + capexEspacios + capexObraCivil;
     
     // Contingencies (imprevistos) - use percentage from obraCivil config
-    // This ensures CONSISTENCY with InfrastructureSummary which uses the same source
     const imprevistosPorcentaje = obraCivil?.imprevistos_porcentaje ?? 10;
-    const imprevistosValor = capexSubtotal * (imprevistosPorcentaje / 100);
+    const imprevistosValor = capexSubtotalSinImprevistos * (imprevistosPorcentaje / 100);
     
-    // TOTAL CAPEX = Subtotal + Contingencies
-    // CRITICAL: This must match InfrastructureSummary calculation exactly
-    const capexTotal = capexSubtotal + imprevistosValor;
+    // CAPEX before working capital (used for depreciation calculation)
+    const capexSinWorkingCapital = capexSubtotalSinImprevistos + imprevistosValor;
+    
+    // Working Capital parameters
+    const workingCapitalMonths = currentProject?.working_capital_months ?? 3;
 
     // === OPEX CALCULATIONS (Simplified from OpexSummaryCard logic) ===
     const calculateReservasForActivities = (actividadesIncluidas?: string[]) => {
@@ -296,8 +297,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }, 0);
     };
 
-    const calculateOpexMensual = (ingresosBrutos: number, capex: number) => {
-      const ingresosNetos = ingresosBrutos * 0.85;
+    // Calculate OPEX - uses capexSinWorkingCapital for depreciation (working capital is not depreciated)
+    const calculateOpexMensual = (ingresosBrutos: number, capexParaDepreciacion: number) => {
 
       // Payroll from activities
       const nominaActividades = activities.reduce((sum, act) => {
@@ -364,10 +365,10 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         }, 0);
       }
 
-      // Depreciation
+      // Depreciation - uses CAPEX without working capital (working capital is not a depreciable asset)
       const depreciacionAnos = opex?.depreciacion_anos || 10;
       const incluirDepreciacion = opex?.incluir_depreciacion !== false;
-      const depreciacion = incluirDepreciacion ? (capex / depreciacionAnos / 12) : 0;
+      const depreciacion = incluirDepreciacion ? (capexParaDepreciacion / depreciacionAnos / 12) : 0;
 
       // Base OPEX (without rent and commissions)
       const opexSinArriendoNiComisiones = totalNomina + serviciosPublicos + marketing +
@@ -411,6 +412,14 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
       return opexSinComisiones + comisiones;
     };
+
+    // === CALCULATE WORKING CAPITAL & FINAL CAPEX ===
+    // Calculate base OPEX (at maturity income) to determine working capital needs
+    const opexMensualBase = calculateOpexMensual(ingresosBrutosAno1, capexSinWorkingCapital);
+    const workingCapitalValue = opexMensualBase * workingCapitalMonths;
+    
+    // TOTAL CAPEX = CAPEX sin working capital + Working Capital
+    const capexTotal = capexSinWorkingCapital + workingCapitalValue;
 
     // === BUILD 5-YEAR PROJECTION ===
     const proyeccion: ProjectionYear[] = [];
@@ -759,6 +768,13 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       tir,
       van,
       paybackMeses,
+      paybackMesesReal: paybackMeses, // For now, same as simple payback (can be enhanced later)
+      
+      // Working Capital
+      workingCapitalMonths,
+      workingCapitalValue,
+      opexMensualBase,
+      
       proyeccion,
       year1Monthly,
       ingresosPorActividad,
@@ -766,6 +782,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         actividades: capexActividades,
         infraestructura: capexEspacios,
         obraCivil: capexObraCivil,
+        imprevistos: imprevistosValor,
+        workingCapital: workingCapitalValue,
       },
       puntoEquilibrioMes,
       ocupacionPromedio,
