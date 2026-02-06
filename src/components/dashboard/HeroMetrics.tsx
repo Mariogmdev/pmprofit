@@ -119,7 +119,7 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-green-200 dark:bg-green-800/30 rounded-full opacity-20" />
         </Card>
         
-        {/* Card 2: EBITDA */}
+        {/* Card 2: EBITDA & EBIT */}
         <Card className="relative overflow-hidden border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <CardContent className="pt-6 relative">
             <CalculationButton type="monthly_ebitda" />
@@ -128,15 +128,26 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
                 <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
-              <Badge 
-                variant="outline"
-                className={cn(
-                  "bg-background",
-                  metrics.margenEbitdaBase >= 30 ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"
-                )}
-              >
-                {formatPercent(metrics.margenEbitdaBase)} Margen
-              </Badge>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge 
+                    variant="outline"
+                    className={cn(
+                      "bg-background cursor-help",
+                      metrics.margenEbitdaBase >= 30 ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"
+                    )}
+                  >
+                    {formatPercent(metrics.margenEbitdaBase)} Margen
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  <div className="space-y-1 text-xs">
+                    <p><strong>EBITDA:</strong> Ganancias antes de intereses, impuestos, depreciación y amortización.</p>
+                    <p><strong>EBIT:</strong> EBITDA menos depreciación.</p>
+                    <p className="text-yellow-200 mt-2">💡 Para análisis de caja operativo, usar EBITDA. Para P&L contable, usar EBIT.</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             </div>
             
             <div className="space-y-2">
@@ -163,18 +174,21 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
             
             <Separator className="my-4" />
             
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Anual Base</p>
-                <p className="font-semibold">
-                  {formatCurrency(metrics.ebitdaMensualBase * 12, currency)}
-                </p>
+            {/* EBIT breakdown */}
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>− Depreciación:</span>
+                <span>{formatCurrency(metrics.depreciacionMensual, currency)}</span>
               </div>
-              <div>
-                <p className="text-muted-foreground">Año {metrics.proyeccion.length}</p>
-                <p className="font-semibold">
-                  {formatCurrency(metrics.proyeccion[metrics.proyeccion.length - 1]?.ebitdaAnual || 0, currency)}
-                </p>
+              <div className="flex items-center justify-between font-semibold border-t pt-2">
+                <span>= EBIT Mensual:</span>
+                <span className="text-blue-600 dark:text-blue-400">
+                  {formatCurrency(metrics.ebitMensualBase, currency)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground text-xs">
+                <span>Margen EBIT:</span>
+                <span>{formatPercent(metrics.margenEbitBase)}</span>
               </div>
             </div>
           </CardContent>

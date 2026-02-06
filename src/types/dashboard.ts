@@ -115,8 +115,16 @@ export interface DashboardMetrics {
   // Estos valores representan el estado estable cuando la actividad alcanza su ocupación objetivo
   ingresosMensualesBase: number;
   ingresosAnualesBase: number;
+  
+  // EBITDA = Ingresos - OPEX Caja (sin depreciación)
   ebitdaMensualBase: number;
   margenEbitdaBase: number;
+  
+  // EBIT = EBITDA - Depreciación
+  ebitMensualBase: number;
+  margenEbitBase: number;
+  depreciacionMensual: number;
+  
   capexTotal: number;
   tir: number;
   van: number;

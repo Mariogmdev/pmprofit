@@ -8,6 +8,9 @@ const createMockMetrics = (overrides: Partial<DashboardMetrics> = {}): Dashboard
   ingresosAnualesBase: 1_200_000_000,
   ebitdaMensualBase: 40_000_000,
   margenEbitdaBase: 40,
+  ebitMensualBase: 37_000_000, // EBITDA - Depreciación
+  margenEbitBase: 37,
+  depreciacionMensual: 3_000_000,
   capexTotal: 500_000_000,
   tir: 25,
   van: 300_000_000,

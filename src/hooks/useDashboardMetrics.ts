@@ -455,11 +455,21 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     // TOTAL CAPEX = CAPEX sin working capital + Working Capital
     const capexTotal = capexSinWorkingCapital + workingCapitalValue;
     
-    // === CALCULATE EBITDA AT MATURITY (for Payback Simple, TIR, VAN) ===
-    // CRITICAL: This is the EBITDA when business reaches target occupancy
-    // EBITDA uses OPEX CAJA (without depreciation) by definition
+    // === CALCULATE EBITDA & EBIT AT MATURITY (for Payback Simple, TIR, VAN) ===
+    // CRITICAL: This is the EBITDA/EBIT when business reaches target occupancy
     const { opexTotal: opexMensualMadurezFinal, opexCaja: opexCajaMensualMadurez } = calculateOpexMensual(ingresosMadurez, capexTotal);
+    
+    // EBITDA = Ingresos - OPEX Caja (sin depreciación) - TRUE EBITDA
     const ebitdaMensualMadurez = ingresosMadurez - opexCajaMensualMadurez;
+    
+    // Depreciación mensual para cálculo de EBIT
+    const depreciacionAnos = opex?.depreciacion_anos || 10;
+    const incluirDepreciacionGlobal = opex?.incluir_depreciacion !== false;
+    // Use capexSinWorkingCapital for depreciation (WC is not a depreciable asset)
+    const depreciacionMensual = incluirDepreciacionGlobal ? (capexSinWorkingCapital / depreciacionAnos / 12) : 0;
+    
+    // EBIT = EBITDA - Depreciación
+    const ebitMensualMadurez = ebitdaMensualMadurez - depreciacionMensual;
     
     // === PAYBACK SIMPLE ===
     // Uses MATURITY EBITDA (not Year 1 average) as per financial standards
@@ -724,7 +734,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const insights: DashboardInsight[] = [];
     // Use MATURITY EBITDA for insights (represents stable business state)
     const ebitdaMensualBase = ebitdaMensualMadurez;
+    const ebitMensualBase = ebitMensualMadurez;
     const margenEbitdaBase = ingresosMadurez > 0 ? (ebitdaMensualMadurez / ingresosMadurez) * 100 : 0;
+    const margenEbitBase = ingresosMadurez > 0 ? (ebitMensualMadurez / ingresosMadurez) * 100 : 0;
     // Use total OPEX (with depreciation) for OPEX percentage insight
     const opexPorcentaje = ingresosMadurez > 0 
       ? (opexMensualMadurezFinal / ingresosMadurez) * 100 
@@ -824,8 +836,16 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       // CRITICAL: These are MATURITY values, not Year 1 averages
       ingresosMensualesBase: ingresosMadurez,
       ingresosAnualesBase: ingresosMadurez * 12,
+      
+      // EBITDA = Ingresos - OPEX Caja (sin depreciación)
       ebitdaMensualBase,
       margenEbitdaBase,
+      
+      // EBIT = EBITDA - Depreciación
+      ebitMensualBase,
+      margenEbitBase,
+      depreciacionMensual,
+      
       capexTotal,
       tir,
       van,
