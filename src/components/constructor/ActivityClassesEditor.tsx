@@ -1,6 +1,7 @@
 import { GraduationCap, AlertTriangle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -154,11 +155,10 @@ export default function ActivityClassesEditor({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                   <div className="space-y-2">
                     <Label className="text-xs">Precio por Alumno</Label>
-                    <Input
-                      type="number"
-                      min={0}
+                    <CurrencyInput
                       value={classesConfig.precioAlumno}
-                      onChange={(e) => updateClasses({ precioAlumno: parseFloat(e.target.value) || 0 })}
+                      onChange={(value) => updateClasses({ precioAlumno: value })}
+                      currency={currency as CurrencyCode}
                     />
                   </div>
                   <div className="space-y-2">
@@ -179,11 +179,10 @@ export default function ActivityClassesEditor({
                 <div className="p-4 bg-muted/30 rounded-lg">
                   <div className="space-y-2 max-w-xs">
                     <Label className="text-xs">Precio por Clase</Label>
-                    <Input
-                      type="number"
-                      min={0}
+                    <CurrencyInput
                       value={classesConfig.precioClase}
-                      onChange={(e) => updateClasses({ precioClase: parseFloat(e.target.value) || 0 })}
+                      onChange={(value) => updateClasses({ precioClase: value })}
+                      currency={currency as CurrencyCode}
                     />
                   </div>
                 </div>
@@ -216,11 +215,10 @@ export default function ActivityClassesEditor({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                   <div className="space-y-2">
                     <Label className="text-xs">Salario Profesor /mes</Label>
-                    <Input
-                      type="number"
-                      min={0}
+                    <CurrencyInput
                       value={classesConfig.salarioProfesor}
-                      onChange={(e) => updateClasses({ salarioProfesor: parseFloat(e.target.value) || 0 })}
+                      onChange={(value) => updateClasses({ salarioProfesor: value })}
+                      currency={currency as CurrencyCode}
                     />
                   </div>
                   <div className="space-y-2">
@@ -237,11 +235,10 @@ export default function ActivityClassesEditor({
                 <div className="p-4 bg-muted/30 rounded-lg">
                   <div className="space-y-2 max-w-xs">
                     <Label className="text-xs">Pago por Clase</Label>
-                    <Input
-                      type="number"
-                      min={0}
+                    <CurrencyInput
                       value={classesConfig.pagoClase}
-                      onChange={(e) => updateClasses({ pagoClase: parseFloat(e.target.value) || 0 })}
+                      onChange={(value) => updateClasses({ pagoClase: value })}
+                      currency={currency as CurrencyCode}
                     />
                     <p className="text-xs text-muted-foreground">
                       Total: {clasesMes} clases × {formatCurrency(classesConfig.pagoClase, currency as CurrencyCode)} = {formatCurrency(costoProfesores, currency as CurrencyCode)}/mes

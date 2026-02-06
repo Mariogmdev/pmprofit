@@ -1,6 +1,7 @@
 import { Plus, Trash2, Building2, Cog, Package, Armchair, Info, Home, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -189,29 +190,26 @@ export default function ActivityCapexEditor({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Costo Cubierta (por {config.tipoUnidad})</Label>
-                <Input
-                  type="number"
-                  min={0}
+                <CurrencyInput
                   value={config.capexCubierta}
-                  onChange={(e) => onUpdate({ capexCubierta: parseFloat(e.target.value) || 0 })}
+                  onChange={(value) => onUpdate({ capexCubierta: value })}
+                  currency={currency as CurrencyCode}
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Costo Semi-cubierta</Label>
-                <Input
-                  type="number"
-                  min={0}
+                <CurrencyInput
                   value={config.capexSemicubierta}
-                  onChange={(e) => onUpdate({ capexSemicubierta: parseFloat(e.target.value) || 0 })}
+                  onChange={(value) => onUpdate({ capexSemicubierta: value })}
+                  currency={currency as CurrencyCode}
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Costo Aire Libre</Label>
-                <Input
-                  type="number"
-                  min={0}
+                <CurrencyInput
                   value={config.capexAireLibre}
-                  onChange={(e) => onUpdate({ capexAireLibre: parseFloat(e.target.value) || 0 })}
+                  onChange={(value) => onUpdate({ capexAireLibre: value })}
+                  currency={currency as CurrencyCode}
                 />
               </div>
             </div>
@@ -281,11 +279,10 @@ export default function ActivityCapexEditor({
                     <span className="text-xs">unid</span>
                   </div>
                   <span className="text-xs">×</span>
-                  <Input
-                    type="number"
-                    min={0}
+                  <CurrencyInput
                     value={item.precioUnitario}
-                    onChange={(e) => updateEquipamiento(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
+                    onChange={(value) => updateEquipamiento(item.id, 'precioUnitario', value)}
+                    currency={currency as CurrencyCode}
                     className="w-28"
                   />
                   <span className="text-xs">=</span>
@@ -348,11 +345,10 @@ export default function ActivityCapexEditor({
                     <span className="text-xs">unid</span>
                   </div>
                   <span className="text-xs">×</span>
-                  <Input
-                    type="number"
-                    min={0}
+                  <CurrencyInput
                     value={item.precioUnitario}
-                    onChange={(e) => updateConsumable(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
+                    onChange={(value) => updateConsumable(item.id, 'precioUnitario', value)}
+                    currency={currency as CurrencyCode}
                     className="w-28"
                   />
                   <span className="text-xs">=</span>
@@ -415,11 +411,10 @@ export default function ActivityCapexEditor({
                     <span className="text-xs">unid</span>
                   </div>
                   <span className="text-xs">×</span>
-                  <Input
-                    type="number"
-                    min={0}
+                  <CurrencyInput
                     value={item.precioUnitario}
-                    onChange={(e) => updateMobiliario(item.id, 'precioUnitario', parseFloat(e.target.value) || 0)}
+                    onChange={(value) => updateMobiliario(item.id, 'precioUnitario', value)}
+                    currency={currency as CurrencyCode}
                     className="w-28"
                   />
                   <span className="text-xs">=</span>

@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -191,11 +192,10 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
         {/* Construction cost */}
         <div>
           <Label>Costo de Construcción por m² (espacios comunes)</Label>
-          <Input
-            type="number"
+          <CurrencyInput
             value={obraCivil?.costo_construccion_por_m2 || 0}
-            onChange={(e) => updateObraCivil({ costo_construccion_por_m2: Number(e.target.value) })}
-            placeholder="Ej: 1,800,000"
+            onChange={(value) => updateObraCivil({ costo_construccion_por_m2: value })}
+            currency={currency}
           />
           <p className="text-sm text-muted-foreground mt-1">
             → CAPEX Construcción: {formatCurrency(calculos.capexConstruccion, currency)}
@@ -213,28 +213,28 @@ export const ObraCivilEditor = ({ projectId, currency }: ObraCivilEditorProps) =
           
           <div>
             <Label>Paisajismo y Exteriores</Label>
-            <Input
-              type="number"
+            <CurrencyInput
               value={obraCivil?.paisajismo || 0}
-              onChange={(e) => updateObraCivil({ paisajismo: Number(e.target.value) })}
+              onChange={(value) => updateObraCivil({ paisajismo: value })}
+              currency={currency}
             />
           </div>
           
           <div>
             <Label>Estudios y Diseños</Label>
-            <Input
-              type="number"
+            <CurrencyInput
               value={obraCivil?.estudios_disenos || 0}
-              onChange={(e) => updateObraCivil({ estudios_disenos: Number(e.target.value) })}
+              onChange={(value) => updateObraCivil({ estudios_disenos: value })}
+              currency={currency}
             />
           </div>
           
           <div>
             <Label>Permisos y Licencias</Label>
-            <Input
-              type="number"
+            <CurrencyInput
               value={obraCivil?.permisos_licencias || 0}
-              onChange={(e) => updateObraCivil({ permisos_licencias: Number(e.target.value) })}
+              onChange={(value) => updateObraCivil({ permisos_licencias: value })}
+              currency={currency}
             />
           </div>
           

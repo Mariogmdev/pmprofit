@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -509,12 +510,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
               />
             </div>
             <div className="col-span-2">
-              <Input
-                type="number"
+              <CurrencyInput
                 value={item.salarioMensual || 0}
-                onChange={(e) => updateNominaItem(type, idx, { salarioMensual: Number(e.target.value) })}
-                className="h-8 text-sm text-right"
-                min="0"
+                onChange={(value) => updateNominaItem(type, idx, { salarioMensual: value })}
+                currency={currency}
+                className="h-8 text-sm"
               />
             </div>
             <div className="col-span-2 text-right text-sm font-semibold text-green-600 dark:text-green-400">
@@ -624,13 +624,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
               {(item.tipo || 'fijo') === 'fijo' && (
                 <>
                   <div className="col-span-9">
-                    <Input
-                      type="number"
-                      placeholder="Valor mensual"
+                    <CurrencyInput
                       value={item.costoMensual || 0}
-                      onChange={(e) => updateServiceItem(field, idx, { costoMensual: Number(e.target.value) })}
+                      onChange={(value) => updateServiceItem(field, idx, { costoMensual: value })}
+                      currency={currency}
                       className="h-8 text-sm"
-                      min="0"
                     />
                   </div>
                   <div className="col-span-3 text-right text-sm font-semibold text-green-600 dark:text-green-400">
@@ -667,13 +665,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                   <div className="grid grid-cols-12 gap-3">
                     <div className="col-span-3">
                       <Label className="text-xs">Costo/Reserva</Label>
-                      <Input
-                        type="number"
-                        placeholder="$/reserva"
+                      <CurrencyInput
                         value={item.costoPorReserva || 0}
-                        onChange={(e) => updateServiceItem(field, idx, { costoPorReserva: Number(e.target.value) })}
+                        onChange={(value) => updateServiceItem(field, idx, { costoPorReserva: value })}
+                        currency={currency}
                         className="h-8 text-sm"
-                        min="0"
                       />
                     </div>
                     
@@ -1033,11 +1029,10 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
           {opex?.arrendamiento_modelo === 'fijo' && (
             <div>
               <Label>Valor Mensual Fijo</Label>
-              <Input
-                type="number"
+              <CurrencyInput
                 value={opex?.arrendamiento_fijo || 0}
-                onChange={(e) => updateOpex({ arrendamiento_fijo: Number(e.target.value) })}
-                placeholder="0"
+                onChange={(value) => updateOpex({ arrendamiento_fijo: value })}
+                currency={currency}
               />
             </div>
           )}
@@ -1104,10 +1099,10 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
             <div className="space-y-4">
               <div>
                 <Label>Parte Fija</Label>
-                <Input
-                  type="number"
+                <CurrencyInput
                   value={opex?.arrendamiento_mixto_fijo || 0}
-                  onChange={(e) => updateOpex({ arrendamiento_mixto_fijo: Number(e.target.value) })}
+                  onChange={(value) => updateOpex({ arrendamiento_mixto_fijo: value })}
+                  currency={currency}
                 />
               </div>
               
@@ -1373,13 +1368,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                       />
                     </div>
                     <div className="col-span-4">
-                      <Input
-                        type="number"
-                        placeholder="Costo/mes"
+                      <CurrencyInput
                         value={item.costoMensual || 0}
-                        onChange={(e) => updateBankCommission(idx, { costoMensual: Number(e.target.value) })}
+                        onChange={(value) => updateBankCommission(idx, { costoMensual: value })}
+                        currency={currency}
                         className="h-8 text-sm"
-                        min="0"
                       />
                     </div>
                     <div className="col-span-1 text-right text-sm font-semibold text-teal-600 dark:text-teal-400">
@@ -1560,12 +1553,11 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">IVA Pagado (estimado):</span>
-                      <Input
-                        type="number"
+                      <CurrencyInput
                         value={opex?.iva_pagado_estimado ?? 0}
-                        onChange={(e) => updateOpex({ iva_pagado_estimado: Number(e.target.value) })}
+                        onChange={(value) => updateOpex({ iva_pagado_estimado: value })}
+                        currency={currency}
                         className="w-32 h-8"
-                        placeholder="0"
                       />
                     </div>
                     <Separator />
