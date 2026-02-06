@@ -1,6 +1,7 @@
 import { DollarSign, Users, Coffee, TrendingUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -199,11 +200,10 @@ export default function ActivityRevenueModelEditor({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Precio membresía mensual</Label>
-                <Input
-                  type="number"
-                  min={0}
+                <CurrencyInput
                   value={membershipConfig.precioMembresia}
-                  onChange={(e) => updateMembership({ precioMembresia: parseFloat(e.target.value) || 0 })}
+                  onChange={(value) => updateMembership({ precioMembresia: value })}
+                  currency={currency as CurrencyCode}
                 />
                 <p className="text-xs text-muted-foreground">/mes por persona</p>
               </div>
@@ -353,11 +353,10 @@ export default function ActivityRevenueModelEditor({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs">Precio Pase Diario</Label>
-                <Input
-                  type="number"
-                  min={0}
+                <CurrencyInput
                   value={dailyPassConfig.precioPase}
-                  onChange={(e) => updateDailyPass({ precioPase: parseFloat(e.target.value) || 0 })}
+                  onChange={(value) => updateDailyPass({ precioPase: value })}
+                  currency={currency as CurrencyCode}
                 />
                 <p className="text-xs text-muted-foreground">/día por persona</p>
               </div>

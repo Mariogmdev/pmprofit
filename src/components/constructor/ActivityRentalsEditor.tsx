@@ -1,9 +1,11 @@
 import { Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ActivityConfig, generateId } from '@/types/activity';
+import { CurrencyCode } from '@/types';
 
 interface ActivityRentalsEditorProps {
   config: ActivityConfig;
@@ -11,7 +13,7 @@ interface ActivityRentalsEditorProps {
   currency: string;
 }
 
-export default function ActivityRentalsEditor({ config, onUpdate }: ActivityRentalsEditorProps) {
+export default function ActivityRentalsEditor({ config, onUpdate, currency }: ActivityRentalsEditorProps) {
   const addRental = () => {
     onUpdate({
       alquileres: [
@@ -89,11 +91,10 @@ export default function ActivityRentalsEditor({ config, onUpdate }: ActivityRent
                 </div>
                 <div className="w-36 space-y-1">
                   <Label className="text-xs">Precio</Label>
-                  <Input
-                    type="number"
-                    min={0}
+                  <CurrencyInput
                     value={rental.precio}
-                    onChange={(e) => updateRental(rental.id, 'precio', parseFloat(e.target.value) || 0)}
+                    onChange={(value) => updateRental(rental.id, 'precio', value)}
+                    currency={currency as CurrencyCode}
                   />
                 </div>
                 <Button
