@@ -83,6 +83,33 @@ export interface SpaceInsight {
   }>;
 }
 
+// Traffic activity breakdown for dashboard
+export interface TrafficActivityBreakdown {
+  activityId: string;
+  nombre: string;
+  icon: string;
+  
+  // Traffic sources
+  usuariosClub: number;
+  usuariosExternos: number;
+  traficoTotal: number;
+  
+  // Income calculation
+  ticketPromedio: number;
+  consumosPorPersona: number;
+  ingresosBrutos: number;
+  
+  // Costs/Commissions
+  modeloOperacion: 'propia' | 'concesion';
+  costoVentasPorcentaje: number;
+  costoVentas: number;
+  comisionPorcentaje?: number;
+  
+  // Net income
+  ingresosNetos: number;
+  margenBruto: number;
+}
+
 export interface DashboardMetrics {
   // Hero metrics - Base/Madurez (100% ocupación objetivo)
   // Estos valores representan el estado estable cuando la actividad alcanza su ocupación objetivo
@@ -141,6 +168,10 @@ export interface DashboardMetrics {
   topActivitiesByRevenue: ActivityInsight[];
   topActivitiesByMargin: ActivityInsight[];
   worstPerformers: ActivityInsight[];
+  
+  // NEW: Traffic breakdown
+  trafficActivities: TrafficActivityBreakdown[];
+  totalClubUsers: number;
 }
 
 export interface DashboardInsight {

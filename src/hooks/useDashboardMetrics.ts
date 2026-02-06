@@ -4,8 +4,8 @@ import { useProjectOpex } from '@/hooks/useProjectOpex';
 import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useObraCivil } from '@/hooks/useObraCivil';
 import { useProject } from '@/contexts/ProjectContext';
-import { DashboardMetrics, DashboardInsight, ProjectionYear, ActivityInsight, SpaceInsight, CHART_COLORS } from '@/types/dashboard';
-import { ActivityConfig } from '@/types/activity';
+import { DashboardMetrics, DashboardInsight, ProjectionYear, ActivityInsight, SpaceInsight, TrafficActivityBreakdown, CHART_COLORS } from '@/types/dashboard';
+import { ActivityConfig, DEFAULT_TRAFFIC_CONFIG } from '@/types/activity';
 import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { ProjectSpace } from '@/types/infrastructure';
 import { calculateActivityFinancials, calculateOccupancyTarget, calculateYear1IncomeFromProjection } from '@/lib/activityCalculations';
@@ -133,6 +133,61 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const ingresosNetos = ingresosBrutosAno1 * 0.85;
     const ocupacionPromedio = horasTotal > 0 ? ocupacionTotal / horasTotal : 0;
     const ticketPromedio = ticketCount > 0 ? ticketTotal / ticketCount : 0;
+
+    // === TRAFFIC ACTIVITIES BREAKDOWN ===
+    // Calculate detailed traffic breakdown for dashboard visibility
+    const trafficActivities: TrafficActivityBreakdown[] = activities
+      .filter(a => a.config.modeloIngreso === 'trafico')
+      .map(activity => {
+        const config = activity.config;
+        const trafficConfig = config.trafficConfig || DEFAULT_TRAFFIC_CONFIG;
+        
+        const usuariosClub = Math.round(
+          totalClubUsersFromOtherActivities * (trafficConfig.porcentajeUsuariosClub / 100)
+        );
+        const usuariosExternos = trafficConfig.visitantesExternosDia * daysPerMonth;
+        const traficoTotal = usuariosClub + usuariosExternos;
+        
+        let ingresosBrutos = 0;
+        let costoVentas = 0;
+        let ingresosNetos = 0;
+        let costoVentasPorcentaje = 0;
+        let comisionPorcentaje: number | undefined = undefined;
+        
+        if (trafficConfig.modeloOperacion === 'propia') {
+          ingresosBrutos = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
+          costoVentasPorcentaje = trafficConfig.costoVentas;
+          costoVentas = ingresosBrutos * (trafficConfig.costoVentas / 100);
+          ingresosNetos = ingresosBrutos - costoVentas;
+        } else {
+          // Concesión model
+          ingresosBrutos = trafficConfig.ventasOperador;
+          comisionPorcentaje = trafficConfig.comisionConcesion;
+          costoVentas = ingresosBrutos * (1 - trafficConfig.comisionConcesion / 100);
+          ingresosNetos = trafficConfig.ventasOperador * (trafficConfig.comisionConcesion / 100);
+          costoVentasPorcentaje = 100 - trafficConfig.comisionConcesion;
+        }
+        
+        const margenBruto = ingresosBrutos > 0 ? (ingresosNetos / ingresosBrutos) * 100 : 0;
+        
+        return {
+          activityId: activity.id,
+          nombre: activity.name,
+          icon: activity.icon || '☕',
+          usuariosClub,
+          usuariosExternos,
+          traficoTotal,
+          ticketPromedio: trafficConfig.ticketPromedio,
+          consumosPorPersona: trafficConfig.consumosPorPersona,
+          ingresosBrutos,
+          modeloOperacion: trafficConfig.modeloOperacion,
+          costoVentasPorcentaje,
+          costoVentas,
+          comisionPorcentaje,
+          ingresosNetos,
+          margenBruto,
+        };
+      });
 
     // === CAPEX CALCULATIONS ===
     const capexActividades = activities.reduce((sum, activity) => {
@@ -707,6 +762,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       topActivitiesByRevenue,
       topActivitiesByMargin,
       worstPerformers,
+      // Traffic breakdown
+      trafficActivities,
+      totalClubUsers: totalClubUsersFromOtherActivities,
     };
   }, [currentProject, activities, opex, spaces, obraCivil, loading]);
 

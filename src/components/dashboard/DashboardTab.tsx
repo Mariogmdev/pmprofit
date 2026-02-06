@@ -8,6 +8,7 @@ import { HeroMetrics } from './HeroMetrics';
 import { AutoInsights } from './AutoInsights';
 import { ActivityInsightsSection } from './ActivityInsightsSection';
 import { SpaceInsightsSection } from './SpaceInsightsSection';
+import { TrafficBreakdownSection } from './TrafficBreakdownSection';
 import { ChartsGrid } from './ChartsGrid';
 import { ProjectionTable } from './ProjectionTable';
 import { DetailedMetrics } from './DetailedMetrics';
@@ -143,7 +144,16 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
         onEditActivity={handleEditActivity}
       />
       
-      {/* Section 4: Space Insights - NEW */}
+      {/* Section 4: Traffic Breakdown - NEW */}
+      {metrics.trafficActivities.length > 0 && (
+        <TrafficBreakdownSection 
+          trafficActivities={metrics.trafficActivities}
+          currency={currency}
+          totalClubUsers={metrics.totalClubUsers}
+        />
+      )}
+      
+      {/* Section 5: Space Insights */}
       <SpaceInsightsSection 
         spaces={metrics.spaceInsights}
         currency={currency}
