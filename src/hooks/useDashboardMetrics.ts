@@ -540,15 +540,160 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       paybackMesesReal = projectionYears * 12 + 12; // Beyond projection
     }
 
-    // Year 1 monthly breakdown (uses actual maturity curve, not projections)
-    const opexYear1Promedio = proyeccion[0]?.opexMensual || 0;
+    // ============================================================
+    // Year 1 monthly breakdown with FIXED/VARIABLE OPEX structure
+    // ============================================================
+    /**
+     * Descompone OPEX en componentes fijo y variable
+     * 
+     * FIJO (no escala con ingresos):
+     * - Nómina base (admin + operativa + prestaciones)
+     * - Arriendo fijo
+     * - Seguros
+     * - Tecnología fija (licencias)
+     * - Seguridad base
+     * - Mantenimiento fijo
+     * 
+     * VARIABLE (escala con ingresos o actividad):
+     * - Arriendo variable (% ingresos)
+     * - Comisiones (% ingresos)
+     * - Gastos financieros (4x1000, datáfono)
+     * - Servicios públicos (parcialmente)
+     * - Marketing variable
+     */
+    const descomponerOpex = (
+      opexTotalMadurez: number,
+      ingresosMadurezVal: number
+    ): { fijo: number; variable: number; porcentajeVariable: number } => {
+      
+      // COMPONENTES FIJOS
+      const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
+        (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
+      );
+      const nominaOper = (opex?.nomina_operativa || []).reduce(
+        (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
+      );
+      const nominaActs = activities.reduce((sum, act) => {
+        const config: ActivityConfig = act.config;
+        const personal = config.personal || [];
+        return sum + personal.reduce((s, p) => s + ((p.cantidad || 0) * (p.salarioMensual || 0)), 0);
+      }, 0);
+      
+      const nominaBase = nominaAdmin + nominaOper + nominaActs;
+      const prestacionesFijas = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
+      const totalNominaFija = nominaBase + prestacionesFijas;
+      
+      // Arriendo fijo según modelo
+      let arriendoFijo = 0;
+      const modelo = opex?.arrendamiento_modelo || 'propio';
+      if (modelo === 'fijo') {
+        arriendoFijo = opex?.arrendamiento_fijo || 0;
+      } else if (modelo === 'mixto') {
+        arriendoFijo = opex?.arrendamiento_mixto_fijo || 0;
+      }
+      
+      // Seguros son siempre fijos
+      const segurosFijos = (opex?.seguros || []).reduce((s, i) => s + (i.costoMensual || 0), 0);
+      
+      // Tecnología fija (solo items tipo 'fijo')
+      const tecnologiaFija = (opex?.tecnologia || [])
+        .filter(i => (i.tipo || 'fijo') === 'fijo')
+        .reduce((s, i) => s + (i.costoMensual || 0), 0);
+      
+      // Seguridad fija
+      const seguridadFija = (opex?.seguridad || [])
+        .filter(i => (i.tipo || 'fijo') === 'fijo')
+        .reduce((s, i) => s + (i.costoMensual || 0), 0);
+      
+      // Mantenimiento general fijo
+      const mantenimientoFijo = (opex?.mantenimiento_general || [])
+        .filter(i => (i.tipo || 'fijo') === 'fijo')
+        .reduce((s, i) => s + (i.costoMensual || 0), 0);
+      
+      // Mantenimiento de actividades (fijo - es programado)
+      const mantenimientoActsFijo = activities.reduce((sum, act) => {
+        const config: ActivityConfig = act.config;
+        const mantenimiento = config.mantenimiento || [];
+        const costoAnual = mantenimiento.reduce((s, m) => s + (m.costoAnual || 0), 0);
+        return sum + (costoAnual / 12);
+      }, 0);
+      
+      // Administrativos fijos
+      const administrativosFijos = (opex?.administrativos || [])
+        .filter(i => (i.tipo || 'fijo') === 'fijo')
+        .reduce((s, i) => s + (i.costoMensual || 0), 0);
+      
+      // Otros gastos fijos
+      const otrosGastosFijos = (opex?.otros_gastos || [])
+        .filter(i => (i.tipo || 'fijo') === 'fijo')
+        .reduce((s, i) => s + (i.costoMensual || 0), 0);
+      
+      const opexFijo = totalNominaFija + arriendoFijo + segurosFijos + tecnologiaFija + 
+                       seguridadFija + mantenimientoFijo + mantenimientoActsFijo + 
+                       administrativosFijos + otrosGastosFijos;
+      
+      // COMPONENTES VARIABLES (resto = total - fijo)
+      const opexVariable = Math.max(0, opexTotalMadurez - opexFijo);
+      
+      // Porcentaje variable sobre ingresos de madurez
+      const porcentajeVariable = ingresosMadurezVal > 0 ? (opexVariable / ingresosMadurezVal) : 0;
+      
+      return {
+        fijo: opexFijo,
+        variable: opexVariable,
+        porcentajeVariable
+      };
+    };
+
+    // Calculate OPEX structure at maturity for Year 1 breakdown
+    const { opexTotal: opexMadurezTotal } = calculateOpexMensual(ingresosMadurez, capexTotal);
+    const opexStructure = descomponerOpex(opexMadurezTotal, ingresosMadurez);
+
     const year1Monthly: DashboardMetrics['year1Monthly'] = MONTH_NAMES.map((mes, idx) => {
       const ingresos = year1IncomeMonths[idx] || 0;
-      const factor = year1IncomeAvg > 0 ? ingresos / year1IncomeAvg : 1;
-      const opex = opexYear1Promedio * factor;
-      const ebitda = ingresos - opex;
-      return { mes, ingresos, opex, ebitda };
+      
+      /**
+       * OPEX = OPEX_Fijo + (Ingresos × % Variable)
+       * 
+       * Esto refleja la realidad operativa:
+       * - Meses con ingresos bajos pueden tener EBITDA negativo (pérdida)
+       * - Meses con ingresos altos tienen EBITDA positivo
+       * - El punto de equilibrio se alcanza cuando ingresos cubren costos fijos
+       */
+      const opexVariableMes = ingresos * opexStructure.porcentajeVariable;
+      const opexMes = opexStructure.fijo + opexVariableMes;
+      const ebitda = ingresos - opexMes;
+      
+      return { mes, ingresos, opex: opexMes, ebitda };
     });
+
+    // Log OPEX structure for debugging (dev only)
+    if (import.meta.env.DEV && ingresosMadurez > 0) {
+      console.log('📊 OPEX Structure:', {
+        madurez: {
+          ingresos: Math.round(ingresosMadurez),
+          opexTotal: Math.round(opexMadurezTotal),
+          opexFijo: Math.round(opexStructure.fijo),
+          opexVariable: Math.round(opexStructure.variable),
+          porcentajeVariable: (opexStructure.porcentajeVariable * 100).toFixed(1) + '%',
+          porcentajeFijo: ((opexStructure.fijo / opexMadurezTotal) * 100).toFixed(1) + '%'
+        },
+        mes1: year1IncomeMonths[0] ? {
+          ingresos: Math.round(year1IncomeMonths[0]),
+          opexFijo: Math.round(opexStructure.fijo),
+          opexVariable: Math.round(year1IncomeMonths[0] * opexStructure.porcentajeVariable),
+          opexTotal: Math.round(year1Monthly[0].opex),
+          ebitda: Math.round(year1Monthly[0].ebitda),
+          margen: ((year1Monthly[0].ebitda / year1IncomeMonths[0]) * 100).toFixed(1) + '%'
+        } : null,
+        mes12: year1IncomeMonths[11] ? {
+          ingresos: Math.round(year1IncomeMonths[11]),
+          opexTotal: Math.round(year1Monthly[11].opex),
+          ebitda: Math.round(year1Monthly[11].ebitda),
+          margen: ((year1Monthly[11].ebitda / year1IncomeMonths[11]) * 100).toFixed(1) + '%'
+        } : null
+      });
+    }
 
     // === CALCULATE TIR (Simple approximation) ===
     // Using Newton-Raphson or bisection for real TIR would be more accurate
