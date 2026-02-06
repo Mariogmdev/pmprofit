@@ -307,8 +307,23 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }, 0);
     };
 
+    /**
+     * IMPORTANTE - Diferencia OPEX Caja vs OPEX Total:
+     * 
+     * OPEX_CAJA (sin depreciación):
+     *   - Para cálculo de EBITDA (Earnings Before Interest, Tax, Depreciation, Amortization)
+     *   - Para Working Capital (solo gastos que requieren caja)
+     *   - Para flujos de caja operativos
+     * 
+     * OPEX_TOTAL (con depreciación):
+     *   - Para cálculo de EBIT (Earnings Before Interest and Tax)
+     *   - Para P&L contable completo
+     *   - Para cálculo de impuestos (base gravable)
+     */
+    
     // Calculate OPEX - uses capexSinWorkingCapital for depreciation (working capital is not depreciated)
-    const calculateOpexMensual = (ingresosBrutos: number, capexParaDepreciacion: number) => {
+    // Returns both opexTotal (with depreciation) and opexCaja (without depreciation - for EBITDA)
+    const calculateOpexMensual = (ingresosBrutos: number, capexParaDepreciacion: number): { opexTotal: number; opexCaja: number } => {
 
       // Payroll from activities
       const nominaActividades = activities.reduce((sum, act) => {
@@ -380,10 +395,13 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const incluirDepreciacion = opex?.incluir_depreciacion !== false;
       const depreciacion = incluirDepreciacion ? (capexParaDepreciacion / depreciacionAnos / 12) : 0;
 
-      // Base OPEX (without rent and commissions)
-      const opexSinArriendoNiComisiones = totalNomina + serviciosPublicos + marketing +
+      // OPEX CAJA (sin depreciación) - para EBITDA y Working Capital
+      const opexCajaSinArriendoNiComisiones = totalNomina + serviciosPublicos + marketing +
         tecnologia + seguridad + seguros + mantenimientoGeneral + mantenimientoActividades +
-        administrativos + gastosFinancieros + impuestos + otrosGastos + depreciacion;
+        administrativos + gastosFinancieros + impuestos + otrosGastos;
+
+      // OPEX TOTAL (con depreciación) - para EBIT
+      const opexSinArriendoNiComisiones = opexCajaSinArriendoNiComisiones + depreciacion;
 
       // Rent calculation
       const calculateRentBase = (base: RentCalculationBase): number => {
@@ -410,6 +428,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }
 
       const opexSinComisiones = opexSinArriendoNiComisiones + arrendamiento;
+      const opexCajaSinComisiones = opexCajaSinArriendoNiComisiones + arrendamiento;
       const utilidadesAntesComisiones = Math.max(0, ingresosBrutos - opexSinComisiones);
 
       // Commissions
@@ -420,22 +439,27 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         return sum + (base * ((com.porcentaje || 0) / 100));
       }, 0);
 
-      return opexSinComisiones + comisiones;
+      const opexTotal = opexSinComisiones + comisiones;
+      const opexCaja = opexCajaSinComisiones + comisiones;
+
+      return { opexTotal, opexCaja };
     };
 
     // === CALCULATE WORKING CAPITAL & FINAL CAPEX ===
     // CRITICAL: Use MATURITY income (not Year 1 average) for OPEX/Working Capital
     // This represents the stable operational state of the business
-    const opexMensualMadurez = calculateOpexMensual(ingresosMadurez, capexSinWorkingCapital);
-    const workingCapitalValue = opexMensualMadurez * workingCapitalMonths;
+    // IMPORTANT: Working Capital uses OPEX CAJA (without depreciation) - only real cash expenses
+    const { opexCaja: opexCajaMadurez } = calculateOpexMensual(ingresosMadurez, capexSinWorkingCapital);
+    const workingCapitalValue = opexCajaMadurez * workingCapitalMonths;
     
     // TOTAL CAPEX = CAPEX sin working capital + Working Capital
     const capexTotal = capexSinWorkingCapital + workingCapitalValue;
     
     // === CALCULATE EBITDA AT MATURITY (for Payback Simple, TIR, VAN) ===
     // CRITICAL: This is the EBITDA when business reaches target occupancy
-    const opexMensualMadurezFinal = calculateOpexMensual(ingresosMadurez, capexTotal);
-    const ebitdaMensualMadurez = ingresosMadurez - opexMensualMadurezFinal;
+    // EBITDA uses OPEX CAJA (without depreciation) by definition
+    const { opexTotal: opexMensualMadurezFinal, opexCaja: opexCajaMensualMadurez } = calculateOpexMensual(ingresosMadurez, capexTotal);
+    const ebitdaMensualMadurez = ingresosMadurez - opexCajaMensualMadurez;
     
     // === PAYBACK SIMPLE ===
     // Uses MATURITY EBITDA (not Year 1 average) as per financial standards
@@ -463,9 +487,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }
       
       const ingresosAnuales = ingresosMensuales * 12;
-      const opexMensual = calculateOpexMensual(ingresosMensuales, capexTotal);
+      // Use OPEX CAJA (without depreciation) for EBITDA calculations
+      const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexTotal);
+      const opexMensual = opexMensualTotal; // For projection table display
       const opexAnual = opexMensual * 12;
-      const ebitdaMensual = ingresosMensuales - opexMensual;
+      const ebitdaMensual = ingresosMensuales - opexMensualCaja; // EBITDA uses cash OPEX
       const ebitdaAnual = ebitdaMensual * 12;
       const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
       
@@ -699,6 +725,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     // Use MATURITY EBITDA for insights (represents stable business state)
     const ebitdaMensualBase = ebitdaMensualMadurez;
     const margenEbitdaBase = ingresosMadurez > 0 ? (ebitdaMensualMadurez / ingresosMadurez) * 100 : 0;
+    // Use total OPEX (with depreciation) for OPEX percentage insight
     const opexPorcentaje = ingresosMadurez > 0 
       ? (opexMensualMadurezFinal / ingresosMadurez) * 100 
       : 0;
@@ -808,7 +835,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       // Working Capital
       workingCapitalMonths,
       workingCapitalValue,
-      opexMensualBase: opexMensualMadurezFinal,
+      opexMensualBase: opexCajaMensualMadurez, // Use cash OPEX for Working Capital base
       
       proyeccion,
       year1Monthly,
