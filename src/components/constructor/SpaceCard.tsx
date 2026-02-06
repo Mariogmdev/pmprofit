@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ProjectSpace, SPACE_TEMPLATES, BreakdownItem } from '@/types/infrastructure';
@@ -127,11 +128,10 @@ export const SpaceCard = ({ space, currency, onUpdate, onDelete }: SpaceCardProp
           <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
             <Label className="text-sm font-medium">CAPEX por m² (mobiliario/acabados base)</Label>
             <div className="flex items-center gap-3 mt-2">
-              <Input
-                type="number"
-                value={space.capex_por_m2}
-                onChange={(e) => onUpdate(space.id, { capex_por_m2: Number(e.target.value) })}
-                placeholder="Ej: 500,000"
+              <CurrencyInput
+                value={space.capex_por_m2 || 0}
+                onChange={(value) => onUpdate(space.id, { capex_por_m2: value })}
+                currency={currency}
                 className="max-w-[200px]"
               />
               <span className="text-muted-foreground">×</span>
@@ -205,12 +205,11 @@ export const SpaceCard = ({ space, currency, onUpdate, onDelete }: SpaceCardProp
                         />
                       </div>
                       <div className="col-span-2">
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={item.precioUnitario}
-                          onChange={(e) => updateBreakdownItem(idx, 'precioUnitario', Number(e.target.value))}
-                          className="text-right bg-background"
+                        <CurrencyInput
+                          value={item.precioUnitario || 0}
+                          onChange={(value) => updateBreakdownItem(idx, 'precioUnitario', value)}
+                          currency={currency}
+                          className="bg-background"
                         />
                       </div>
                       <div className="col-span-2 text-right font-semibold text-green-600 dark:text-green-400">
