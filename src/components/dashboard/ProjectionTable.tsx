@@ -54,7 +54,8 @@ export const ProjectionTable = ({
   })();
 
   // Use centralized function that guarantees EBITDA = Ingresos - OPEX
-  const quarterlyData = generateQuarterlyProjectionByYear(proyeccion);
+  // Pass year1Monthly to get REAL quarterly data (not uniform distribution)
+  const quarterlyData = generateQuarterlyProjectionByYear(proyeccion, monthlyRows);
 
   return (
     <Card className="border-2 animate-fade-in" style={{ animationDelay: '0.7s' }}>

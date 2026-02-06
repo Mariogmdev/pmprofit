@@ -225,66 +225,75 @@ export interface QuarterlyProjectionYear {
 }
 
 /**
- * Distribution weights for quarterly calculations
- * Default is uniform (25% each quarter)
- * Can be customized for seasonality
+ * Monthly data structure for quarterly aggregation
  */
-export interface QuarterlyWeights {
-  ingresos: [number, number, number, number]; // Must sum to 1.0
-  opex: [number, number, number, number];     // Must sum to 1.0
+export interface MonthlyFinancialData {
+  mes: string;
+  ingresos: number;
+  opex: number;
+  ebitda: number;
 }
 
-export const DEFAULT_QUARTERLY_WEIGHTS: QuarterlyWeights = {
-  ingresos: [0.25, 0.25, 0.25, 0.25],
-  opex: [0.25, 0.25, 0.25, 0.25]
-};
-
 /**
- * Calculate quarterly projection preserving accounting identity
+ * Calculate quarterly projection from REAL monthly data
  * 
- * CRITICAL: EBITDA is ALWAYS calculated as Ingresos - OPEX
- * Never distributed independently to maintain integrity
+ * CRITICAL: Each quarter sums its 3 actual months
+ * EBITDA is ALWAYS calculated as Ingresos - OPEX (never distributed)
  * 
- * @param annual - Annual financial data
- * @param weights - Optional custom weights (defaults to uniform 25%)
+ * @param year1Monthly - Array of 12 monthly data points
  * @returns Quarterly breakdown with calculated EBITDA
  */
-export function calculateQuarterlyProjection(
-  annual: {
-    ingresosAnuales: number;
-    opexAnual: number;
-    ebitdaAnual: number; // Only used for validation
-  },
-  weights: QuarterlyWeights = DEFAULT_QUARTERLY_WEIGHTS
+export function calculateQuarterlyFromMonths(
+  year1Monthly: MonthlyFinancialData[]
 ): QuarterlyProjectionItem[] {
+  if (!year1Monthly || year1Monthly.length < 12) {
+    return [
+      { q: 'Q1', ingresos: 0, opex: 0, ebitda: 0 },
+      { q: 'Q2', ingresos: 0, opex: 0, ebitda: 0 },
+      { q: 'Q3', ingresos: 0, opex: 0, ebitda: 0 },
+      { q: 'Q4', ingresos: 0, opex: 0, ebitda: 0 },
+    ];
+  }
+
   const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
-  
-  const quarters = quarterNames.map((q, idx) => {
-    const ingresos = annual.ingresosAnuales * weights.ingresos[idx];
-    const opex = annual.opexAnual * weights.opex[idx];
+  const quarters: QuarterlyProjectionItem[] = [];
+
+  for (let qIdx = 0; qIdx < 4; qIdx++) {
+    const startMonth = qIdx * 3;
+    const endMonth = startMonth + 3;
+    
+    // Sum the 3 REAL months for this quarter
+    let ingresos = 0;
+    let opex = 0;
+    
+    for (let m = startMonth; m < endMonth; m++) {
+      ingresos += year1Monthly[m]?.ingresos || 0;
+      opex += year1Monthly[m]?.opex || 0;
+    }
+    
     // CRITICAL: Calculate EBITDA to preserve accounting identity
-    // EBITDA = Ingresos - OPEX (never use weights for EBITDA)
+    // EBITDA = Ingresos - OPEX (never use weights or distribution)
     const ebitda = ingresos - opex;
     
-    return { q, ingresos, opex, ebitda };
-  });
-  
-  // Validation: sum should match annual (within floating point tolerance)
-  const totalEbitda = quarters.reduce((sum, q) => sum + q.ebitda, 0);
-  const diff = Math.abs(totalEbitda - annual.ebitdaAnual);
-  const tolerance = Math.abs(annual.ebitdaAnual) * 0.001; // 0.1%
-  
-  if (diff > tolerance && annual.ebitdaAnual !== 0) {
-    console.warn(
-      `Quarterly EBITDA sum (${totalEbitda.toFixed(0)}) differs from annual (${annual.ebitdaAnual.toFixed(0)}) by ${diff.toFixed(0)}`
-    );
+    quarters.push({
+      q: quarterNames[qIdx],
+      ingresos,
+      opex,
+      ebitda,
+    });
   }
-  
+
   return quarters;
 }
 
 /**
  * Generate quarterly data for multiple years
+ * 
+ * Year 1: Uses actual monthly data for accurate quarterly breakdown
+ * Years 2+: Uses uniform distribution (25% each) since we don't have monthly projections
+ * 
+ * @param year1Monthly - Real monthly data for Year 1
+ * @param proyeccion - Multi-year projection data
  */
 export function generateQuarterlyProjectionByYear(
   proyeccion: Array<{
@@ -293,17 +302,31 @@ export function generateQuarterlyProjectionByYear(
     opexAnual: number;
     ebitdaAnual: number;
   }>,
-  weights: QuarterlyWeights = DEFAULT_QUARTERLY_WEIGHTS
+  year1Monthly?: MonthlyFinancialData[]
 ): QuarterlyProjectionYear[] {
-  return proyeccion.map(year => ({
-    year: year.year,
-    quarters: calculateQuarterlyProjection(
-      {
-        ingresosAnuales: year.ingresosAnuales,
-        opexAnual: year.opexAnual,
-        ebitdaAnual: year.ebitdaAnual
-      },
-      weights
-    )
-  }));
+  return proyeccion.map(year => {
+    if (year.year === 1 && year1Monthly && year1Monthly.length >= 12) {
+      // Year 1: Use REAL monthly data
+      return {
+        year: year.year,
+        quarters: calculateQuarterlyFromMonths(year1Monthly),
+      };
+    } else {
+      // Years 2+: Uniform distribution (no monthly detail available)
+      // Each quarter gets 25% of annual values
+      const quarterlyIngresos = year.ingresosAnuales / 4;
+      const quarterlyOpex = year.opexAnual / 4;
+      const quarterlyEbitda = quarterlyIngresos - quarterlyOpex;
+      
+      return {
+        year: year.year,
+        quarters: [
+          { q: 'Q1', ingresos: quarterlyIngresos, opex: quarterlyOpex, ebitda: quarterlyEbitda },
+          { q: 'Q2', ingresos: quarterlyIngresos, opex: quarterlyOpex, ebitda: quarterlyEbitda },
+          { q: 'Q3', ingresos: quarterlyIngresos, opex: quarterlyOpex, ebitda: quarterlyEbitda },
+          { q: 'Q4', ingresos: quarterlyIngresos, opex: quarterlyOpex, ebitda: quarterlyEbitda },
+        ],
+      };
+    }
+  });
 }
