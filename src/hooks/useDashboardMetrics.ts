@@ -476,11 +476,36 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     // This represents how long to recover investment once business is mature
     const paybackSimple = ebitdaMensualMadurez > 0 ? capexTotal / ebitdaMensualMadurez : 999;
 
-    // === BUILD 5-YEAR PROJECTION ===
+    // === BUILD 5-YEAR PROJECTION WITH TAX SHIELD & RESIDUAL VALUE ===
+    /**
+     * FLUJO DE CAJA CON ESCUDO FISCAL Y VALOR RESIDUAL:
+     * 
+     * El flujo de caja para TIR/VAN considera:
+     * 1. ESCUDO FISCAL: La depreciación reduce la base gravable
+     *    - EBIT = EBITDA - Depreciación
+     *    - Impuestos = max(0, EBIT × TasaImpositiva)
+     *    - Flujo Post-Tax = EBITDA - Impuestos
+     *    - Ahorro fiscal = Depreciación × TasaImpositiva
+     * 
+     * 2. VALOR RESIDUAL (solo último año):
+     *    - Activos remanentes: ~40% del CAPEX (50% vida útil restante, menos descuento)
+     *    - Working Capital: 100% recuperable
+     */
+    const TAX_RATE = 0.35; // Tasa impositiva Colombia (35%)
+    const RESIDUAL_ASSET_RATE = 0.40; // 40% del CAPEX activos recuperable
+    
     const proyeccion: ProjectionYear[] = [];
     let flujoAcumulado = -capexTotal;
     let paybackMesesReal = 0;
     let paybackAlcanzado = false;
+    
+    // Depreciación anual para escudo fiscal
+    const depreciacionAnual = depreciacionMensual * 12;
+    
+    // Valor residual para el último año
+    const valorResidualActivos = capexSinWorkingCapital * RESIDUAL_ASSET_RATE;
+    const valorResidualWC = workingCapitalValue;
+    const valorResidualTotal = valorResidualActivos + valorResidualWC;
 
     for (let year = 1; year <= projectionYears; year++) {
       // Year 1: Use Year 1 average (with maturity curve)
@@ -505,8 +530,26 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const ebitdaAnual = ebitdaMensual * 12;
       const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
       
+      // EBIT para cálculo de impuestos
+      const ebitAnual = ebitdaAnual - depreciacionAnual;
+      
+      // Impuestos con escudo fiscal (solo si hay utilidad positiva)
+      const impuestosAnual = ebitAnual > 0 ? ebitAnual * TAX_RATE : 0;
+      
+      // Flujo de caja operativo post-tax
+      let flujoCajaOperativo = ebitdaAnual - impuestosAnual;
+      
+      // CAPEX solo en año 1
       const capex = year === 1 ? capexTotal : 0;
-      const flujoCaja = ebitdaAnual - capex;
+      
+      // Flujo de caja = Operativo - CAPEX + Valor Residual (último año)
+      let flujoCaja = flujoCajaOperativo - capex;
+      
+      // Agregar valor residual en el último año
+      if (year === projectionYears) {
+        flujoCaja += valorResidualTotal;
+      }
+      
       flujoAcumulado += flujoCaja;
       
       if (!paybackAlcanzado && flujoAcumulado >= 0) {
@@ -538,6 +581,26 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     if (!paybackAlcanzado) {
       paybackMesesReal = projectionYears * 12 + 12; // Beyond projection
+    }
+    
+    // Log TIR calculation details for debugging
+    if (import.meta.env.DEV && capexTotal > 0) {
+      console.log('📊 TIR Calculation (Tax Shield + Residual Value):', {
+        taxRate: `${TAX_RATE * 100}%`,
+        capexTotal: Math.round(capexTotal),
+        depreciacionAnual: Math.round(depreciacionAnual),
+        escudoFiscalAnual: Math.round(depreciacionAnual * TAX_RATE),
+        valorResidual: {
+          activos: Math.round(valorResidualActivos),
+          workingCapital: Math.round(valorResidualWC),
+          total: Math.round(valorResidualTotal)
+        },
+        flujos: {
+          año1: Math.round(proyeccion[0]?.flujoCaja || 0),
+          año5: Math.round(proyeccion[projectionYears - 1]?.flujoCaja || 0),
+          año5SinResidual: Math.round((proyeccion[projectionYears - 1]?.flujoCaja || 0) - valorResidualTotal)
+        }
+      });
     }
 
     // ============================================================
