@@ -6,12 +6,14 @@ import { useProjectOpex } from '@/hooks/useProjectOpex';
 import { useProjectActivities } from '@/hooks/useProjectActivities';
 import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useObraCivil } from '@/hooks/useObraCivil';
+import { useProject } from '@/contexts/ProjectContext';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types/index';
 import { ActivityConfig } from '@/types/activity';
 import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { Receipt, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { calculateActivityFinancials } from '@/lib/activityCalculations';
 
 interface OpexSummaryCardProps {
   projectId: string;
@@ -23,32 +25,22 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
   const { activities } = useProjectActivities();
   const { spaces } = useProjectSpaces(projectId);
   const { obraCivil } = useObraCivil(projectId);
+  const { currentProject } = useProject();
 
   const summary = useMemo(() => {
-    // === INCOME CALCULATIONS ===
+    // === INCOME CALCULATIONS - USE CENTRALIZED ENGINE (same as Dashboard) ===
+    const daysPerMonth = currentProject?.days_per_month || 30;
+
     let ingresosBrutos = 0;
     let ingresosOperacionales = 0;
     let totalReservas = 0;
 
     activities.forEach(act => {
       const config: ActivityConfig = act.config;
-      const cantidad = config.cantidad || 1;
-      const horarios = config.horarios || [];
-      const tarifaPromedio = horarios.length > 0 
-        ? horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length 
-        : 0;
-      const ocupacionPromedio = horarios.length > 0
-        ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
-        : 0.5;
-      const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-      const diasMes = 30;
-      const duracion = config.duracionReserva || 1.5;
-      const reservasPorDia = horasOperacion * ocupacionPromedio / duracion;
-      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * ocupacionPromedio * diasMes / duracion;
-      
-      ingresosBrutos += ingresoEstimado;
-      ingresosOperacionales += ingresoEstimado;
-      totalReservas += cantidad * reservasPorDia * diasMes;
+      const financials = calculateActivityFinancials(config, daysPerMonth, 0);
+      ingresosBrutos += financials.ingresosMensuales;
+      ingresosOperacionales += financials.ingresosMensuales;
+      totalReservas += financials.totalUsuariosMes;
     });
 
     const ingresosNetos = ingresosBrutos * 0.85; // 15% third-party costs
@@ -88,7 +80,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       return sum + (costoAnual / 12);
     }, 0);
 
-    // === CAPEX CALCULATION ===
+    // === CAPEX CALCULATION (matches Dashboard: includes imprevistos) ===
     const capexActividades = activities.reduce((sum, activity) => {
       const config: ActivityConfig = activity.config;
       const cantidad = config.cantidad || 1;
@@ -121,7 +113,12 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     }, 0);
 
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
-    const capexTotal = capexActividades + capexEspacios + capexObraCivil;
+    const capexSubtotal = capexActividades + capexEspacios + capexObraCivil;
+    
+    // Include imprevistos (contingency) - same as Dashboard
+    const imprevistosPorcentaje = obraCivil?.imprevistos_porcentaje ?? 10;
+    const imprevistosValor = capexSubtotal * (imprevistosPorcentaje / 100);
+    const capexTotal = capexSubtotal + imprevistosValor;
 
     // === HELPER: Calculate category total with variable types (FIXED) ===
     const calculateCategoryTotal = (items: ServiceItem[]) => {
@@ -295,7 +292,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       depreciacionAnos,
       incluirDepreciacion
     };
-  }, [opex, activities, spaces, obraCivil]);
+  }, [opex, activities, spaces, obraCivil, currentProject]);
 
   const showWarning = summary.opexComoPorcentaje > 70;
 
