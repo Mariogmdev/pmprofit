@@ -495,7 +495,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const RESIDUAL_ASSET_RATE = 0.40; // 40% del CAPEX activos recuperable
     
     const proyeccion: ProjectionYear[] = [];
-    let flujoAcumulado = -capexTotal;
+    let flujoAcumulado = 0; // Starts at 0; CAPEX is included in Year 1's flujoCaja
     let paybackMesesReal = 0;
     let paybackAlcanzado = false;
     
@@ -758,12 +758,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    // === CALCULATE TIR (Simple approximation) ===
-    // Using Newton-Raphson or bisection for real TIR would be more accurate
-    // Here we use a simplified approach
+    // === CALCULATE TIR (Newton-Raphson) ===
+    // CRITICAL FIX: projection.flujoCaja already includes -CAPEX in Year 1,
+    // so we do NOT prepend another -CAPEX. The flows are:
+    // [Year1 (operating - CAPEX), Year2, Year3, Year4, Year5 (+ residual)]
     const calculateTIR = () => {
       const cashFlows = proyeccion.map(p => p.flujoCaja);
-      cashFlows.unshift(-capexTotal); // Initial investment
       
       // Simple IRR approximation using iterative method
       let irr = 0.1;
@@ -782,9 +782,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     };
 
     // === CALCULATE VAN ===
+    // Same fix: flows already include CAPEX in Year 1
     const calculateVAN = () => {
       const cashFlows = proyeccion.map(p => p.flujoCaja);
-      cashFlows.unshift(-capexTotal);
       return cashFlows.reduce((npv, cf, year) => {
         return npv + cf / Math.pow(1 + discountRate / 100, year);
       }, 0);
