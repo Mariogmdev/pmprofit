@@ -31,13 +31,26 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     // === INCOME CALCULATIONS - USE CENTRALIZED ENGINE (same as Dashboard) ===
     const daysPerMonth = currentProject?.days_per_month || 30;
 
+    // First pass: calculate total club users from non-traffic activities (same as Dashboard)
+    const nonTrafficActivities = activities.filter(a => a.config.modeloIngreso !== 'trafico');
+    const totalClubUsersFromOtherActivities = nonTrafficActivities.reduce((sum, act) => {
+      const config: ActivityConfig = act.config;
+      const financials = calculateActivityFinancials(config, daysPerMonth, 0);
+      return sum + financials.totalUsuariosMes;
+    }, 0);
+
     let ingresosBrutos = 0;
     let ingresosOperacionales = 0;
     let totalReservas = 0;
 
+    // Second pass: calculate income for ALL activities, passing club users for traffic
     activities.forEach(act => {
       const config: ActivityConfig = act.config;
-      const financials = calculateActivityFinancials(config, daysPerMonth, 0);
+      const financials = calculateActivityFinancials(
+        config,
+        daysPerMonth,
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
       ingresosBrutos += financials.ingresosMensuales;
       ingresosOperacionales += financials.ingresosMensuales;
       totalReservas += financials.totalUsuariosMes;
@@ -106,10 +119,16 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     }, 0);
 
     const capexEspacios = spaces.reduce((sum, space) => {
+      // CAPEX from area × cost per m² (matches Dashboard calculation)
+      const areaCapex = (space.area || 0) * ((space as any).capex_por_m2 || 0);
+      
+      // CAPEX from breakdown items
       const breakdownTotal = (space.breakdown || []).reduce(
         (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
       );
-      return sum + breakdownTotal;
+      
+      // Total = both components (same as Dashboard)
+      return sum + areaCapex + breakdownTotal;
     }, 0);
 
     const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;

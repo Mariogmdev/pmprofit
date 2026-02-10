@@ -457,7 +457,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     
     // === CALCULATE EBITDA & EBIT AT MATURITY (for Payback Simple, TIR, VAN) ===
     // CRITICAL: This is the EBITDA/EBIT when business reaches target occupancy
-    const { opexTotal: opexMensualMadurezFinal, opexCaja: opexCajaMensualMadurez } = calculateOpexMensual(ingresosMadurez, capexTotal);
+    // Use capexSinWorkingCapital for depreciation (WC is NOT a depreciable asset)
+    const { opexTotal: opexMensualMadurezFinal, opexCaja: opexCajaMensualMadurez } = calculateOpexMensual(ingresosMadurez, capexSinWorkingCapital);
     
     // EBITDA = Ingresos - OPEX Caja (sin depreciación) - TRUE EBITDA
     const ebitdaMensualMadurez = ingresosMadurez - opexCajaMensualMadurez;
@@ -523,7 +524,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       
       const ingresosAnuales = ingresosMensuales * 12;
       // Use OPEX CAJA (without depreciation) for EBITDA calculations
-      const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexTotal);
+      const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexSinWorkingCapital);
       const opexMensual = opexMensualTotal; // For projection table display
       const opexAnual = opexMensual * 12;
       const ebitdaMensual = ingresosMensuales - opexMensualCaja; // EBITDA uses cash OPEX
