@@ -145,6 +145,13 @@ export interface DashboardMetrics {
     ingresos: number;
     opex: number;
     ebitda: number;
+    // Desglose por fuente de ingresos
+    reservas: number;
+    membresias: number;
+    pases: number;
+    complementarios: number;
+    clases: number;
+    trafico: number;
   }>;
   
   // Income composition

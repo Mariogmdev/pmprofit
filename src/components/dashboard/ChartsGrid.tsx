@@ -57,6 +57,16 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
   const formatMillions = (value: number) => `${formatNumber(value, 0)}M`;
   const formatTooltipValue = (value: number) => formatCurrency(value * 1000000, currency);
 
+  // Year 1 breakdown data (filter out zero-only sources)
+  const year1BreakdownData = metrics.year1Monthly || [];
+  const hasReservas = year1BreakdownData.some(m => m.reservas > 0);
+  const hasMembresias = year1BreakdownData.some(m => m.membresias > 0);
+  const hasPases = year1BreakdownData.some(m => m.pases > 0);
+  const hasComplementarios = year1BreakdownData.some(m => m.complementarios > 0);
+  const hasClases = year1BreakdownData.some(m => m.clases > 0);
+  const hasTrafico = year1BreakdownData.some(m => m.trafico > 0);
+  const hasAnyBreakdown = hasReservas || hasMembresias || hasPases || hasComplementarios || hasClases || hasTrafico;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: '0.6s' }}>
       {/* Income Composition Pie Chart */}
@@ -167,6 +177,66 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Year 1 Income Breakdown by Source */}
+      {hasAnyBreakdown && year1BreakdownData.length > 0 && (
+        <Card className="border-2 col-span-1 lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart2 className="w-5 h-5 text-indigo-600" />
+              Año 1 — Ingresos por Fuente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={year1BreakdownData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis 
+                    tickFormatter={(v) => `${formatNumber(v / 1000000, 1)}M`}
+                    tick={{ fontSize: 11 }}
+                    stroke="hsl(var(--muted-foreground))"
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => formatCurrency(value, currency)}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  {hasReservas && (
+                    <Area type="monotone" dataKey="reservas" name="Reservas" 
+                      stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} strokeWidth={1.5} />
+                  )}
+                  {hasMembresias && (
+                    <Area type="monotone" dataKey="membresias" name="Membresías" 
+                      stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} strokeWidth={1.5} />
+                  )}
+                  {hasPases && (
+                    <Area type="monotone" dataKey="pases" name="Pases" 
+                      stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} strokeWidth={1.5} />
+                  )}
+                  {hasComplementarios && (
+                    <Area type="monotone" dataKey="complementarios" name="Complementarios" 
+                      stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} strokeWidth={1.5} />
+                  )}
+                  {hasClases && (
+                    <Area type="monotone" dataKey="clases" name="Clases" 
+                      stackId="1" stroke="#ec4899" fill="#ec4899" fillOpacity={0.6} strokeWidth={1.5} />
+                  )}
+                  {hasTrafico && (
+                    <Area type="monotone" dataKey="trafico" name="Tráfico" 
+                      stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} strokeWidth={1.5} />
+                  )}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* CAPEX Breakdown */}
       <Card className="border-2">
