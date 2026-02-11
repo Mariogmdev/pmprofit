@@ -180,6 +180,7 @@ export interface ActivityCalculations {
   ingresosClases: number;
   ingresosMembresiasPases: number;
   ingresosTrafico: number;
+  ingresosBrutosTrafico: number;
   totalUsuariosMes: number;
   
   // CAPEX (Activity construction + equipment)
