@@ -28,7 +28,7 @@ interface ProjectionTableProps {
   viewMode: ProjectionViewMode;
   onViewModeChange: (mode: ProjectionViewMode) => void;
   currency: CurrencyCode;
-  year1Monthly?: Array<{ mes: string; ingresos: number; opex: number; ebitda: number }>;
+  year1Monthly?: Array<{ mes: string; ingresos: number; opex: number; ebitda: number; reservas: number; membresias: number; pases: number; complementarios: number; clases: number; trafico: number }>;
 }
 
 export const ProjectionTable = ({ 
@@ -41,7 +41,6 @@ export const ProjectionTable = ({
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   const monthlyRows = year1Monthly || (() => {
-    // Fallback (should be rare): smooth linear ramp 0.7 -> 1.0 to avoid flat months.
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const year = proyeccion[0];
     if (!year) return [];
@@ -49,9 +48,15 @@ export const ProjectionTable = ({
       const factor = 0.7 + (0.3 * (idx / 11));
       const ingresos = year.ingresosMensuales * factor;
       const opex = year.opexMensual * factor;
-      return { mes, ingresos, opex, ebitda: ingresos - opex };
+      return { mes, ingresos, opex, ebitda: ingresos - opex, reservas: 0, membresias: 0, pases: 0, complementarios: 0, clases: 0, trafico: 0 };
     });
   })();
+
+  // Determine which breakdown columns have data
+  const hasReservas = monthlyRows.some(m => (m as any).reservas > 0);
+  const hasMembresias = monthlyRows.some(m => (m as any).membresias > 0);
+  const hasPases = monthlyRows.some(m => (m as any).pases > 0);
+  const hasTrafico = monthlyRows.some(m => (m as any).trafico > 0);
 
   // Use centralized function that guarantees EBITDA = Ingresos - OPEX
   // Pass year1Monthly to get REAL quarterly data (not uniform distribution)
@@ -165,6 +170,10 @@ export const ProjectionTable = ({
                 <TableRow>
                   <TableHead className="w-[60px]">Mes</TableHead>
                   <TableHead className="text-right">Ingresos</TableHead>
+                  {hasReservas && <TableHead className="text-right text-xs text-blue-600">Reservas</TableHead>}
+                  {hasMembresias && <TableHead className="text-right text-xs text-emerald-600">Membresías</TableHead>}
+                  {hasPases && <TableHead className="text-right text-xs text-amber-600">Pases</TableHead>}
+                  {hasTrafico && <TableHead className="text-right text-xs text-red-600">Tráfico</TableHead>}
                   <TableHead className="text-right">OPEX</TableHead>
                   <TableHead className="text-right">EBITDA</TableHead>
                 </TableRow>
@@ -176,6 +185,26 @@ export const ProjectionTable = ({
                     <TableCell className="text-right font-mono">
                       {formatCurrency(month.ingresos, currency)}
                     </TableCell>
+                    {hasReservas && (
+                      <TableCell className="text-right font-mono text-xs text-blue-600">
+                        {formatCurrency((month as any).reservas || 0, currency)}
+                      </TableCell>
+                    )}
+                    {hasMembresias && (
+                      <TableCell className="text-right font-mono text-xs text-emerald-600">
+                        {formatCurrency((month as any).membresias || 0, currency)}
+                      </TableCell>
+                    )}
+                    {hasPases && (
+                      <TableCell className="text-right font-mono text-xs text-amber-600">
+                        {formatCurrency((month as any).pases || 0, currency)}
+                      </TableCell>
+                    )}
+                    {hasTrafico && (
+                      <TableCell className="text-right font-mono text-xs text-red-600">
+                        {formatCurrency((month as any).trafico || 0, currency)}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right font-mono text-red-600 dark:text-red-400">
                       {formatCurrency(month.opex, currency)}
                     </TableCell>

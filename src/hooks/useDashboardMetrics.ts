@@ -8,7 +8,8 @@ import { DashboardMetrics, DashboardInsight, ProjectionYear, ActivityInsight, Sp
 import { ActivityConfig, DEFAULT_TRAFFIC_CONFIG } from '@/types/activity';
 import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { ProjectSpace } from '@/types/infrastructure';
-import { calculateActivityFinancials, calculateOccupancyTarget, calculateYear1IncomeFromProjection } from '@/lib/activityCalculations';
+import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
+import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -67,15 +68,14 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     // - financials = MATURITY values (100% target occupancy) - used for Payback, TIR, VAN
     // - year1Income = Year 1 with maturity curve - used for Year 1 projections
     const activityFinancials = activities.map(act => {
-      // financials is at TARGET occupancy (maturity)
       const financials = calculateActivityFinancials(
         act.config,
         daysPerMonth,
         act.config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
       );
       
-      // Calculate Year 1 income considering monthly occupation projection (maturity curve)
-      const year1Income = calculateYear1IncomeFromProjection(
+      // Use calculateYear1MonthlyProjection for detailed breakdown by source
+      const year1Projection = calculateYear1MonthlyProjection(
         act.config,
         daysPerMonth,
         act.config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
@@ -83,8 +83,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       
       return {
         activity: act,
-        financials, // At maturity (target occupancy)
-        year1Income, // Year 1 with ramp
+        financials,
+        year1Projection,
       };
     });
     
@@ -103,16 +103,18 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     const ingresosPorActividad: DashboardMetrics['ingresosPorActividad'] = [];
 
-    // Aggregate the 12-month Year 1 income curve across ALL activities.
-    // Source of truth: calculateYear1IncomeFromProjection(...).months
+    // Aggregate the 12-month Year 1 income curve across ALL activities WITH breakdown by source.
     const year1IncomeMonths = Array(12).fill(0) as number[];
+    const year1BreakdownMonths = Array.from({ length: 12 }, () => ({
+      reservas: 0, membresias: 0, pases: 0, complementarios: 0, clases: 0, trafico: 0,
+    }));
 
-    activityFinancials.forEach(({ activity, financials, year1Income }, idx) => {
+    activityFinancials.forEach(({ activity, financials, year1Projection }, idx) => {
       // MATURITY income (at target occupancy) - for metrics and projections Year 2+
       ingresosMadurez += financials.ingresosMensuales;
       
       // Year 1 monthly average (considers maturity curve)
-      const ingresoYear1Promedio = year1Income.monthlyAverage;
+      const ingresoYear1Promedio = year1Projection.monthlyAverage;
       
       ingresosBrutosAno1 += ingresoYear1Promedio;
       ingresosOperacionales += financials.ingresosMensuales; // Use maturity for operational
@@ -143,8 +145,15 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         });
       }
 
-      year1Income.months.forEach((m, monthIdx) => {
-        year1IncomeMonths[monthIdx] += m || 0;
+      // Aggregate monthly totals AND breakdown by source
+      year1Projection.months.forEach((monthResult, monthIdx) => {
+        year1IncomeMonths[monthIdx] += monthResult.ingresos.total;
+        year1BreakdownMonths[monthIdx].reservas += monthResult.ingresos.reservas;
+        year1BreakdownMonths[monthIdx].membresias += monthResult.ingresos.membresias;
+        year1BreakdownMonths[monthIdx].pases += monthResult.ingresos.pases;
+        year1BreakdownMonths[monthIdx].complementarios += monthResult.ingresos.complementarios;
+        year1BreakdownMonths[monthIdx].clases += monthResult.ingresos.clases;
+        year1BreakdownMonths[monthIdx].trafico += monthResult.ingresos.trafico;
       });
     });
 
@@ -715,20 +724,24 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     const year1Monthly: DashboardMetrics['year1Monthly'] = MONTH_NAMES.map((mes, idx) => {
       const ingresos = year1IncomeMonths[idx] || 0;
+      const breakdown = year1BreakdownMonths[idx];
       
-      /**
-       * OPEX = OPEX_Fijo + (Ingresos × % Variable)
-       * 
-       * Esto refleja la realidad operativa:
-       * - Meses con ingresos bajos pueden tener EBITDA negativo (pérdida)
-       * - Meses con ingresos altos tienen EBITDA positivo
-       * - El punto de equilibrio se alcanza cuando ingresos cubren costos fijos
-       */
       const opexVariableMes = ingresos * opexStructure.porcentajeVariable;
       const opexMes = opexStructure.fijo + opexVariableMes;
       const ebitda = ingresos - opexMes;
       
-      return { mes, ingresos, opex: opexMes, ebitda };
+      return {
+        mes,
+        ingresos,
+        opex: opexMes,
+        ebitda,
+        reservas: breakdown.reservas,
+        membresias: breakdown.membresias,
+        pases: breakdown.pases,
+        complementarios: breakdown.complementarios,
+        clases: breakdown.clases,
+        trafico: breakdown.trafico,
+      };
     });
 
     // Log OPEX structure for debugging (dev only)
@@ -809,13 +822,13 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     if (puntoEquilibrioMes === 0) puntoEquilibrioMes = projectionYears * 12 + 12;
 
     // === GENERATE ACTIVITY INSIGHTS (Reuse calculations from above) ===
-    const activityInsights: ActivityInsight[] = activityFinancials.map(({ activity, financials, year1Income }) => {
+    const activityInsights: ActivityInsight[] = activityFinancials.map(({ activity, financials, year1Projection }) => {
       const config: ActivityConfig = activity.config;
       
       const ocupacionTarget = calculateOccupancyTarget(config);
       
       // Use Year 1 monthly average for income (considers maturity curve)
-      const ingresosMensualesYear1 = year1Income.monthlyAverage;
+      const ingresosMensualesYear1 = year1Projection.monthlyAverage;
       
       // Generate activity-specific insights
       const actInsights: ActivityInsight['insights'] = [];
