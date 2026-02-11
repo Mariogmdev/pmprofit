@@ -32,6 +32,7 @@ export interface MonthlyFinancialsResult {
     membresias: number;
     pases: number;
     trafico: number;
+    traficoBrutos: number;
     total: number;
   };
   usuarios: number;
@@ -81,6 +82,7 @@ export function monthlyFinancialsWithOccupancy(
   let ingresosMembresias = 0;
   let ingresosPases = 0;
   let ingresosTrafico = 0;
+  let ingresosBrutosTrafico = 0;
   let totalUsuariosMes = 0;
   let opexProfesores = 0;
   let opexCostoVentas = 0;
@@ -176,11 +178,12 @@ export function monthlyFinancialsWithOccupancy(
     const traficoTotal = usuariosDeportivos + usuariosExternos;
     
     if (trafficConfig.modeloOperacion === 'propia') {
-      const ingresosBrutos = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
-      opexCostoVentas = ingresosBrutos * (trafficConfig.costoVentas / 100);
-      ingresosTrafico = ingresosBrutos - opexCostoVentas;
+      ingresosBrutosTrafico = traficoTotal * trafficConfig.ticketPromedio * trafficConfig.consumosPorPersona;
+      opexCostoVentas = ingresosBrutosTrafico * (trafficConfig.costoVentas / 100);
+      ingresosTrafico = ingresosBrutosTrafico - opexCostoVentas;
     } else {
       ingresosTrafico = trafficConfig.ventasOperador * (trafficConfig.comisionConcesion / 100);
+      ingresosBrutosTrafico = ingresosTrafico;
       opexCostoVentas = 0;
     }
     
@@ -240,6 +243,7 @@ export function monthlyFinancialsWithOccupancy(
       membresias: ingresosMembresias,
       pases: ingresosPases,
       trafico: ingresosTrafico,
+      traficoBrutos: ingresosBrutosTrafico,
       total: totalIngresos,
     },
     usuarios: totalUsuariosMes,

@@ -158,9 +158,42 @@ export default function ActivityFinancialSummary({ calculations, currency }: Act
                 </span>
               </div>
             )}
-            {calculations.ingresosTrafico > 0 && (
+            {calculations.ingresosBrutosTrafico > 0 && (
+              <div className="col-span-2 md:col-span-4 bg-muted/50 rounded-lg p-3 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Desglose Tráfico (F&B)</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Ingresos Brutos:</span>
+                  <span className="font-medium">
+                    {formatCurrency(calculations.ingresosBrutosTrafico, currency as CurrencyCode)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm text-destructive">
+                  <span>Costo Ventas ({calculations.ingresosBrutosTrafico > 0 
+                    ? ((calculations.opexCostoVentas / calculations.ingresosBrutosTrafico) * 100).toFixed(0) 
+                    : 0}%):</span>
+                  <span className="font-medium">
+                    -{formatCurrency(calculations.opexCostoVentas, currency as CurrencyCode)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold border-t pt-1">
+                  <span className="text-green-600">Ingresos Netos:</span>
+                  <span className="text-green-600">
+                    {formatCurrency(calculations.ingresosTrafico, currency as CurrencyCode)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Margen Bruto:</span>
+                  <span className="font-medium">
+                    {calculations.ingresosBrutosTrafico > 0 
+                      ? ((calculations.ingresosTrafico / calculations.ingresosBrutosTrafico) * 100).toFixed(1) 
+                      : 0}%
+                  </span>
+                </div>
+              </div>
+            )}
+            {calculations.ingresosTrafico > 0 && calculations.ingresosBrutosTrafico === 0 && (
               <div>
-                <span className="text-muted-foreground">Ingresos tráfico (neto):</span>
+                <span className="text-muted-foreground">Ingresos tráfico:</span>
                 <span className="ml-2 font-medium text-green-600">
                   {formatCurrency(calculations.ingresosTrafico, currency as CurrencyCode)}
                 </span>

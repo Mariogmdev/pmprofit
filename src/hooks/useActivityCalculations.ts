@@ -167,6 +167,7 @@ export function useActivityCalculations(
       ingresosClases: financials.ingresosClases,
       ingresosMembresiasPases: financials.ingresosMembresiasPases,
       ingresosTrafico: financials.ingresosTrafico,
+      ingresosBrutosTrafico: financials.ingresosBrutosTrafico,
       totalUsuariosMes: financials.totalUsuariosMes,
       
       // CAPEX breakdown
