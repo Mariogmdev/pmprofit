@@ -111,8 +111,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }));
 
     activityFinancials.forEach(({ activity, financials, year1Projection }, idx) => {
-      // MATURITY income (at target occupancy) - for metrics and projections Year 2+
-      ingresosMadurez += financials.ingresosMensuales;
+      // MATURITY income: Use month 12 of comprehensive engine (ALL revenue sources)
+      // This includes: reservas + membresías + pases + clases + tráfico + complementarios
+      // Month 12 = 100% target occupancy = maturity state
+      const ingresoMadurezActividad = year1Projection.months[11]?.ingresos.total ?? financials.ingresosMensuales;
+      ingresosMadurez += ingresoMadurezActividad;
       
       // Year 1 monthly average (considers maturity curve)
       const ingresoYear1Promedio = year1Projection.monthlyAverage;
@@ -136,11 +139,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         ticketCount++;
       }
 
-      // Use MATURITY income for pie chart (represents true capacity)
-      if (financials.ingresosMensuales > 0) {
+      // Use comprehensive MATURITY income for pie chart (all revenue sources)
+      const ingresoMadurezAct = year1Projection.months[11]?.ingresos.total ?? financials.ingresosMensuales;
+      if (ingresoMadurezAct > 0) {
         ingresosPorActividad.push({
           nombre: activity.name,
-          valor: financials.ingresosMensuales,
+          valor: ingresoMadurezAct,
           porcentaje: 0, // Will calculate after total
           color: CHART_COLORS.activities[idx % CHART_COLORS.activities.length],
         });
