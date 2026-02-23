@@ -10,6 +10,7 @@ import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { ProjectSpace } from '@/types/infrastructure';
 import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
 import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
+import { calculateYearlyProjection } from '@/lib/projectionCalculations';
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -517,19 +518,18 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const valorResidualWC = workingCapitalValue;
     const valorResidualTotal = valorResidualActivos + valorResidualWC;
 
+    // Use centralized projection engine: Year 1 = real average, Years 2+ grow from Year 1 with inflation + occupancy growth
+    const yearlyProjection = calculateYearlyProjection(
+      ingresosBrutosAno1 * 12,  // Annual Year 1 income (from maturity curve)
+      ocupacionPromedio,         // Year 1 average occupancy
+      5,                         // tasaCrecimientoOcupacion (5% annual)
+      inflationRate,             // From project config
+      projectionYears
+    );
+
     for (let year = 1; year <= projectionYears; year++) {
-      // Year 1: Use Year 1 average (with maturity curve)
-      // Years 2+: Use MATURITY income with inflation growth
-      let ingresosMensuales: number;
-      
-      if (year === 1) {
-        // Year 1 uses the average from maturity curve
-        ingresosMensuales = ingresosBrutosAno1;
-      } else {
-        // Years 2+: Use maturity income with inflation from Year 1
-        const growthFactor = Math.pow(1 + inflationRate / 100, year - 1);
-        ingresosMensuales = ingresosMadurez * growthFactor;
-      }
+      const yearData = yearlyProjection[year - 1];
+      const ingresosMensuales = yearData.ingresoMensual;
       
       const ingresosAnuales = ingresosMensuales * 12;
       // Use OPEX CAJA (without depreciation) for EBITDA calculations
