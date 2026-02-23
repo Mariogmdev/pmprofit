@@ -171,6 +171,15 @@ export interface DashboardMetrics {
     workingCapital: number;
   };
   
+  // Obra Civil detail breakdown
+  obraCivilDetail?: {
+    construccion: number;
+    estudiosDisenos: number;
+    interventoria: number;
+    paisajismo: number;
+    permisosLicencias: number;
+  };
+  
   // Additional metrics
   puntoEquilibrioMes: number;
   ocupacionPromedio: number;
