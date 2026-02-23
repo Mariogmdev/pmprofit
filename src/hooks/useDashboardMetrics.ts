@@ -1093,6 +1093,13 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         imprevistos: imprevistosValor,
         workingCapital: workingCapitalValue,
       },
+      obraCivilDetail: obraCivil ? {
+        construccion: obraCivil.capex_construccion || 0,
+        estudiosDisenos: obraCivil.estudios_disenos || 0,
+        interventoria: obraCivil.interventoria || 0,
+        paisajismo: obraCivil.paisajismo || 0,
+        permisosLicencias: obraCivil.permisos_licencias || 0,
+      } : undefined,
       puntoEquilibrioMes,
       ocupacionPromedio,
       ticketPromedio,

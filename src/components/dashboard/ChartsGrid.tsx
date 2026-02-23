@@ -19,7 +19,8 @@ import {
   Legend,
   CartesianGrid
 } from 'recharts';
-import { PieChart as PieChartIcon, TrendingUp, BarChart2, Droplets } from 'lucide-react';
+import { PieChart as PieChartIcon, TrendingUp, BarChart2, Droplets, ChevronDown, ChevronRight, HardHat } from 'lucide-react';
+import { useState } from 'react';
 
 interface ChartsGridProps {
   metrics: DashboardMetrics;
@@ -27,6 +28,7 @@ interface ChartsGridProps {
 }
 
 export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
+  const [obraCivilExpanded, setObraCivilExpanded] = useState(false);
   // Data for income composition pie chart
   const incomeData = metrics.ingresosPorActividad.length > 0 
     ? metrics.ingresosPorActividad 
@@ -40,12 +42,23 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
     ebitda: p.ebitdaAnual / 1000000,
   }));
 
-  // Data for CAPEX breakdown
+  // Data for CAPEX breakdown (5 categories)
   const capexData = [
-    { name: 'Actividades', value: metrics.capexBreakdown.actividades, color: '#22c55e' },
+    { name: 'Actividades', value: metrics.capexBreakdown.actividades, color: '#10b981' },
     { name: 'Infraestructura', value: metrics.capexBreakdown.infraestructura, color: '#3b82f6' },
-    { name: 'Obra Civil', value: metrics.capexBreakdown.obraCivil, color: '#a855f7' },
+    { name: 'Obra Civil', value: metrics.capexBreakdown.obraCivil, color: '#8b5cf6' },
+    { name: 'Imprevistos', value: metrics.capexBreakdown.imprevistos, color: '#f59e0b' },
+    { name: 'Working Capital', value: metrics.capexBreakdown.workingCapital, color: '#06b6d4' },
   ].filter(item => item.value > 0);
+
+  // Obra Civil internal breakdown
+  const obraCivilItems = metrics.obraCivilDetail ? [
+    { concepto: 'Construcción', valor: metrics.obraCivilDetail.construccion },
+    { concepto: 'Estudios y Diseños', valor: metrics.obraCivilDetail.estudiosDisenos },
+    { concepto: 'Interventoría', valor: metrics.obraCivilDetail.interventoria },
+    { concepto: 'Paisajismo', valor: metrics.obraCivilDetail.paisajismo },
+    { concepto: 'Permisos y Licencias', valor: metrics.obraCivilDetail.permisosLicencias },
+  ].filter(item => item.valor > 0) : [];
 
   // Data for cash flow
   const cashFlowData = metrics.proyeccion.map(p => ({
@@ -247,7 +260,7 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
+          <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={capexData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -260,7 +273,7 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
                 <YAxis 
                   type="category" 
                   dataKey="name" 
-                  width={100}
+                  width={120}
                   tick={{ fontSize: 12 }}
                   stroke="hsl(var(--muted-foreground))"
                 />
@@ -280,6 +293,44 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Obra Civil expandable breakdown */}
+          {obraCivilItems.length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <button
+                onClick={() => setObraCivilExpanded(!obraCivilExpanded)}
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
+              >
+                {obraCivilExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+                <HardHat className="w-4 h-4 text-purple-500" />
+                Desglose Obra Civil
+              </button>
+              
+              {obraCivilExpanded && (
+                <div className="mt-3 space-y-2 pl-6">
+                  {obraCivilItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{item.concepto}</span>
+                      <span className="font-medium tabular-nums">
+                        {formatCurrency(item.valor, currency)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between text-sm font-semibold border-t pt-2 mt-2">
+                    <span>Total Obra Civil</span>
+                    <span className="text-purple-600 dark:text-purple-400">
+                      {formatCurrency(metrics.capexBreakdown.obraCivil, currency)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-4 text-center">
             <p className="text-sm text-muted-foreground">Total CAPEX</p>
             <p className="text-xl font-bold text-purple-600">
