@@ -12,6 +12,8 @@ import { MODULE_CATEGORIES, ModuleCategory, ModuleData } from '@/types';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import ActivityCard from './ActivityCard';
+import { CapexByActivityCard } from './CapexByActivityCard';
+import { CurrencyCode } from '@/types';
 
 const categoryLabels: Record<ModuleCategory, string> = {
   'deportes-raqueta': 'Deportes Raqueta',
@@ -302,6 +304,14 @@ export default function ActivitiesSection() {
           </div>
         )}
       </div>
+
+      {/* CAPEX by Activity summary */}
+      {activities.length > 0 && (
+        <CapexByActivityCard 
+          activities={activities} 
+          currency={(currency || 'COP') as CurrencyCode} 
+        />
+      )}
     </div>
   );
 }
