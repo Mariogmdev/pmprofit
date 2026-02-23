@@ -121,7 +121,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const ingresoYear1Promedio = year1Projection.monthlyAverage;
       
       ingresosBrutosAno1 += ingresoYear1Promedio;
-      ingresosOperacionales += financials.ingresosMensuales; // Use maturity for operational
+      ingresosOperacionales += ingresoMadurezActividad; // Use comprehensive maturity for operational
       totalReservas += financials.totalUsuariosMes;
       
       // Calculate weighted occupancy
@@ -298,7 +298,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
           ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
           : 0.5;
         const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-        const diasMes = 30;
+        const diasMes = daysPerMonth;
         const reservasPorDia = horasOperacion * ocupacionPromedio / (config.duracionReserva || 1.5);
         return sum + (cantidad * reservasPorDia * diasMes);
       }, 0);
@@ -405,7 +405,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       }
 
       // Depreciation - uses CAPEX without working capital (working capital is not a depreciable asset)
-      const depreciacionAnos = opex?.depreciacion_anos || 10;
+      const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
       const incluirDepreciacion = opex?.incluir_depreciacion !== false;
       const depreciacion = incluirDepreciacion ? (capexParaDepreciacion / depreciacionAnos / 12) : 0;
 
@@ -478,7 +478,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const ebitdaMensualMadurez = ingresosMadurez - opexCajaMensualMadurez;
     
     // Depreciación mensual para cálculo de EBIT
-    const depreciacionAnos = opex?.depreciacion_anos || 10;
+    const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
     const incluirDepreciacionGlobal = opex?.incluir_depreciacion !== false;
     // Use capexSinWorkingCapital for depreciation (WC is not a depreciable asset)
     const depreciacionMensual = incluirDepreciacionGlobal ? (capexSinWorkingCapital / depreciacionAnos / 12) : 0;
@@ -723,7 +723,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     };
 
     // Calculate OPEX structure at maturity for Year 1 breakdown
-    const { opexTotal: opexMadurezTotal } = calculateOpexMensual(ingresosMadurez, capexTotal);
+    const { opexTotal: opexMadurezTotal } = calculateOpexMensual(ingresosMadurez, capexSinWorkingCapital);
     const opexStructure = descomponerOpex(opexMadurezTotal, ingresosMadurez);
 
     const year1Monthly: DashboardMetrics['year1Monthly'] = MONTH_NAMES.map((mes, idx) => {

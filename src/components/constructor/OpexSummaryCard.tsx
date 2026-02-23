@@ -14,6 +14,7 @@ import { ServiceItem, RentCalculationBase } from '@/types/opex';
 import { Receipt, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateActivityFinancials } from '@/lib/activityCalculations';
+import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
 
 interface OpexSummaryCardProps {
   projectId: string;
@@ -43,7 +44,8 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     let ingresosOperacionales = 0;
     let totalReservas = 0;
 
-    // Second pass: calculate income for ALL activities, passing club users for traffic
+    // Second pass: calculate income for ALL activities using comprehensive engine
+    // Uses month 12 (maturity = 100% target occupancy) for consistency with Dashboard
     activities.forEach(act => {
       const config: ActivityConfig = act.config;
       const financials = calculateActivityFinancials(
@@ -51,8 +53,17 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
         daysPerMonth,
         config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
       );
-      ingresosBrutos += financials.ingresosMensuales;
-      ingresosOperacionales += financials.ingresosMensuales;
+      
+      // Use comprehensive engine for maturity income (all revenue sources)
+      const year1Proj = calculateYear1MonthlyProjection(
+        config,
+        daysPerMonth,
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
+      const ingresoMadurez = year1Proj.months[11]?.ingresos.total ?? financials.ingresosMensuales;
+      
+      ingresosBrutos += ingresoMadurez;
+      ingresosOperacionales += ingresoMadurez;
       totalReservas += financials.totalUsuariosMes;
     });
 
@@ -72,7 +83,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
           ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
           : 0.5;
         const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-        const diasMes = 30;
+        const diasMes = daysPerMonth;
         const reservasPorDia = horasOperacion * ocupacionPromedio / (config.duracionReserva || 1.5);
         return sum + (cantidad * reservasPorDia * diasMes);
       }, 0);
@@ -137,7 +148,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     // Include imprevistos (contingency) - same as Dashboard
     const imprevistosPorcentaje = obraCivil?.imprevistos_porcentaje ?? 10;
     const imprevistosValor = capexSubtotal * (imprevistosPorcentaje / 100);
-    const capexTotal = capexSubtotal + imprevistosValor;
+    const capexSinWorkingCapital = capexSubtotal + imprevistosValor;
 
     // === HELPER: Calculate category total with variable types (FIXED) ===
     const calculateCategoryTotal = (items: ServiceItem[]) => {
@@ -218,10 +229,10 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
     }
 
     // === DEPRECIATION (OPTIONAL - explicitly check for false) ===
-    const depreciacionAnos = opex?.depreciacion_anos || 10;
+    const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
     const incluirDepreciacion = opex?.incluir_depreciacion !== false;
     const depreciacion = incluirDepreciacion
-      ? (capexTotal / depreciacionAnos / 12)
+      ? (capexSinWorkingCapital / depreciacionAnos / 12)
       : 0;
 
     // === SUBTOTAL (without rent and commissions for calculating utilities) ===
@@ -307,7 +318,7 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
       opexComoPorcentaje,
       ebitdaMensual,
       margenEbitda,
-      capexTotal,
+      capexTotal: capexSinWorkingCapital,
       depreciacionAnos,
       incluirDepreciacion
     };
