@@ -15,7 +15,7 @@ const registerSchema = z
   .object({
     fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
     email: z.string().email('Ingresa un email válido'),
-    password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
     confirmPassword: z.string(),
     terms: z.boolean().refine((val) => val === true, {
       message: 'Debes aceptar los términos y condiciones',
