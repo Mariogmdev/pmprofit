@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectOpex, NominaItem, ServiceItem, ComisionItem, RentCalculationBase, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { Json } from '@/integrations/supabase/types';
+import { logger } from '@/lib/logger';
 
 // Helper to safely parse JSONB arrays
 const parseJsonArray = <T>(data: Json | null, fallback: T[] = []): T[] => {
@@ -62,7 +63,7 @@ export const useProjectOpex = (projectId: string) => {
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading opex:', error);
+        logger.dev('Error loading opex:', error);
         setLoading(false);
         return;
       }
@@ -108,7 +109,7 @@ export const useProjectOpex = (projectId: string) => {
           .single();
         
         if (insertError) {
-          console.error('Error creating opex:', insertError);
+          logger.dev('Error creating opex:', insertError);
         } else {
           data = newData;
         }
@@ -201,7 +202,7 @@ export const useProjectOpex = (projectId: string) => {
       .eq('project_id', projectId);
     
     if (error) {
-      console.error('Error updating opex:', error);
+      logger.dev('Error updating opex:', error);
       // Revert on error
       opexStore.set(projectId, currentData);
       notifyProjectListeners(projectId);

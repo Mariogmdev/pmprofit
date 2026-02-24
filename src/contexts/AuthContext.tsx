@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types';
+import { logger } from '@/lib/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -32,13 +33,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        logger.dev('Error fetching profile:', error);
         return null;
       }
 
       return data as Profile;
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      logger.dev('Error fetching profile:', error);
       return null;
     }
   };

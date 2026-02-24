@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ObraCivil } from '@/types/infrastructure';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface DbObraCivil {
   id: string;
@@ -59,7 +60,7 @@ export const useObraCivil = (projectId: string) => {
       .maybeSingle();
 
     if (error) {
-      console.error('Error loading obra civil:', error);
+      logger.dev('Error loading obra civil:', error);
       toast({
         title: 'Error al cargar obra civil',
         description: error.message,
@@ -85,7 +86,7 @@ export const useObraCivil = (projectId: string) => {
         .single();
 
       if (insertError) {
-        console.error('Error creating obra civil:', insertError);
+        logger.dev('Error creating obra civil:', insertError);
       } else if (newData) {
         setObraCivil(mapDbToObraCivil(newData));
       }
@@ -121,7 +122,7 @@ export const useObraCivil = (projectId: string) => {
       .eq('project_id', projectId);
 
     if (error) {
-      console.error('Error updating obra civil:', error);
+      logger.dev('Error updating obra civil:', error);
       return false;
     }
 

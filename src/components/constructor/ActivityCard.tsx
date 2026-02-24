@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { logger } from '@/lib/logger';
 import { ChevronDown, ChevronUp, MoreVertical, Trash2, Copy, Save, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,7 +103,7 @@ export default function ActivityCard({
           setLastSaved(new Date());
           hasChangesRef.current = false;
         } catch (error) {
-          console.error('Error saving:', error);
+          logger.dev('Error saving:', error);
         } finally {
           setIsSaving(false);
         }

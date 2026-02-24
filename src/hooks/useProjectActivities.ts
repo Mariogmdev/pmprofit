@@ -10,6 +10,7 @@ import {
 } from '@/types/activity';
 import { ModuleData, ModuleDefaultConfig } from '@/types';
 import { Json } from '@/integrations/supabase/types';
+import { logger } from '@/lib/logger';
 
 export function useProjectActivities() {
   const { currentProject } = useProject();
@@ -35,7 +36,7 @@ export function useProjectActivities() {
         .order('order_index', { ascending: true });
 
       if (error) {
-        console.error('Error fetching activities:', error);
+        logger.dev('Error fetching activities:', error);
         toast({
           title: 'Error',
           description: 'No se pudieron cargar las actividades',
@@ -58,7 +59,7 @@ export function useProjectActivities() {
 
       setActivities(transformedActivities);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      logger.dev('Error fetching activities:', error);
     } finally {
       setLoading(false);
     }
@@ -164,7 +165,7 @@ export function useProjectActivities() {
         .single();
 
       if (error) {
-        console.error('Error adding activity:', error);
+        logger.dev('Error adding activity:', error);
         toast({
           title: 'Error',
           description: 'No se pudo agregar la actividad',
@@ -199,7 +200,7 @@ export function useProjectActivities() {
 
       return newActivity;
     } catch (error) {
-      console.error('Error adding activity:', error);
+      logger.dev('Error adding activity:', error);
       return null;
     } finally {
       setSaving(false);
@@ -226,7 +227,7 @@ export function useProjectActivities() {
         .eq('id', id);
 
       if (error) {
-        console.error('Error updating activity:', error);
+        logger.dev('Error updating activity:', error);
         toast({
           title: 'Error',
           description: 'No se pudieron guardar los cambios',
@@ -243,7 +244,7 @@ export function useProjectActivities() {
         )
       );
     } catch (error) {
-      console.error('Error updating activity:', error);
+      logger.dev('Error updating activity:', error);
     } finally {
       setSaving(false);
     }
@@ -259,7 +260,7 @@ export function useProjectActivities() {
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting activity:', error);
+        logger.dev('Error deleting activity:', error);
         toast({
           title: 'Error',
           description: 'No se pudo eliminar la actividad',
@@ -275,7 +276,7 @@ export function useProjectActivities() {
         description: 'La actividad se eliminó correctamente',
       });
     } catch (error) {
-      console.error('Error deleting activity:', error);
+      logger.dev('Error deleting activity:', error);
     } finally {
       setSaving(false);
     }
@@ -303,7 +304,7 @@ export function useProjectActivities() {
         .single();
 
       if (error) {
-        console.error('Error duplicating activity:', error);
+        logger.dev('Error duplicating activity:', error);
         toast({
           title: 'Error',
           description: 'No se pudo duplicar la actividad',
@@ -332,7 +333,7 @@ export function useProjectActivities() {
 
       return duplicated;
     } catch (error) {
-      console.error('Error duplicating activity:', error);
+      logger.dev('Error duplicating activity:', error);
       return null;
     } finally {
       setSaving(false);

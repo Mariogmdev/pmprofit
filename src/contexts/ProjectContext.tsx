@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Project, SaveStatus, CurrencyCode } from '@/types';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface ProjectContextType {
   currentProject: Project | null;
@@ -43,7 +44,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .order('updated_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching projects:', error);
+        logger.dev('Error fetching projects:', error);
         toast({
           title: 'Error',
           description: 'No se pudieron cargar los proyectos',
@@ -60,7 +61,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setCurrentProject(projectsData[0]);
       }
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      logger.dev('Error fetching projects:', error);
     } finally {
       setLoading(false);
     }
@@ -101,7 +102,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        console.error('Error creating project:', error);
+        logger.dev('Error creating project:', error);
         toast({
           title: 'Error',
           description: 'No se pudo crear el proyecto',
@@ -121,7 +122,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
       return projectData;
     } catch (error) {
-      console.error('Error creating project:', error);
+      logger.dev('Error creating project:', error);
       return null;
     }
   };
@@ -139,7 +140,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         .eq('id', id);
 
       if (error) {
-        console.error('Error updating project:', error);
+        logger.dev('Error updating project:', error);
         setSaveStatus('error');
         toast({
           title: 'Error',
@@ -169,7 +170,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       // Reset status after 2 seconds
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.dev('Error updating project:', error);
       setSaveStatus('error');
     }
   };
@@ -179,7 +180,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.from('projects').delete().eq('id', id);
 
       if (error) {
-        console.error('Error deleting project:', error);
+        logger.dev('Error deleting project:', error);
         toast({
           title: 'Error',
           description: 'No se pudo eliminar el proyecto',
@@ -201,7 +202,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         description: 'El proyecto se eliminó correctamente',
       });
     } catch (error) {
-      console.error('Error deleting project:', error);
+      logger.dev('Error deleting project:', error);
     }
   };
 
