@@ -98,6 +98,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     let ingresosBrutosAno1 = 0; // Year 1 average (with maturity ramp)
     let ingresosOperacionales = 0;
     let totalReservas = 0;
+    let cogsMadurez = 0; // COGS at maturity (month 12): profesores + costoVentas
+    let cogsYear1Total = 0; // Total COGS across Year 1 (sum of 12 months)
     let ocupacionTotal = 0;
     let horasTotal = 0;
     let ticketTotal = 0;
@@ -107,6 +109,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
 
     // Aggregate the 12-month Year 1 income curve across ALL activities WITH breakdown by source.
     const year1IncomeMonths = Array(12).fill(0) as number[];
+    const year1CogsMonths = Array(12).fill(0) as number[];
     const year1BreakdownMonths = Array.from({ length: 12 }, () => ({
       reservas: 0, membresias: 0, pases: 0, complementarios: 0, clases: 0, trafico: 0,
     }));
@@ -151,9 +154,16 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         });
       }
 
+      // Aggregate COGS at maturity (month 12)
+      const month12 = year1Projection.months[11];
+      if (month12) {
+        cogsMadurez += (month12.costos.profesores || 0) + (month12.costos.costoVentas || 0);
+      }
+
       // Aggregate monthly totals AND breakdown by source
       year1Projection.months.forEach((monthResult, monthIdx) => {
         year1IncomeMonths[monthIdx] += monthResult.ingresos.total;
+        year1CogsMonths[monthIdx] += (monthResult.costos.profesores || 0) + (monthResult.costos.costoVentas || 0);
         year1BreakdownMonths[monthIdx].reservas += monthResult.ingresos.reservas;
         year1BreakdownMonths[monthIdx].membresias += monthResult.ingresos.membresias;
         year1BreakdownMonths[monthIdx].pases += monthResult.ingresos.pases;
@@ -162,6 +172,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         year1BreakdownMonths[monthIdx].trafico += monthResult.ingresos.trafico;
       });
     });
+
+    // Calculate total Year 1 COGS
+    cogsYear1Total = year1CogsMonths.reduce((sum, v) => sum + v, 0);
 
     // Build detailed Year 1 monthly breakdown for Dashboard "Mensual Año 1".
     // NOTE: OPEX and EBITDA distribution is proportional to the income curve.
@@ -315,8 +328,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     // Use capexSinWorkingCapital for depreciation (WC is NOT a depreciable asset)
     const { opexTotal: opexMensualMadurezFinal, opexCaja: opexCajaMensualMadurez } = calculateOpexMensual(ingresosMadurez, capexSinWorkingCapital);
     
-    // EBITDA = Ingresos - OPEX Caja (sin depreciación) - TRUE EBITDA
-    const ebitdaMensualMadurez = ingresosMadurez - opexCajaMensualMadurez;
+    // EBITDA = Ingresos - COGS - OPEX Caja (sin depreciación) - TRUE EBITDA
+    // COGS includes: profesores + costoVentas (from traffic/concession activities)
+    const ebitdaMensualMadurez = ingresosMadurez - cogsMadurez - opexCajaMensualMadurez;
     
     // Depreciación mensual para cálculo de EBIT
     const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
@@ -379,9 +393,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const ingresosAnuales = ingresosMensuales * 12;
       // Use OPEX CAJA (without depreciation) for EBITDA calculations
       const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexSinWorkingCapital);
-      const opexMensual = opexMensualTotal; // For projection table display
+      const opexMensual = opexMensualCaja; // Display OPEX Caja (without depreciation) in table
       const opexAnual = opexMensual * 12;
-      const ebitdaMensual = ingresosMensuales - opexMensualCaja; // EBITDA uses cash OPEX
+      // COGS ratio from maturity: scale proportionally to income
+      const cogsMensual = ingresosMadurez > 0 ? cogsMadurez * (ingresosMensuales / ingresosMadurez) : 0;
+      const ebitdaMensual = ingresosMensuales - cogsMensual - opexMensualCaja; // EBITDA = Ingresos - COGS - OPEX Caja
       const ebitdaAnual = ebitdaMensual * 12;
       const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
       
@@ -573,7 +589,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       
       const opexVariableMes = ingresos * opexStructure.porcentajeVariable;
       const opexMes = opexStructure.fijo + opexVariableMes;
-      const ebitda = ingresos - opexMes;
+      const cogsMes = year1CogsMonths[idx] || 0;
+      const ebitda = ingresos - cogsMes - opexMes;
       
       return {
         mes,
@@ -904,7 +921,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       ingresosMensualesBase: ingresosMadurez,
       ingresosAnualesBase: ingresosMadurez * 12,
       
-      // EBITDA = Ingresos - OPEX Caja (sin depreciación)
+      // EBITDA = Ingresos - COGS - OPEX Caja (sin depreciación)
       ebitdaMensualBase,
       margenEbitdaBase,
       
