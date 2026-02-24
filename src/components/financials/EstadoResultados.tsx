@@ -157,7 +157,9 @@ export function EstadoResultados({
     return { capexSinWC, workingCapital: 0 };
   }, [activities, spaces, obraCivil]);
 
-  // Calculate P&L
+  const inflationRate = currentProject?.inflation_rate || 3;
+
+  // Calculate P&L (aligned with dashboard projection engine)
   const pl = useMemo(() => {
     if (!opex || activities.length === 0) return null;
     return calculateEstadoResultados(
@@ -169,8 +171,9 @@ export function EstadoResultados({
       0.35,
       opex.depreciacion_anos || 10,
       daysPerMonth,
+      inflationRate,
     );
-  }, [projectId, activities, opex, capexData, daysPerMonth]);
+  }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate]);
 
   if (loading || !pl) {
     return (

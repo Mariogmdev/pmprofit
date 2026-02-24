@@ -1,11 +1,12 @@
 /**
  * Estado de Resultados (P&L) Calculations
  *
- * CRITICAL RULE: Uses monthlyFinancialsWithOccupancy() as the ONLY
- * source of income data. Never duplicates income logic.
+ * ALIGNED WITH DASHBOARD: Uses the SAME projection functions as useDashboardMetrics:
+ * - Year 1: calculateYear1MonthlyProjection() for monthly income + COGS
+ * - Years 2-5: calculateYearlyProjection() for income scaling with inflation + occupancy growth
+ * - OPEX: calculateOpexMensual() from opexCalculations.ts (shared engine)
  *
- * OPEX: Uses calculateOpexMensual() from opexCalculations.ts as the
- * SINGLE SOURCE for all OPEX calculations. Never duplicates OPEX logic.
+ * This ensures P&L numbers match the "Proyección Financiera" table in the Resumen tab.
  */
 
 import {
@@ -13,8 +14,11 @@ import {
   PeriodoResultados,
 } from '@/types/estadoResultados';
 import {
-  monthlyFinancialsWithOccupancy,
+  calculateYear1MonthlyProjection,
+  MonthlyFinancialsResult,
 } from '@/lib/monthlyFinancials';
+import { calculateYearlyProjection } from '@/lib/projectionCalculations';
+import { calculateActivityFinancials } from '@/lib/activityCalculations';
 import { ActivityConfig } from '@/types/activity';
 import { ProjectOpex } from '@/types/opex';
 import { calculateOpexMensual, OpexBreakdown } from '@/lib/opexCalculations';
@@ -33,9 +37,43 @@ export function calculateEstadoResultados(
   tasaImpuestos: number = 0.35,
   depreciacionAnos: number = 10,
   daysPerMonth: number = 30,
+  inflationRate: number = 3,
 ): EstadoResultados {
-  const meses = calcularMesesAno1(activities, projectOpex, capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth);
-  const anos = calcularAnos(activities, projectOpex, capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth);
+  // ── Step 1: Calculate Year 1 monthly data (same as dashboard) ──
+  const year1Data = calculateYear1Monthly(activities, daysPerMonth);
+
+  // ── Step 2: Calculate ocupacionPromedio (same as dashboard) ──
+  const ocupacionPromedio = calculateWeightedOccupancyFromActivities(activities, daysPerMonth);
+
+  // ── Step 3: Build 5-year projection using SAME engine as dashboard ──
+  const yearlyProjection = calculateYearlyProjection(
+    year1Data.totalYear1Income, // Annual Year 1 income
+    ocupacionPromedio,           // Year 1 average occupancy
+    5,                           // Crecimiento ocupación 5%/año (same as dashboard)
+    inflationRate,               // From project config
+    5,                           // 5 years
+  );
+
+  // ── Step 4: Calculate COGS ratio from Year 1 (month 12 = maturity) ──
+  const year1Month12 = year1Data.months[11];
+  const cogsRatio = year1Month12.totalIncome > 0
+    ? year1Month12.totalCogs / year1Month12.totalIncome
+    : 0;
+  const profesoresRatio = year1Month12.totalIncome > 0
+    ? year1Month12.profesores / year1Month12.totalIncome
+    : 0;
+  const costoVentasRatio = year1Month12.totalIncome > 0
+    ? year1Month12.costoVentas / year1Month12.totalIncome
+    : 0;
+
+  // ── Step 5: Build P&L periods ──
+  const meses = buildYear1Months(year1Data, projectOpex, activities, capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth);
+  const anos = buildAnnualPeriods(
+    year1Data, yearlyProjection, projectOpex, activities,
+    capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth,
+    cogsRatio, profesoresRatio, costoVentasRatio,
+  );
+
   const metricas = calcularMetricas(anos);
   const comparativo = calcularComparativo(anos);
 
@@ -51,210 +89,305 @@ export function calculateEstadoResultados(
 }
 
 // =====================================================
-// combinarActividades
+// Year 1 monthly aggregation (same as dashboard)
 // =====================================================
 
-interface CombinedFinancials {
-  ingresos: {
+interface AggregatedMonth {
+  reservas: number;
+  membresias: number;
+  pasesDiarios: number;
+  clases: number;
+  complementarios: number;
+  trafico: number;
+  totalIncome: number;
+  profesores: number;
+  costoVentas: number;
+  totalCogs: number;
+}
+
+interface Year1AggregatedData {
+  months: AggregatedMonth[];
+  totalYear1Income: number;
+  incomeBreakdownYear1: {
     reservas: number;
     membresias: number;
     pasesDiarios: number;
     clases: number;
     complementarios: number;
     trafico: number;
-    total: number;
-  };
-  costos: {
-    profesores: number;
-    costoVentas: number;
   };
 }
 
-function combinarActividades(
+function calculateYear1Monthly(
   activities: { id: string; config: ActivityConfig }[],
-  mes: number | null,
-  ano: number,
   daysPerMonth: number,
-): CombinedFinancials {
-  const totals: CombinedFinancials = {
-    ingresos: {
-      reservas: 0, membresias: 0, pasesDiarios: 0, clases: 0,
-      complementarios: 0, trafico: 0, total: 0,
-    },
-    costos: { profesores: 0, costoVentas: 0 },
-  };
-
-  // Pre-calculate total club users for traffic activities
+): Year1AggregatedData {
+  // Pre-calculate total club users (same logic as dashboard)
+  const nonTrafficActivities = activities.filter(a => a.config.modeloIngreso !== 'trafico');
   let totalClubUsers = 0;
-  for (const activity of activities) {
-    if (activity.config.modeloIngreso !== 'trafico') {
-      const occ = getOccupationForPeriod(activity.config, mes, ano);
-      const f = monthlyFinancialsWithOccupancy(activity.config, daysPerMonth, occ.pico, occ.valle, 0);
-      totalClubUsers += f.usuarios;
-    }
-  }
+  nonTrafficActivities.forEach(a => {
+    const financials = calculateActivityFinancials(a.config, daysPerMonth, 0);
+    totalClubUsers += financials.totalUsuariosMes;
+  });
 
-  for (const activity of activities) {
-    const occ = getOccupationForPeriod(activity.config, mes, ano);
-    const isTraffic = activity.config.modeloIngreso === 'trafico';
-
-    const f = monthlyFinancialsWithOccupancy(
-      activity.config,
+  // Get Year 1 monthly projection per activity (SAME function as dashboard)
+  const activityProjections = activities.map(act => {
+    return calculateYear1MonthlyProjection(
+      act.config,
       daysPerMonth,
-      occ.pico,
-      occ.valle,
-      isTraffic ? totalClubUsers : 0,
+      act.config.modeloIngreso === 'trafico' ? totalClubUsers : 0,
     );
+  });
 
-    totals.ingresos.reservas += f.ingresos.reservas;
-    totals.ingresos.membresias += f.ingresos.membresias;
-    totals.ingresos.pasesDiarios += f.ingresos.pases;
-    totals.ingresos.clases += f.ingresos.clases;
-    totals.ingresos.complementarios += f.ingresos.complementarios;
-    totals.ingresos.trafico += f.ingresos.trafico;
-    totals.ingresos.total += f.ingresos.total;
-    totals.costos.profesores += f.costos.profesores;
-    totals.costos.costoVentas += f.costos.costoVentas;
-  }
+  // Aggregate across activities per month
+  const months: AggregatedMonth[] = Array.from({ length: 12 }, (_, i) => {
+    let reservas = 0, membresias = 0, pasesDiarios = 0, clases = 0, complementarios = 0, trafico = 0;
+    let profesores = 0, costoVentas = 0;
 
-  return totals;
-}
+    activityProjections.forEach(proj => {
+      const m = proj.months[i];
+      reservas += m.ingresos.reservas;
+      membresias += m.ingresos.membresias;
+      pasesDiarios += m.ingresos.pases;
+      clases += m.ingresos.clases;
+      complementarios += m.ingresos.complementarios;
+      trafico += m.ingresos.trafico;
+      profesores += m.costos.profesores;
+      costoVentas += m.costos.costoVentas;
+    });
 
-// =====================================================
-// Occupation helpers
-// =====================================================
+    const totalIncome = reservas + membresias + pasesDiarios + clases + complementarios + trafico;
+    return {
+      reservas, membresias, pasesDiarios, clases, complementarios, trafico,
+      totalIncome,
+      profesores, costoVentas,
+      totalCogs: profesores + costoVentas,
+    };
+  });
 
-function getOccupationForPeriod(
-  config: ActivityConfig,
-  mes: number | null,
-  ano: number,
-): { pico: number; valle: number } {
-  if (mes !== null && ano === 1) {
-    const monthly = config.ocupacionMensual?.[mes - 1];
-    if (monthly) return { pico: monthly.pico, valle: monthly.valle };
-  }
+  const totalYear1Income = months.reduce((s, m) => s + m.totalIncome, 0);
 
-  const yearData = config.ocupacionAnual?.find(o => o.ano === ano);
-  if (yearData) return { pico: yearData.pico, valle: yearData.valle };
-
-  const year1 = config.ocupacionAnual?.[0] ?? { pico: 60, valle: 30 };
-  const mult = getYearMultiplier(ano);
-  return {
-    pico: Math.min(95, year1.pico * mult),
-    valle: Math.min(95, year1.valle * mult),
+  const incomeBreakdownYear1 = {
+    reservas: months.reduce((s, m) => s + m.reservas, 0),
+    membresias: months.reduce((s, m) => s + m.membresias, 0),
+    pasesDiarios: months.reduce((s, m) => s + m.pasesDiarios, 0),
+    clases: months.reduce((s, m) => s + m.clases, 0),
+    complementarios: months.reduce((s, m) => s + m.complementarios, 0),
+    trafico: months.reduce((s, m) => s + m.trafico, 0),
   };
-}
 
-function getYearMultiplier(ano: number): number {
-  const multipliers: Record<number, number> = {
-    1: 1.0,
-    2: 1.10,
-    3: 1.20,
-    4: 1.25,
-    5: 1.30,
-  };
-  return multipliers[ano] ?? 1.0;
+  return { months, totalYear1Income, incomeBreakdownYear1 };
 }
 
 // =====================================================
-// calcularOpexParaPeriodo — uses shared engine
+// Weighted occupancy (same logic as dashboard)
 // =====================================================
 
-function calcularOpexParaPeriodo(
+function calculateWeightedOccupancyFromActivities(
+  activities: { id: string; config: ActivityConfig }[],
+  daysPerMonth: number,
+): number {
+  let ocupacionTotal = 0;
+  let horasTotal = 0;
+
+  activities.forEach(act => {
+    const financials = calculateActivityFinancials(act.config, daysPerMonth, 0);
+    const totalHours = financials.totalHorasPico + financials.totalHorasValle;
+    if (totalHours > 0) {
+      ocupacionTotal += financials.ocupacionPromedio * totalHours;
+      horasTotal += totalHours;
+    }
+  });
+
+  return horasTotal > 0 ? ocupacionTotal / horasTotal : 0;
+}
+
+// =====================================================
+// Build Year 1 monthly P&L periods
+// =====================================================
+
+function buildYear1Months(
+  year1Data: Year1AggregatedData,
   projectOpex: ProjectOpex,
   activities: { id: string; config: ActivityConfig }[],
-  ingresosBrutos: number,
-  capexParaDepreciacion: number,
+  capexTotal: number,
+  depreciacionAnos: number,
+  tasaImpuestos: number,
   daysPerMonth: number,
-): OpexBreakdown {
-  return calculateOpexMensual({
-    projectOpex,
-    activities,
-    ingresosBrutos,
-    capexParaDepreciacion,
-    daysPerMonth,
+): PeriodoResultados[] {
+  const depreciacionMensual = capexTotal / depreciacionAnos / 12;
+
+  return year1Data.months.map((month, i) => {
+    const opex = calculateOpexMensual({
+      projectOpex,
+      activities,
+      ingresosBrutos: month.totalIncome,
+      capexParaDepreciacion: capexTotal,
+      daysPerMonth,
+    });
+
+    return buildPeriodo(month, i + 1, 'mensual', opex, depreciacionMensual, tasaImpuestos);
   });
 }
 
 // =====================================================
-// calcularPeriodo
+// Build annual P&L periods (aligned with dashboard)
 // =====================================================
 
-function calcularPeriodo(
-  combined: CombinedFinancials,
+function buildAnnualPeriods(
+  year1Data: Year1AggregatedData,
+  yearlyProjection: ReturnType<typeof calculateYearlyProjection>,
+  projectOpex: ProjectOpex,
+  activities: { id: string; config: ActivityConfig }[],
+  capexTotal: number,
+  depreciacionAnos: number,
+  tasaImpuestos: number,
+  daysPerMonth: number,
+  cogsRatio: number,
+  profesoresRatio: number,
+  costoVentasRatio: number,
+): PeriodoResultados[] {
+  const depreciacionAnual = capexTotal / depreciacionAnos;
+
+  return yearlyProjection.map((yearData, i) => {
+    const ano = yearData.year;
+    const ingresosAnuales = yearData.ingresoAnual;
+    const ingresosMensuales = yearData.ingresoMensual;
+
+    let annualMonth: AggregatedMonth;
+
+    if (ano === 1) {
+      // Year 1: Sum actual monthly data
+      annualMonth = {
+        reservas: year1Data.incomeBreakdownYear1.reservas,
+        membresias: year1Data.incomeBreakdownYear1.membresias,
+        pasesDiarios: year1Data.incomeBreakdownYear1.pasesDiarios,
+        clases: year1Data.incomeBreakdownYear1.clases,
+        complementarios: year1Data.incomeBreakdownYear1.complementarios,
+        trafico: year1Data.incomeBreakdownYear1.trafico,
+        totalIncome: year1Data.totalYear1Income,
+        profesores: year1Data.months.reduce((s, m) => s + m.profesores, 0),
+        costoVentas: year1Data.months.reduce((s, m) => s + m.costoVentas, 0),
+        totalCogs: year1Data.months.reduce((s, m) => s + m.totalCogs, 0),
+      };
+    } else {
+      // Years 2-5: Scale income from projection, COGS proportional to Year 1 maturity ratio
+      const year1Ratio = year1Data.totalYear1Income > 0 ? ingresosAnuales / year1Data.totalYear1Income : 1;
+      annualMonth = {
+        reservas: year1Data.incomeBreakdownYear1.reservas * year1Ratio,
+        membresias: year1Data.incomeBreakdownYear1.membresias * year1Ratio,
+        pasesDiarios: year1Data.incomeBreakdownYear1.pasesDiarios * year1Ratio,
+        clases: year1Data.incomeBreakdownYear1.clases * year1Ratio,
+        complementarios: year1Data.incomeBreakdownYear1.complementarios * year1Ratio,
+        trafico: year1Data.incomeBreakdownYear1.trafico * year1Ratio,
+        totalIncome: ingresosAnuales,
+        profesores: ingresosAnuales * profesoresRatio,
+        costoVentas: ingresosAnuales * costoVentasRatio,
+        totalCogs: ingresosAnuales * cogsRatio,
+      };
+    }
+
+    // OPEX: Use monthly average income for this year (same as dashboard)
+    const opexMensual = calculateOpexMensual({
+      projectOpex,
+      activities,
+      ingresosBrutos: ingresosMensuales,
+      capexParaDepreciacion: capexTotal,
+      daysPerMonth,
+    });
+
+    // Scale OPEX to annual
+    const opexAnual: OpexBreakdown = {
+      ...opexMensual,
+      nomina: opexMensual.nomina * 12,
+      arriendo: opexMensual.arriendo * 12,
+      seguros: opexMensual.seguros * 12,
+      serviciosPublicos: opexMensual.serviciosPublicos * 12,
+      marketing: opexMensual.marketing * 12,
+      mantenimiento: opexMensual.mantenimiento * 12,
+      seguridad: opexMensual.seguridad * 12,
+      tecnologia: opexMensual.tecnologia * 12,
+      administrativos: opexMensual.administrativos * 12,
+      gastosFinancieros: opexMensual.gastosFinancieros * 12,
+      impuestos: opexMensual.impuestos * 12,
+      comisiones: opexMensual.comisiones * 12,
+      otros: opexMensual.otros * 12,
+      depreciacion: opexMensual.depreciacion * 12,
+      opexCaja: opexMensual.opexCaja * 12,
+      opexTotal: opexMensual.opexTotal * 12,
+    };
+
+    return buildPeriodo(annualMonth, ano, 'anual', opexAnual, depreciacionAnual, tasaImpuestos);
+  });
+}
+
+// =====================================================
+// buildPeriodo — shared P&L construction
+// =====================================================
+
+function buildPeriodo(
+  data: AggregatedMonth,
   periodo: number,
   tipo: 'mensual' | 'anual',
   opex: OpexBreakdown,
   depreciacionPeriodo: number,
   tasaImpuestos: number,
 ): PeriodoResultados {
-  // --- INGRESOS ---
-  const ingresosBrutos = combined.ingresos.total;
+  const ingresosBrutos = data.totalIncome;
   const descuentos = 0;
   const devoluciones = 0;
   const ingresosNetos = ingresosBrutos + descuentos + devoluciones;
 
-  // --- COGS (direct costs from activities) ---
-  const cogsDirecto = combined.costos.costoVentas;
-  const cogsInstructores = combined.costos.profesores;
-  const cogsTotal = cogsDirecto + cogsInstructores;
+  // --- COGS ---
+  const cogsTotal = data.totalCogs;
   const cogs = {
     inventarioInicial: 0,
-    compras: cogsDirecto * 0.7,
+    compras: data.costoVentas * 0.7,
     inventarioFinal: 0,
-    costoDirecto: cogsDirecto,
-    instructores: cogsInstructores,
+    costoDirecto: data.costoVentas,
+    instructores: data.profesores,
     entrenadores: 0,
     total: cogsTotal,
   };
 
   // --- MARGEN BRUTO ---
   const margenBruto = ingresosNetos - cogsTotal;
-  const margenBrutoPorcentaje = ingresosNetos > 0
-    ? (margenBruto / ingresosNetos) * 100
-    : 0;
+  const margenBrutoPorcentaje = ingresosNetos > 0 ? (margenBruto / ingresosNetos) * 100 : 0;
 
-  // --- OPEX (from shared engine — opexCaja, sin depreciación) ---
-  const opexTotal = opex.opexCaja; // Cash OPEX for P&L EBITDA line
+  // --- OPEX (cash, sin depreciación) ---
+  const opexTotal = opex.opexCaja;
 
-  // --- EBITDA (CRITICAL IDENTITY) ---
+  // --- EBITDA ---
   const ebitda = margenBruto - opexTotal;
-  const ebitdaPorcentaje = ingresosNetos > 0
-    ? (ebitda / ingresosNetos) * 100
-    : 0;
+  const ebitdaPorcentaje = ingresosNetos > 0 ? (ebitda / ingresosNetos) * 100 : 0;
 
-  // --- DEPRECIACIÓN (NEVER includes working capital) ---
-  const depreciacionTotal = depreciacionPeriodo;
+  // --- DEPRECIACIÓN ---
   const depreciacion = {
-    actividades: depreciacionTotal * 0.50,
-    infraestructura: depreciacionTotal * 0.25,
-    obraCivil: depreciacionTotal * 0.15,
-    equipamiento: depreciacionTotal * 0.10,
-    total: depreciacionTotal,
+    actividades: depreciacionPeriodo * 0.50,
+    infraestructura: depreciacionPeriodo * 0.25,
+    obraCivil: depreciacionPeriodo * 0.15,
+    equipamiento: depreciacionPeriodo * 0.10,
+    total: depreciacionPeriodo,
   };
 
-  // --- EBIT (CRITICAL IDENTITY) ---
-  const ebit = ebitda - depreciacionTotal;
-  const ebitPorcentaje = ingresosNetos > 0
-    ? (ebit / ingresosNetos) * 100
-    : 0;
+  // --- EBIT ---
+  const ebit = ebitda - depreciacionPeriodo;
+  const ebitPorcentaje = ingresosNetos > 0 ? (ebit / ingresosNetos) * 100 : 0;
 
   // --- FINANCIEROS ---
   const financieros = { intereses: 0, otrosGastos: 0, total: 0 };
 
-  // --- IMPUESTOS (never negative) ---
+  // --- IMPUESTOS ---
   const utilidadAntesImpuestos = ebit - financieros.total;
   const impuestoValor = Math.max(0, utilidadAntesImpuestos * tasaImpuestos);
 
-  // --- UTILIDAD NETA (CRITICAL IDENTITY) ---
+  // --- UTILIDAD NETA ---
   const utilidadNeta = utilidadAntesImpuestos - impuestoValor;
-  const utilidadNetaPorcentaje = ingresosNetos > 0
-    ? (utilidadNeta / ingresosNetos) * 100
-    : 0;
+  const utilidadNetaPorcentaje = ingresosNetos > 0 ? (utilidadNeta / ingresosNetos) * 100 : 0;
 
   // --- VALIDATION ---
   const diffEbitda = Math.abs(ebitda - (margenBruto - opexTotal));
-  const diffEbit = Math.abs(ebit - (ebitda - depreciacionTotal));
+  const diffEbit = Math.abs(ebit - (ebitda - depreciacionPeriodo));
   if (diffEbitda > 1000) logger.dev(`⚠️ Identidad EBITDA rota en período ${periodo}: diff=${diffEbitda}`);
   if (diffEbit > 1000) logger.dev(`⚠️ Identidad EBIT rota en período ${periodo}: diff=${diffEbit}`);
 
@@ -262,12 +395,12 @@ function calcularPeriodo(
     periodo,
     tipo,
     ingresos: {
-      reservas: combined.ingresos.reservas,
-      membresias: combined.ingresos.membresias,
-      pasesDiarios: combined.ingresos.pasesDiarios,
-      clases: combined.ingresos.clases,
-      complementarios: combined.ingresos.complementarios,
-      trafico: combined.ingresos.trafico,
+      reservas: data.reservas,
+      membresias: data.membresias,
+      pasesDiarios: data.pasesDiarios,
+      clases: data.clases,
+      complementarios: data.complementarios,
+      trafico: data.trafico,
       brutos: ingresosBrutos,
       descuentos,
       devoluciones,
@@ -306,103 +439,6 @@ function calcularPeriodo(
 }
 
 // =====================================================
-// calcularMesesAno1
-// =====================================================
-
-function calcularMesesAno1(
-  activities: { id: string; config: ActivityConfig }[],
-  projectOpex: ProjectOpex,
-  capexTotal: number,
-  depreciacionAnos: number,
-  tasaImpuestos: number,
-  daysPerMonth: number,
-): PeriodoResultados[] {
-  const depreciacionMensual = capexTotal / depreciacionAnos / 12;
-
-  return Array.from({ length: 12 }, (_, i) => {
-    const mes = i + 1;
-    const combined = combinarActividades(activities, mes, 1, daysPerMonth);
-
-    // Calculate OPEX using the combined income for this month
-    const opex = calcularOpexParaPeriodo(
-      projectOpex, activities, combined.ingresos.total, capexTotal, daysPerMonth,
-    );
-
-    return calcularPeriodo(combined, mes, 'mensual', opex, depreciacionMensual, tasaImpuestos);
-  });
-}
-
-// =====================================================
-// calcularAnos
-// =====================================================
-
-function calcularAnos(
-  activities: { id: string; config: ActivityConfig }[],
-  projectOpex: ProjectOpex,
-  capexTotal: number,
-  depreciacionAnos: number,
-  tasaImpuestos: number,
-  daysPerMonth: number,
-): PeriodoResultados[] {
-  const depreciacionAnual = capexTotal / depreciacionAnos;
-
-  return Array.from({ length: 5 }, (_, i) => {
-    const ano = i + 1;
-
-    // Sum 12 months for each year
-    const monthlyResults: CombinedFinancials[] = Array.from({ length: 12 }, (_, m) => {
-      return combinarActividades(activities, ano === 1 ? m + 1 : null, ano, daysPerMonth);
-    });
-
-    // Aggregate 12 months into annual totals
-    const annualCombined: CombinedFinancials = {
-      ingresos: {
-        reservas: monthlyResults.reduce((s, r) => s + r.ingresos.reservas, 0),
-        membresias: monthlyResults.reduce((s, r) => s + r.ingresos.membresias, 0),
-        pasesDiarios: monthlyResults.reduce((s, r) => s + r.ingresos.pasesDiarios, 0),
-        clases: monthlyResults.reduce((s, r) => s + r.ingresos.clases, 0),
-        complementarios: monthlyResults.reduce((s, r) => s + r.ingresos.complementarios, 0),
-        trafico: monthlyResults.reduce((s, r) => s + r.ingresos.trafico, 0),
-        total: monthlyResults.reduce((s, r) => s + r.ingresos.total, 0),
-      },
-      costos: {
-        profesores: monthlyResults.reduce((s, r) => s + r.costos.profesores, 0),
-        costoVentas: monthlyResults.reduce((s, r) => s + r.costos.costoVentas, 0),
-      },
-    };
-
-    // Calculate monthly OPEX at this year's average income, then × 12
-    const ingresoMensualPromedio = annualCombined.ingresos.total / 12;
-    const opexMensual = calcularOpexParaPeriodo(
-      projectOpex, activities, ingresoMensualPromedio, capexTotal, daysPerMonth,
-    );
-
-    // Scale to annual
-    const opexAnual: OpexBreakdown = {
-      ...opexMensual,
-      nomina: opexMensual.nomina * 12,
-      arriendo: opexMensual.arriendo * 12,
-      seguros: opexMensual.seguros * 12,
-      serviciosPublicos: opexMensual.serviciosPublicos * 12,
-      marketing: opexMensual.marketing * 12,
-      mantenimiento: opexMensual.mantenimiento * 12,
-      seguridad: opexMensual.seguridad * 12,
-      tecnologia: opexMensual.tecnologia * 12,
-      administrativos: opexMensual.administrativos * 12,
-      gastosFinancieros: opexMensual.gastosFinancieros * 12,
-      impuestos: opexMensual.impuestos * 12,
-      comisiones: opexMensual.comisiones * 12,
-      otros: opexMensual.otros * 12,
-      depreciacion: opexMensual.depreciacion * 12,
-      opexCaja: opexMensual.opexCaja * 12,
-      opexTotal: opexMensual.opexTotal * 12,
-    };
-
-    return calcularPeriodo(annualCombined, ano, 'anual', opexAnual, depreciacionAnual, tasaImpuestos);
-  });
-}
-
-// =====================================================
 // calcularMetricas
 // =====================================================
 
@@ -414,29 +450,19 @@ function calcularMetricas(anos: PeriodoResultados[]) {
   const ingresoPromedio = ingresosTotal5Anos / 5;
   const ebitdaPromedio = ebitdaTotal5Anos / 5;
   const margenPromedioEbitda = ingresosTotal5Anos > 0
-    ? (ebitdaTotal5Anos / ingresosTotal5Anos) * 100
-    : 0;
+    ? (ebitdaTotal5Anos / ingresosTotal5Anos) * 100 : 0;
   const margenPromedioNeto = ingresosTotal5Anos > 0
-    ? (utilidadNetaTotal5Anos / ingresosTotal5Anos) * 100
-    : 0;
+    ? (utilidadNetaTotal5Anos / ingresosTotal5Anos) * 100 : 0;
 
   const ano3 = anos[2];
   const ratios = {
     margenBruto: ano3?.margenBrutoPorcentaje ?? 0,
     margenOperativo: ano3?.ebitdaPorcentaje ?? 0,
     margenNeto: ano3?.utilidadNetaPorcentaje ?? 0,
-    ros: ano3?.ingresos.netos > 0
-      ? (ano3.utilidadNeta / ano3.ingresos.netos) * 100
-      : 0,
-    opexSobreIngresos: ano3?.ingresos.netos > 0
-      ? (ano3.opex.total / ano3.ingresos.netos) * 100
-      : 0,
-    arriendoSobreIngresos: ano3?.ingresos.netos > 0
-      ? (ano3.opex.arriendo / ano3.ingresos.netos) * 100
-      : 0,
-    nominaSobreIngresos: ano3?.ingresos.netos > 0
-      ? (ano3.opex.nomina / ano3.ingresos.netos) * 100
-      : 0,
+    ros: ano3?.ingresos.netos > 0 ? (ano3.utilidadNeta / ano3.ingresos.netos) * 100 : 0,
+    opexSobreIngresos: ano3?.ingresos.netos > 0 ? (ano3.opex.total / ano3.ingresos.netos) * 100 : 0,
+    arriendoSobreIngresos: ano3?.ingresos.netos > 0 ? (ano3.opex.arriendo / ano3.ingresos.netos) * 100 : 0,
+    nominaSobreIngresos: ano3?.ingresos.netos > 0 ? (ano3.opex.nomina / ano3.ingresos.netos) * 100 : 0,
   };
 
   return {
