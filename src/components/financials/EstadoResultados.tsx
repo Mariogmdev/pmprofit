@@ -130,9 +130,17 @@ interface ChartDataItem {
 
 // ── Chart sub-components ──────────────────────────
 
-function GraficoIngresosEbitda({ data }: { data: ChartDataItem[] }) {
+function GraficoIngresosEbitda({
+  data,
+  width,
+  height,
+}: {
+  data: ChartDataItem[];
+  width?: number;
+  height?: number;
+}) {
   return (
-    <ComposedChart data={data}>
+    <ComposedChart data={data} width={width} height={height}>
       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
       <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
       <YAxis
@@ -164,9 +172,17 @@ function GraficoIngresosEbitda({ data }: { data: ChartDataItem[] }) {
   );
 }
 
-function GraficoMargenes({ data }: { data: ChartDataItem[] }) {
+function GraficoMargenes({
+  data,
+  width,
+  height,
+}: {
+  data: ChartDataItem[];
+  width?: number;
+  height?: number;
+}) {
   return (
-    <ComposedChart data={data}>
+    <ComposedChart data={data} width={width} height={height}>
       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
       <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
       <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 'auto']} />
@@ -189,9 +205,17 @@ function GraficoMargenes({ data }: { data: ChartDataItem[] }) {
   );
 }
 
-function GraficoCascada({ data }: { data: ChartDataItem[] }) {
+function GraficoCascada({
+  data,
+  width,
+  height,
+}: {
+  data: ChartDataItem[];
+  width?: number;
+  height?: number;
+}) {
   return (
-    <ComposedChart data={data}>
+    <ComposedChart data={data} width={width} height={height}>
       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
       <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
       <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `$${(v / 1_000_000).toFixed(0)}M`} />
@@ -215,7 +239,7 @@ function GraficoCascada({ data }: { data: ChartDataItem[] }) {
       <Bar dataKey="ingresos" fill="hsl(var(--primary))" opacity={0.2} radius={[4, 4, 0, 0]} name="ingresos" />
       <Bar dataKey="opex" fill="hsl(var(--destructive))" opacity={0.6} radius={[4, 4, 0, 0]} name="opex" />
       <Bar dataKey="ebitda" fill="hsl(var(--primary))" opacity={0.7} radius={[4, 4, 0, 0]} name="ebitda" />
-      <Line type="monotone" dataKey="utilidadNeta" stroke="hsl(220, 70%, 50%)" strokeWidth={2} dot={{ r: 4 }} name="utilidadNeta" />
+      <Line type="monotone" dataKey="utilidadNeta" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} name="utilidadNeta" />
     </ComposedChart>
   );
 }
@@ -313,6 +337,8 @@ export function EstadoResultados({
     margenEbitda: ano.ebitdaPorcentaje,
     margenNeto: ano.utilidadNetaPorcentaje,
   }));
+
+  
 
   return (
     <div className="space-y-6">
