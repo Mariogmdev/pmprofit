@@ -145,6 +145,4 @@ export interface EstadoResultadosProps {
   projectId: string;
   vista: 'anual' | 'mensual';
   periodo?: number;
-  onExportExcel?: () => void;
-  onExportPDF?: () => void;
 }

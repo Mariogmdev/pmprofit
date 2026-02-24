@@ -1,4 +1,4 @@
-import { Settings, Hammer, Package, BarChart2 } from 'lucide-react';
+import { Settings, Hammer, Package, BarChart2, LineChart } from 'lucide-react';
 import { AppTab } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ const tabs: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'constructor', label: 'Constructor', icon: <Hammer className="w-4 h-4" /> },
   { id: 'modules', label: 'Central de Módulos', icon: <Package className="w-4 h-4" /> },
   { id: 'summary', label: 'Resumen', icon: <BarChart2 className="w-4 h-4" /> },
+  { id: 'estados-financieros', label: 'Estados Financieros', icon: <LineChart className="w-4 h-4" /> },
 ];
 
 export default function AppTabs({ activeTab, onTabChange }: AppTabsProps) {
