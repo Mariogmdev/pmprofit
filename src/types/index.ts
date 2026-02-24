@@ -101,7 +101,7 @@ export type ProjectionYears = typeof PROJECTION_YEARS_OPTIONS[number];
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 // Tabs de la aplicación
-export type AppTab = 'config' | 'constructor' | 'modules' | 'summary' | 'estados-financieros';
+export type AppTab = 'config' | 'constructor' | 'modules' | 'summary' | 'estados-financieros' | 'balance-general';
 
 export interface TabInfo {
   id: AppTab;
