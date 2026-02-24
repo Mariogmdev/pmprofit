@@ -25,8 +25,14 @@ export function useExcelExport() {
   const daysPerMonth = currentProject?.days_per_month || 30;
   const inflationRate = currentProject?.inflation_rate || 3;
   const depreciacionAnos = opex?.depreciacion_anos || 10;
+  const projectionYears = currentProject?.projection_years || 5;
+  const discountRate = (currentProject?.discount_rate || 10) / 100;
+  const workingCapitalMonths = currentProject?.working_capital_months || 3;
+  const openingHour = currentProject?.opening_hour || 6;
+  const closingHour = currentProject?.closing_hour || 22;
+  const currency = currentProject?.currency || 'COP';
 
-  // CAPEX calculation (same as EstadoResultados/BalanceGeneral)
+  // CAPEX calculation
   const capexData = useMemo(() => {
     const capexActividades = activities.reduce((sum, activity) => {
       const config: ActivityConfig = activity.config;
@@ -63,15 +69,14 @@ export function useExcelExport() {
   const canExport = !metrics.loading && !!opex && activities.length > 0;
 
   const exportExcel = useCallback(async () => {
-    if (!canExport) return;
+    if (!canExport || !opex) return;
 
     setIsExporting(true);
     try {
-      const projectionYears = currentProject?.projection_years || 5;
       const pl = calculateEstadoResultados(
         projectId,
         activities,
-        opex!,
+        opex,
         capexData.capexSinWC,
         capexData.workingCapital,
         0.35,
@@ -88,13 +93,33 @@ export function useExcelExport() {
         capexData.workingCapital,
       );
 
-      exportarExcelCompleto(projectName, metrics, pl, balance);
+      exportarExcelCompleto({
+        projectName,
+        metrics,
+        pl,
+        balance,
+        activities,
+        opex,
+        inflationRate,
+        projectionYears,
+        daysPerMonth,
+        discountRate,
+        workingCapitalMonths,
+        depreciacionAnos,
+        openingHour,
+        closingHour,
+        currency,
+      });
     } catch (error) {
       console.error('Error exportando Excel:', error);
     } finally {
       setIsExporting(false);
     }
-  }, [canExport, projectId, projectName, activities, opex, capexData, daysPerMonth, inflationRate, depreciacionAnos, metrics, currentProject]);
+  }, [
+    canExport, projectId, projectName, activities, opex, capexData,
+    daysPerMonth, inflationRate, depreciacionAnos, metrics, projectionYears,
+    discountRate, workingCapitalMonths, openingHour, closingHour, currency,
+  ]);
 
   return { exportExcel, isExporting, canExport };
 }
