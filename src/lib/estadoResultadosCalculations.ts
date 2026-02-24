@@ -3,6 +3,9 @@
  *
  * CRITICAL RULE: Uses monthlyFinancialsWithOccupancy() as the ONLY
  * source of income data. Never duplicates income logic.
+ *
+ * OPEX: Uses calculateOpexMensual() from opexCalculations.ts as the
+ * SINGLE SOURCE for all OPEX calculations. Never duplicates OPEX logic.
  */
 
 import {
@@ -11,9 +14,10 @@ import {
 } from '@/types/estadoResultados';
 import {
   monthlyFinancialsWithOccupancy,
-  MonthlyFinancialsResult,
 } from '@/lib/monthlyFinancials';
 import { ActivityConfig } from '@/types/activity';
+import { ProjectOpex } from '@/types/opex';
+import { calculateOpexMensual, OpexBreakdown } from '@/lib/opexCalculations';
 import { logger } from '@/lib/logger';
 
 // =====================================================
@@ -22,16 +26,16 @@ import { logger } from '@/lib/logger';
 
 export function calculateEstadoResultados(
   projectId: string,
-  activities: ActivityConfig[],
+  activities: { id: string; name: string; config: ActivityConfig }[],
+  projectOpex: ProjectOpex,
   capexTotal: number,
   workingCapital: number,
-  opexProyecto: OpexProyectoInput = {},
   tasaImpuestos: number = 0.35,
   depreciacionAnos: number = 10,
   daysPerMonth: number = 30,
 ): EstadoResultados {
-  const meses = calcularMesesAno1(activities, capexTotal, opexProyecto, depreciacionAnos, tasaImpuestos, daysPerMonth);
-  const anos = calcularAnos(activities, capexTotal, opexProyecto, depreciacionAnos, tasaImpuestos, daysPerMonth);
+  const meses = calcularMesesAno1(activities, projectOpex, capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth);
+  const anos = calcularAnos(activities, projectOpex, capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth);
   const metricas = calcularMetricas(anos);
   const comparativo = calcularComparativo(anos);
 
@@ -44,26 +48,6 @@ export function calculateEstadoResultados(
     metricas,
     comparativoAnual: comparativo,
   };
-}
-
-// =====================================================
-// Project-level OPEX input (from project_opex table)
-// =====================================================
-
-export interface OpexProyectoInput {
-  arriendo?: number;
-  nomina?: number;
-  seguros?: number;
-  serviciosPublicos?: number;
-  marketing?: number;
-  mantenimiento?: number;
-  limpieza?: number;
-  seguridad?: number;
-  contabilidad?: number;
-  legal?: number;
-  tecnologia?: number;
-  comisiones?: number;
-  otros?: number;
 }
 
 // =====================================================
@@ -87,7 +71,7 @@ interface CombinedFinancials {
 }
 
 function combinarActividades(
-  activities: ActivityConfig[],
+  activities: { id: string; config: ActivityConfig }[],
   mes: number | null,
   ano: number,
   daysPerMonth: number,
@@ -103,19 +87,19 @@ function combinarActividades(
   // Pre-calculate total club users for traffic activities
   let totalClubUsers = 0;
   for (const activity of activities) {
-    if (activity.modeloIngreso !== 'trafico') {
-      const occ = getOccupationForPeriod(activity, mes, ano);
-      const f = monthlyFinancialsWithOccupancy(activity, daysPerMonth, occ.pico, occ.valle, 0);
+    if (activity.config.modeloIngreso !== 'trafico') {
+      const occ = getOccupationForPeriod(activity.config, mes, ano);
+      const f = monthlyFinancialsWithOccupancy(activity.config, daysPerMonth, occ.pico, occ.valle, 0);
       totalClubUsers += f.usuarios;
     }
   }
 
   for (const activity of activities) {
-    const occ = getOccupationForPeriod(activity, mes, ano);
-    const isTraffic = activity.modeloIngreso === 'trafico';
+    const occ = getOccupationForPeriod(activity.config, mes, ano);
+    const isTraffic = activity.config.modeloIngreso === 'trafico';
 
     const f = monthlyFinancialsWithOccupancy(
-      activity,
+      activity.config,
       daysPerMonth,
       occ.pico,
       occ.valle,
@@ -141,22 +125,19 @@ function combinarActividades(
 // =====================================================
 
 function getOccupationForPeriod(
-  activity: ActivityConfig,
+  config: ActivityConfig,
   mes: number | null,
   ano: number,
 ): { pico: number; valle: number } {
-  // Year 1 with specific month: use monthly occupation if available
   if (mes !== null && ano === 1) {
-    const monthly = activity.ocupacionMensual?.[mes - 1];
+    const monthly = config.ocupacionMensual?.[mes - 1];
     if (monthly) return { pico: monthly.pico, valle: monthly.valle };
   }
 
-  // Use annual occupation data
-  const yearData = activity.ocupacionAnual?.find(o => o.ano === ano);
+  const yearData = config.ocupacionAnual?.find(o => o.ano === ano);
   if (yearData) return { pico: yearData.pico, valle: yearData.valle };
 
-  // Fallback: year 1 data with growth multiplier
-  const year1 = activity.ocupacionAnual?.[0] ?? { pico: 60, valle: 30 };
+  const year1 = config.ocupacionAnual?.[0] ?? { pico: 60, valle: 30 };
   const mult = getYearMultiplier(ano);
   return {
     pico: Math.min(95, year1.pico * mult),
@@ -176,6 +157,26 @@ function getYearMultiplier(ano: number): number {
 }
 
 // =====================================================
+// calcularOpexParaPeriodo — uses shared engine
+// =====================================================
+
+function calcularOpexParaPeriodo(
+  projectOpex: ProjectOpex,
+  activities: { id: string; config: ActivityConfig }[],
+  ingresosBrutos: number,
+  capexParaDepreciacion: number,
+  daysPerMonth: number,
+): OpexBreakdown {
+  return calculateOpexMensual({
+    projectOpex,
+    activities,
+    ingresosBrutos,
+    capexParaDepreciacion,
+    daysPerMonth,
+  });
+}
+
+// =====================================================
 // calcularPeriodo
 // =====================================================
 
@@ -183,7 +184,7 @@ function calcularPeriodo(
   combined: CombinedFinancials,
   periodo: number,
   tipo: 'mensual' | 'anual',
-  opexProyecto: OpexProyectoInput,
+  opex: OpexBreakdown,
   depreciacionPeriodo: number,
   tasaImpuestos: number,
 ): PeriodoResultados {
@@ -213,23 +214,8 @@ function calcularPeriodo(
     ? (margenBruto / ingresosNetos) * 100
     : 0;
 
-  // --- OPEX (project-level, cash only, no depreciation) ---
-  const arriendo = opexProyecto.arriendo ?? 0;
-  const nomina = opexProyecto.nomina ?? 0;
-  const seguros = opexProyecto.seguros ?? 0;
-  const serviciosPublicos = opexProyecto.serviciosPublicos ?? 0;
-  const marketing = opexProyecto.marketing ?? 0;
-  const mantenimiento = opexProyecto.mantenimiento ?? 0;
-  const limpieza = opexProyecto.limpieza ?? 0;
-  const seguridad = opexProyecto.seguridad ?? 0;
-  const contabilidad = opexProyecto.contabilidad ?? 0;
-  const legal = opexProyecto.legal ?? 0;
-  const tecnologia = opexProyecto.tecnologia ?? 0;
-  const comisiones = opexProyecto.comisiones ?? 0;
-  const otros = opexProyecto.otros ?? 0;
-  const opexTotal = arriendo + nomina + seguros + serviciosPublicos +
-    marketing + mantenimiento + limpieza + seguridad +
-    contabilidad + legal + tecnologia + comisiones + otros;
+  // --- OPEX (from shared engine — opexCaja, sin depreciación) ---
+  const opexTotal = opex.opexCaja; // Cash OPEX for P&L EBITDA line
 
   // --- EBITDA (CRITICAL IDENTITY) ---
   const ebitda = margenBruto - opexTotal;
@@ -291,9 +277,19 @@ function calcularPeriodo(
     margenBruto,
     margenBrutoPorcentaje,
     opex: {
-      arriendo, nomina, seguros, serviciosPublicos, marketing,
-      mantenimiento, limpieza, seguridad, contabilidad, legal,
-      tecnologia, comisiones, otros,
+      arriendo: opex.arriendo,
+      nomina: opex.nomina,
+      seguros: opex.seguros,
+      serviciosPublicos: opex.serviciosPublicos,
+      marketing: opex.marketing,
+      mantenimiento: opex.mantenimiento,
+      limpieza: 0,
+      seguridad: opex.seguridad,
+      contabilidad: 0,
+      legal: 0,
+      tecnologia: opex.tecnologia,
+      comisiones: opex.comisiones,
+      otros: opex.otros + opex.administrativos + opex.gastosFinancieros + opex.impuestos,
       total: opexTotal,
     },
     ebitda,
@@ -314,9 +310,9 @@ function calcularPeriodo(
 // =====================================================
 
 function calcularMesesAno1(
-  activities: ActivityConfig[],
+  activities: { id: string; config: ActivityConfig }[],
+  projectOpex: ProjectOpex,
   capexTotal: number,
-  opexProyecto: OpexProyectoInput,
   depreciacionAnos: number,
   tasaImpuestos: number,
   daysPerMonth: number,
@@ -326,7 +322,13 @@ function calcularMesesAno1(
   return Array.from({ length: 12 }, (_, i) => {
     const mes = i + 1;
     const combined = combinarActividades(activities, mes, 1, daysPerMonth);
-    return calcularPeriodo(combined, mes, 'mensual', opexProyecto, depreciacionMensual, tasaImpuestos);
+
+    // Calculate OPEX using the combined income for this month
+    const opex = calcularOpexParaPeriodo(
+      projectOpex, activities, combined.ingresos.total, capexTotal, daysPerMonth,
+    );
+
+    return calcularPeriodo(combined, mes, 'mensual', opex, depreciacionMensual, tasaImpuestos);
   });
 }
 
@@ -335,9 +337,9 @@ function calcularMesesAno1(
 // =====================================================
 
 function calcularAnos(
-  activities: ActivityConfig[],
+  activities: { id: string; config: ActivityConfig }[],
+  projectOpex: ProjectOpex,
   capexTotal: number,
-  opexProyecto: OpexProyectoInput,
   depreciacionAnos: number,
   tasaImpuestos: number,
   daysPerMonth: number,
@@ -369,11 +371,32 @@ function calcularAnos(
       },
     };
 
-    // Annual OPEX = monthly × 12
-    const opexAnual: OpexProyectoInput = {};
-    for (const key of Object.keys(opexProyecto) as (keyof OpexProyectoInput)[]) {
-      opexAnual[key] = (opexProyecto[key] ?? 0) * 12;
-    }
+    // Calculate monthly OPEX at this year's average income, then × 12
+    const ingresoMensualPromedio = annualCombined.ingresos.total / 12;
+    const opexMensual = calcularOpexParaPeriodo(
+      projectOpex, activities, ingresoMensualPromedio, capexTotal, daysPerMonth,
+    );
+
+    // Scale to annual
+    const opexAnual: OpexBreakdown = {
+      ...opexMensual,
+      nomina: opexMensual.nomina * 12,
+      arriendo: opexMensual.arriendo * 12,
+      seguros: opexMensual.seguros * 12,
+      serviciosPublicos: opexMensual.serviciosPublicos * 12,
+      marketing: opexMensual.marketing * 12,
+      mantenimiento: opexMensual.mantenimiento * 12,
+      seguridad: opexMensual.seguridad * 12,
+      tecnologia: opexMensual.tecnologia * 12,
+      administrativos: opexMensual.administrativos * 12,
+      gastosFinancieros: opexMensual.gastosFinancieros * 12,
+      impuestos: opexMensual.impuestos * 12,
+      comisiones: opexMensual.comisiones * 12,
+      otros: opexMensual.otros * 12,
+      depreciacion: opexMensual.depreciacion * 12,
+      opexCaja: opexMensual.opexCaja * 12,
+      opexTotal: opexMensual.opexTotal * 12,
+    };
 
     return calcularPeriodo(annualCombined, ano, 'anual', opexAnual, depreciacionAnual, tasaImpuestos);
   });
@@ -397,7 +420,6 @@ function calcularMetricas(anos: PeriodoResultados[]) {
     ? (utilidadNetaTotal5Anos / ingresosTotal5Anos) * 100
     : 0;
 
-  // Ratios from Year 3 (maturity)
   const ano3 = anos[2];
   const ratios = {
     margenBruto: ano3?.margenBrutoPorcentaje ?? 0,

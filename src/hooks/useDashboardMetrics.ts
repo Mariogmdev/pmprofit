@@ -11,6 +11,7 @@ import { ProjectSpace } from '@/types/infrastructure';
 import { calculateActivityFinancials, calculateOccupancyTarget } from '@/lib/activityCalculations';
 import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
 import { calculateYearlyProjection } from '@/lib/projectionCalculations';
+import { calculateOpexMensual as calculateOpexMensualShared } from '@/lib/opexCalculations';
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -284,179 +285,19 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     // Working Capital parameters
     const workingCapitalMonths = currentProject?.working_capital_months ?? 3;
 
-    // === OPEX CALCULATIONS (Simplified from OpexSummaryCard logic) ===
-    const calculateReservasForActivities = (actividadesIncluidas?: string[]) => {
-      const activitiesToInclude = actividadesIncluidas && actividadesIncluidas.length > 0
-        ? activities.filter(a => actividadesIncluidas.includes(a.id))
-        : activities;
-
-      return activitiesToInclude.reduce((sum, act) => {
-        const config: ActivityConfig = act.config;
-        const cantidad = config.cantidad || 1;
-        const horarios = config.horarios || [];
-        const ocupacionPromedio = horarios.length > 0
-          ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
-          : 0.5;
-        const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-        const diasMes = daysPerMonth;
-        const reservasPorDia = horasOperacion * ocupacionPromedio / (config.duracionReserva || 1.5);
-        return sum + (cantidad * reservasPorDia * diasMes);
-      }, 0);
-    };
-
-    const calculateCategoryTotal = (items: ServiceItem[], ingresos: number) => {
-      if (!items || items.length === 0) return 0;
-      return items.reduce((sum, item) => {
-        const tipo = item.tipo || 'fijo';
-        if (tipo === 'fijo') {
-          return sum + (item.costoMensual || 0);
-        } else if (tipo === 'porcentaje-facturacion') {
-          return sum + (ingresos * ((item.porcentaje || 0) / 100));
-        } else if (tipo === 'por-reserva') {
-          const reservasAplicables = calculateReservasForActivities(item.actividadesIncluidas);
-          const reservasConPorcentaje = reservasAplicables * ((item.porcentajeReservas || 100) / 100);
-          return sum + ((item.costoPorReserva || 0) * reservasConPorcentaje);
-        }
-        return sum;
-      }, 0);
-    };
-
-    /**
-     * IMPORTANTE - Diferencia OPEX Caja vs OPEX Total:
-     * 
-     * OPEX_CAJA (sin depreciación):
-     *   - Para cálculo de EBITDA (Earnings Before Interest, Tax, Depreciation, Amortization)
-     *   - Para Working Capital (solo gastos que requieren caja)
-     *   - Para flujos de caja operativos
-     * 
-     * OPEX_TOTAL (con depreciación):
-     *   - Para cálculo de EBIT (Earnings Before Interest and Tax)
-     *   - Para P&L contable completo
-     *   - Para cálculo de impuestos (base gravable)
-     */
-    
-    // Calculate OPEX - uses capexSinWorkingCapital for depreciation (working capital is not depreciated)
-    // Returns both opexTotal (with depreciation) and opexCaja (without depreciation - for EBITDA)
+    // === OPEX CALCULATIONS (uses shared engine from opexCalculations.ts) ===
     const calculateOpexMensual = (ingresosBrutos: number, capexParaDepreciacion: number): { opexTotal: number; opexCaja: number } => {
-
-      // Payroll from activities
-      const nominaActividades = activities.reduce((sum, act) => {
-        const config: ActivityConfig = act.config;
-        const personal = config.personal || [];
-        return sum + personal.reduce((s, p) => s + ((p.cantidad || 0) * (p.salarioMensual || 0)), 0);
-      }, 0);
-
-      // Maintenance from activities
-      const mantenimientoActividades = activities.reduce((sum, act) => {
-        const config: ActivityConfig = act.config;
-        const mantenimiento = config.mantenimiento || [];
-        const costoAnual = mantenimiento.reduce((s, m) => s + (m.costoAnual || 0), 0);
-        return sum + (costoAnual / 12);
-      }, 0);
-
-      // Payroll
-      const nominaAdmin = (opex?.nomina_administrativa || []).reduce(
-        (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
-      );
-      const nominaOperativo = (opex?.nomina_operativa || []).reduce(
-        (s, i) => s + ((i.cantidad || 0) * (i.salarioMensual || 0)), 0
-      );
-      const nominaBase = nominaAdmin + nominaOperativo + nominaActividades;
-      const prestaciones = nominaBase * ((opex?.prestaciones_porcentaje || 53.94) / 100);
-      const totalNomina = nominaBase + prestaciones;
-
-      // Categories
-      const serviciosPublicos = calculateCategoryTotal(opex?.servicios_publicos || [], ingresosBrutos);
-      const marketing = calculateCategoryTotal(opex?.marketing || [], ingresosBrutos);
-      const tecnologia = calculateCategoryTotal(opex?.tecnologia || [], ingresosBrutos);
-      const seguridad = calculateCategoryTotal(opex?.seguridad || [], ingresosBrutos);
-      const seguros = calculateCategoryTotal(opex?.seguros || [], ingresosBrutos);
-      const mantenimientoGeneral = calculateCategoryTotal(opex?.mantenimiento_general || [], ingresosBrutos);
-      const administrativos = calculateCategoryTotal(opex?.administrativos || [], ingresosBrutos);
-      const otrosGastos = calculateCategoryTotal(opex?.otros_gastos || [], ingresosBrutos);
-
-      // Financial expenses
-      let gastosFinancieros = 0;
-      if (opex?.incluir_4x1000) {
-        gastosFinancieros += ingresosBrutos * 0.004;
-      }
-      gastosFinancieros += (opex?.comisiones_bancarias || []).reduce(
-        (s, i) => s + (i.costoMensual || 0), 0
-      );
-      if (opex?.incluir_comision_datafono !== false) {
-        gastosFinancieros += ingresosBrutos * 
-                            ((opex?.porcentaje_ventas_datafono ?? 70) / 100) * 
-                            ((opex?.comision_datafono_porcentaje ?? 2.5) / 100);
-      }
-
-      // Taxes
-      let impuestos = 0;
-      if (opex?.incluir_iva) {
-        const ivaCobrado = ingresosBrutos * 
-                           ((opex?.porcentaje_ingresos_iva ?? 0) / 100) * 
-                           ((opex?.tarifa_iva ?? 19) / 100);
-        impuestos += Math.max(0, ivaCobrado - (opex?.iva_pagado_estimado ?? 0));
-      }
-      if (opex?.incluir_retenciones) {
-        impuestos += (opex?.retenciones || []).reduce((s, i) => {
-          const base = i.base === 'ingresos' ? ingresosBrutos : ingresosBrutos * 0.3;
-          return s + (base * ((i.porcentaje || 0) / 100));
-        }, 0);
-      }
-
-      // Depreciation - uses CAPEX without working capital (working capital is not a depreciable asset)
-      const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
-      const incluirDepreciacion = opex?.incluir_depreciacion !== false;
-      const depreciacion = incluirDepreciacion ? (capexParaDepreciacion / depreciacionAnos / 12) : 0;
-
-      // OPEX CAJA (sin depreciación) - para EBITDA y Working Capital
-      const opexCajaSinArriendoNiComisiones = totalNomina + serviciosPublicos + marketing +
-        tecnologia + seguridad + seguros + mantenimientoGeneral + mantenimientoActividades +
-        administrativos + gastosFinancieros + impuestos + otrosGastos;
-
-      // OPEX TOTAL (con depreciación) - para EBIT
-      const opexSinArriendoNiComisiones = opexCajaSinArriendoNiComisiones + depreciacion;
-
-      // Rent calculation
-      const calculateRentBase = (base: RentCalculationBase): number => {
-        switch (base) {
-          case 'ingresos-brutos': return ingresosBrutos;
-          case 'ingresos-netos': return ingresosNetos;
-          case 'utilidades': return ingresosBrutos - opexSinArriendoNiComisiones;
-          case 'ingresos-operacionales': return ingresosOperacionales;
-          default: return ingresosBrutos;
-        }
-      };
-
-      let arrendamiento = 0;
-      const modelo = opex?.arrendamiento_modelo || 'propio';
-      if (modelo === 'fijo') {
-        arrendamiento = opex?.arrendamiento_fijo || 0;
-      } else if (modelo === 'variable') {
-        const base = calculateRentBase(opex?.arrendamiento_variable_base || 'ingresos-brutos');
-        arrendamiento = base * ((opex?.arrendamiento_variable_porcentaje || 0) / 100);
-      } else if (modelo === 'mixto') {
-        const base = calculateRentBase(opex?.arrendamiento_mixto_base || 'ingresos-brutos');
-        arrendamiento = (opex?.arrendamiento_mixto_fijo || 0) + 
-                        base * ((opex?.arrendamiento_mixto_porcentaje || 0) / 100);
-      }
-
-      const opexSinComisiones = opexSinArriendoNiComisiones + arrendamiento;
-      const opexCajaSinComisiones = opexCajaSinArriendoNiComisiones + arrendamiento;
-      const utilidadesAntesComisiones = Math.max(0, ingresosBrutos - opexSinComisiones);
-
-      // Commissions
-      const comisiones = (opex?.comisiones || []).reduce((sum, com) => {
-        let base = ingresosBrutos;
-        if (com.base === 'ingresos-netos') base = ingresosNetos;
-        if (com.base === 'utilidades') base = utilidadesAntesComisiones;
-        return sum + (base * ((com.porcentaje || 0) / 100));
-      }, 0);
-
-      const opexTotal = opexSinComisiones + comisiones;
-      const opexCaja = opexCajaSinComisiones + comisiones;
-
-      return { opexTotal, opexCaja };
+      if (!opex) return { opexTotal: 0, opexCaja: 0 };
+      const result = calculateOpexMensualShared({
+        projectOpex: opex,
+        activities,
+        ingresosBrutos,
+        ingresosNetos,
+        ingresosOperacionales,
+        capexParaDepreciacion,
+        daysPerMonth,
+      });
+      return { opexTotal: result.opexTotal, opexCaja: result.opexCaja };
     };
 
     // === CALCULATE WORKING CAPITAL & FINAL CAPEX ===
