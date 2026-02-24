@@ -38,6 +38,7 @@ export function calculateEstadoResultados(
   depreciacionAnos: number = 10,
   daysPerMonth: number = 30,
   inflationRate: number = 3,
+  projectionYears: number = 5,
 ): EstadoResultados {
   // ── Step 1: Calculate Year 1 monthly data (same as dashboard) ──
   const year1Data = calculateYear1Monthly(activities, daysPerMonth);
@@ -45,13 +46,13 @@ export function calculateEstadoResultados(
   // ── Step 2: Calculate ocupacionPromedio (same as dashboard) ──
   const ocupacionPromedio = calculateWeightedOccupancyFromActivities(activities, daysPerMonth);
 
-  // ── Step 3: Build 5-year projection using SAME engine as dashboard ──
+  // ── Step 3: Build N-year projection using SAME engine as dashboard ──
   const yearlyProjection = calculateYearlyProjection(
     year1Data.totalYear1Income, // Annual Year 1 income
     ocupacionPromedio,           // Year 1 average occupancy
     5,                           // Crecimiento ocupación 5%/año (same as dashboard)
     inflationRate,               // From project config
-    5,                           // 5 years
+    projectionYears,             // Dynamic from project config
   );
 
   // ── Step 4: Calculate COGS ratio from Year 1 (month 12 = maturity) ──
@@ -447,22 +448,24 @@ function calcularMetricas(anos: PeriodoResultados[]) {
   const ebitdaTotal5Anos = anos.reduce((s, a) => s + a.ebitda, 0);
   const utilidadNetaTotal5Anos = anos.reduce((s, a) => s + a.utilidadNeta, 0);
 
-  const ingresoPromedio = ingresosTotal5Anos / 5;
-  const ebitdaPromedio = ebitdaTotal5Anos / 5;
+  const numAnos = anos.length || 1;
+  const ingresoPromedio = ingresosTotal5Anos / numAnos;
+  const ebitdaPromedio = ebitdaTotal5Anos / numAnos;
   const margenPromedioEbitda = ingresosTotal5Anos > 0
     ? (ebitdaTotal5Anos / ingresosTotal5Anos) * 100 : 0;
   const margenPromedioNeto = ingresosTotal5Anos > 0
     ? (utilidadNetaTotal5Anos / ingresosTotal5Anos) * 100 : 0;
 
-  const ano3 = anos[2];
+  const indiceRatios = Math.min(2, anos.length - 1);
+  const anoRatios = anos[indiceRatios];
   const ratios = {
-    margenBruto: ano3?.margenBrutoPorcentaje ?? 0,
-    margenOperativo: ano3?.ebitdaPorcentaje ?? 0,
-    margenNeto: ano3?.utilidadNetaPorcentaje ?? 0,
-    ros: ano3?.ingresos.netos > 0 ? (ano3.utilidadNeta / ano3.ingresos.netos) * 100 : 0,
-    opexSobreIngresos: ano3?.ingresos.netos > 0 ? (ano3.opex.total / ano3.ingresos.netos) * 100 : 0,
-    arriendoSobreIngresos: ano3?.ingresos.netos > 0 ? (ano3.opex.arriendo / ano3.ingresos.netos) * 100 : 0,
-    nominaSobreIngresos: ano3?.ingresos.netos > 0 ? (ano3.opex.nomina / ano3.ingresos.netos) * 100 : 0,
+    margenBruto: anoRatios?.margenBrutoPorcentaje ?? 0,
+    margenOperativo: anoRatios?.ebitdaPorcentaje ?? 0,
+    margenNeto: anoRatios?.utilidadNetaPorcentaje ?? 0,
+    ros: anoRatios?.ingresos.netos > 0 ? (anoRatios.utilidadNeta / anoRatios.ingresos.netos) * 100 : 0,
+    opexSobreIngresos: anoRatios?.ingresos.netos > 0 ? (anoRatios.opex.total / anoRatios.ingresos.netos) * 100 : 0,
+    arriendoSobreIngresos: anoRatios?.ingresos.netos > 0 ? (anoRatios.opex.arriendo / anoRatios.ingresos.netos) * 100 : 0,
+    nominaSobreIngresos: anoRatios?.ingresos.netos > 0 ? (anoRatios.opex.nomina / anoRatios.ingresos.netos) * 100 : 0,
   };
 
   return {

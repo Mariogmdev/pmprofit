@@ -24,7 +24,7 @@ import {
 } from 'recharts';
 
 const MONTH_HEADERS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-const YEAR_HEADERS = ['Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'];
+// YEAR_HEADERS generated dynamically from P&L data
 
 // ── Auxiliary row components ──────────────────────────
 
@@ -299,6 +299,8 @@ export function EstadoResultados({
   const inflationRate = currentProject?.inflation_rate || 3;
 
   // Calculate P&L (aligned with dashboard projection engine)
+  const projectionYears = currentProject?.projection_years || 5;
+
   const pl = useMemo(() => {
     if (!opex || activities.length === 0) return null;
     return calculateEstadoResultados(
@@ -311,8 +313,9 @@ export function EstadoResultados({
       opex.depreciacion_anos || 10,
       daysPerMonth,
       inflationRate,
+      projectionYears,
     );
-  }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate]);
+  }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate, projectionYears]);
 
   if (loading || !pl) {
     return (
@@ -325,7 +328,8 @@ export function EstadoResultados({
   }
 
   const periodos = vista === 'anual' ? pl.anos : pl.meses;
-  const headers = vista === 'anual' ? YEAR_HEADERS : MONTH_HEADERS;
+  const yearHeaders = pl.anos.map(a => `Año ${a.periodo}`);
+  const headers = vista === 'anual' ? yearHeaders : MONTH_HEADERS;
   const colSpan = headers.length + 1;
 
   const chartData: ChartDataItem[] = pl.anos.map((ano) => ({

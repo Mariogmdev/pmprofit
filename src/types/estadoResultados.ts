@@ -103,7 +103,7 @@ export interface EstadoResultados {
     incluyeIntereses: boolean;
   };
 
-  anos: PeriodoResultados[];  // 5 elementos, tipo='anual'
+  anos: PeriodoResultados[];  // N elementos (projection_years), tipo='anual'
   meses: PeriodoResultados[]; // 12 elementos, tipo='mensual' (Año 1)
 
   metricas: {
