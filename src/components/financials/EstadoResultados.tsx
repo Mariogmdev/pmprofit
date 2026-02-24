@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, TrendingDown, Download, FileText } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { EstadoResultadosProps, PeriodoResultados } from '@/types/estadoResultados';
 import { calculateEstadoResultados } from '@/lib/estadoResultadosCalculations';
 import { useProject } from '@/contexts/ProjectContext';
@@ -111,8 +111,6 @@ function FilaTotalConMargen({
 export function EstadoResultados({
   projectId,
   vista: vistaInicial = 'anual',
-  onExportExcel,
-  onExportPDF,
 }: EstadoResultadosProps) {
   const [vista, setVista] = useState<'anual' | 'mensual'>(vistaInicial);
 
@@ -209,16 +207,6 @@ export function EstadoResultados({
                   <TabsTrigger value="mensual" className="text-xs px-3">Año 1 Mensual</TabsTrigger>
                 </TabsList>
               </Tabs>
-              {onExportPDF && (
-                <Button variant="outline" size="sm" onClick={onExportPDF}>
-                  <FileText className="h-3.5 w-3.5 mr-1" /> PDF
-                </Button>
-              )}
-              {onExportExcel && (
-                <Button variant="outline" size="sm" onClick={onExportExcel}>
-                  <Download className="h-3.5 w-3.5 mr-1" /> Excel
-                </Button>
-              )}
             </div>
           </div>
         </CardHeader>

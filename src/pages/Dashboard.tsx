@@ -8,9 +8,10 @@ import ConfigurationTab from '@/components/tabs/ConfigurationTab';
 import ConstructorTab from '@/components/tabs/ConstructorTab';
 import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
 import { DashboardTab } from '@/components/dashboard/DashboardTab';
+import { EstadoResultados } from '@/components/financials/EstadoResultados';
 
 export default function Dashboard() {
-  const { saveStatus } = useProject();
+  const { saveStatus, currentProject } = useProject();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
 
@@ -24,6 +25,12 @@ export default function Dashboard() {
         return <ModuleCenterTab />;
       case 'summary':
         return <DashboardTab onTabChange={setActiveTab} />;
+      case 'estados-financieros':
+        return currentProject ? (
+          <div className="p-4 lg:p-6">
+            <EstadoResultados projectId={currentProject.id} vista="anual" />
+          </div>
+        ) : null;
       default:
         return <ConfigurationTab />;
     }
