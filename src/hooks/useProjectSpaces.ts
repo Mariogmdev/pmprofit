@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectSpace, BreakdownItem, SpaceIncomeConfig } from '@/types/infrastructure';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface DbProjectSpace {
   id: string;
@@ -74,7 +75,7 @@ export const useProjectSpaces = (projectId: string) => {
       .order('order_index');
 
     if (error) {
-      console.error('Error loading spaces:', error);
+      logger.dev('Error loading spaces:', error);
       toast({
         title: 'Error al cargar espacios',
         description: error.message,
@@ -110,7 +111,7 @@ export const useProjectSpaces = (projectId: string) => {
       .single();
 
     if (error) {
-      console.error('Error adding space:', error);
+      logger.dev('Error adding space:', error);
       toast({
         title: 'Error al agregar espacio',
         description: error.message,
@@ -146,7 +147,7 @@ export const useProjectSpaces = (projectId: string) => {
       .eq('id', id);
 
     if (error) {
-      console.error('Error updating space:', error);
+      logger.dev('Error updating space:', error);
       toast({
         title: 'Error al actualizar espacio',
         description: error.message,
@@ -166,7 +167,7 @@ export const useProjectSpaces = (projectId: string) => {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting space:', error);
+      logger.dev('Error deleting space:', error);
       toast({
         title: 'Error al eliminar espacio',
         description: error.message,

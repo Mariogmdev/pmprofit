@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logger } from '@/lib/logger';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -78,7 +79,7 @@ export default function CreateProjectModal({
       reset();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error creating project:', error);
+      logger.dev('Error creating project:', error);
     } finally {
       setIsLoading(false);
     }

@@ -5,6 +5,7 @@ import { SYSTEM_MODULES } from '@/data/systemModules';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Json } from '@/integrations/supabase/types';
+import { logger } from '@/lib/logger';
 
 type FilterOrigin = 'all' | 'system' | 'mine';
 
@@ -80,7 +81,7 @@ export function useModules(): UseModulesReturn {
 
       if (fetchError) {
         setError('Error al cargar los módulos');
-        console.error('Error fetching modules:', fetchError);
+        logger.dev('Error fetching modules:', fetchError);
         return;
       }
 
@@ -88,7 +89,7 @@ export function useModules(): UseModulesReturn {
       setModules(mappedModules);
     } catch (err) {
       setError('Error al cargar los módulos');
-      console.error('Error fetching modules:', err);
+      logger.dev('Error fetching modules:', err);
     } finally {
       setLoading(false);
     }
@@ -159,7 +160,7 @@ export function useModules(): UseModulesReturn {
         .single();
 
       if (createError) {
-        console.error('Error creating module:', createError);
+        logger.dev('Error creating module:', createError);
         toast({
           title: 'Error',
           description: 'No se pudo crear el módulo',
@@ -178,7 +179,7 @@ export function useModules(): UseModulesReturn {
 
       return newModule;
     } catch (err) {
-      console.error('Error creating module:', err);
+      logger.dev('Error creating module:', err);
       return null;
     }
   };
@@ -207,7 +208,7 @@ export function useModules(): UseModulesReturn {
         .eq('id', id);
 
       if (updateError) {
-        console.error('Error updating module:', updateError);
+        logger.dev('Error updating module:', updateError);
         toast({
           title: 'Error',
           description: 'No se pudo actualizar el módulo',
@@ -229,7 +230,7 @@ export function useModules(): UseModulesReturn {
         description: 'Los cambios se guardaron correctamente',
       });
     } catch (err) {
-      console.error('Error updating module:', err);
+      logger.dev('Error updating module:', err);
     }
   };
 
@@ -241,7 +242,7 @@ export function useModules(): UseModulesReturn {
         .eq('id', id);
 
       if (deleteError) {
-        console.error('Error deleting module:', deleteError);
+        logger.dev('Error deleting module:', deleteError);
         toast({
           title: 'Error',
           description: 'No se pudo eliminar el módulo',
@@ -257,7 +258,7 @@ export function useModules(): UseModulesReturn {
         description: 'El módulo se eliminó correctamente',
       });
     } catch (err) {
-      console.error('Error deleting module:', err);
+      logger.dev('Error deleting module:', err);
     }
   };
 
