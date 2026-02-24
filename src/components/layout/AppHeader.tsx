@@ -25,9 +25,11 @@ import { SaveStatus } from '@/types';
 
 interface AppHeaderProps {
   saveStatus: SaveStatus;
+  onExportExcel?: () => void;
+  isExporting?: boolean;
 }
 
-export default function AppHeader({ saveStatus }: AppHeaderProps) {
+export default function AppHeader({ saveStatus, onExportExcel, isExporting }: AppHeaderProps) {
   const { profile, signOut } = useAuth();
   const { currentProject, projects, selectProject } = useProject();
   const navigate = useNavigate();
@@ -128,9 +130,15 @@ export default function AppHeader({ saveStatus }: AppHeaderProps) {
 
           {/* Botones de exportación */}
           <div className="hidden lg:flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={onExportExcel}
+              disabled={isExporting || !onExportExcel}
+            >
               <Download className="w-4 h-4" />
-              CSV
+              {isExporting ? 'Exportando...' : 'Excel'}
             </Button>
             <Button variant="outline" size="sm" className="gap-2">
               <FileText className="w-4 h-4" />

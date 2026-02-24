@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppTab } from '@/types';
 import { useProject } from '@/contexts/ProjectContext';
+import { useExcelExport } from '@/hooks/useExcelExport';
 import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AppTabs from '@/components/layout/AppTabs';
@@ -13,6 +14,7 @@ import { BalanceGeneral } from '@/components/financials/BalanceGeneral';
 
 export default function Dashboard() {
   const { saveStatus, currentProject } = useProject();
+  const { exportExcel, isExporting } = useExcelExport();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
 
@@ -45,7 +47,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader saveStatus={saveStatus} />
+      <AppHeader saveStatus={saveStatus} onExportExcel={exportExcel} isExporting={isExporting} />
 
       <div className="flex w-full">
         <AppSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
