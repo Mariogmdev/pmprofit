@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { EstadoResultadosProps, PeriodoResultados } from '@/types/estadoResultados';
@@ -12,6 +11,17 @@ import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useObraCivil } from '@/hooks/useObraCivil';
 import { ActivityConfig } from '@/types/activity';
 import { formatPLCurrency, formatPLPercentage } from '@/lib/plFormatters';
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 const MONTH_HEADERS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const YEAR_HEADERS = ['Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'];
@@ -106,6 +116,110 @@ function FilaTotalConMargen({
   );
 }
 
+// ── Chart data type ──────────────────────────
+
+interface ChartDataItem {
+  name: string;
+  ingresos: number;
+  opex: number;
+  ebitda: number;
+  utilidadNeta: number;
+  margenEbitda: number;
+  margenNeto: number;
+}
+
+// ── Chart sub-components ──────────────────────────
+
+function GraficoIngresosEbitda({ data }: { data: ChartDataItem[] }) {
+  return (
+    <ComposedChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+      <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+      <YAxis
+        yAxisId="left"
+        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+        tickFormatter={(v) => `$${(v / 1_000_000).toFixed(0)}M`}
+      />
+      <Tooltip
+        formatter={(value: number, name: string) => [
+          `$${(value / 1_000_000).toFixed(1)}M`,
+          name === 'ingresos' ? 'Ingresos' : name === 'ebitda' ? 'EBITDA' : 'Utilidad Neta',
+        ]}
+        contentStyle={{
+          backgroundColor: 'hsl(var(--card))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '8px',
+          fontSize: '12px',
+        }}
+      />
+      <Legend
+        formatter={(value) =>
+          value === 'ingresos' ? 'Ingresos Netos' : value === 'ebitda' ? 'EBITDA' : 'Utilidad Neta'
+        }
+      />
+      <Bar yAxisId="left" dataKey="ingresos" fill="hsl(var(--primary))" opacity={0.3} radius={[4, 4, 0, 0]} name="ingresos" />
+      <Bar yAxisId="left" dataKey="ebitda" fill="hsl(var(--primary))" opacity={0.8} radius={[4, 4, 0, 0]} name="ebitda" />
+      <Line yAxisId="left" type="monotone" dataKey="utilidadNeta" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ fill: 'hsl(var(--destructive))', r: 4 }} name="utilidadNeta" />
+    </ComposedChart>
+  );
+}
+
+function GraficoMargenes({ data }: { data: ChartDataItem[] }) {
+  return (
+    <ComposedChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+      <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 'auto']} />
+      <Tooltip
+        formatter={(value: number, name: string) => [
+          `${value.toFixed(1)}%`,
+          name === 'margenEbitda' ? 'Margen EBITDA' : 'Margen Neto',
+        ]}
+        contentStyle={{
+          backgroundColor: 'hsl(var(--card))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '8px',
+          fontSize: '12px',
+        }}
+      />
+      <Legend formatter={(value) => (value === 'margenEbitda' ? 'Margen EBITDA %' : 'Margen Neto %')} />
+      <Line type="monotone" dataKey="margenEbitda" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: 'hsl(var(--primary))', r: 5 }} name="margenEbitda" />
+      <Line type="monotone" dataKey="margenNeto" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: 'hsl(var(--destructive))', r: 4 }} name="margenNeto" />
+    </ComposedChart>
+  );
+}
+
+function GraficoCascada({ data }: { data: ChartDataItem[] }) {
+  return (
+    <ComposedChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+      <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `$${(v / 1_000_000).toFixed(0)}M`} />
+      <Tooltip
+        formatter={(value: number, name: string) => [
+          `$${(value / 1_000_000).toFixed(1)}M`,
+          name === 'ingresos' ? 'Ingresos' : name === 'opex' ? 'OPEX' : name === 'ebitda' ? 'EBITDA' : 'Utilidad Neta',
+        ]}
+        contentStyle={{
+          backgroundColor: 'hsl(var(--card))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: '8px',
+          fontSize: '12px',
+        }}
+      />
+      <Legend
+        formatter={(value) =>
+          value === 'ingresos' ? 'Ingresos' : value === 'opex' ? 'OPEX' : value === 'ebitda' ? 'EBITDA' : 'Utilidad Neta'
+        }
+      />
+      <Bar dataKey="ingresos" fill="hsl(var(--primary))" opacity={0.2} radius={[4, 4, 0, 0]} name="ingresos" />
+      <Bar dataKey="opex" fill="hsl(var(--destructive))" opacity={0.6} radius={[4, 4, 0, 0]} name="opex" />
+      <Bar dataKey="ebitda" fill="hsl(var(--primary))" opacity={0.7} radius={[4, 4, 0, 0]} name="ebitda" />
+      <Line type="monotone" dataKey="utilidadNeta" stroke="hsl(220, 70%, 50%)" strokeWidth={2} dot={{ r: 4 }} name="utilidadNeta" />
+    </ComposedChart>
+  );
+}
+
 // ── Main Component ──────────────────────────
 
 export function EstadoResultados({
@@ -113,6 +227,7 @@ export function EstadoResultados({
   vista: vistaInicial = 'anual',
 }: EstadoResultadosProps) {
   const [vista, setVista] = useState<'anual' | 'mensual'>(vistaInicial);
+  const [chartView, setChartView] = useState<string>('ingresos-ebitda');
 
   const { currentProject } = useProject();
   const { activities, loading: activitiesLoading } = useProjectActivities();
@@ -188,6 +303,16 @@ export function EstadoResultados({
   const periodos = vista === 'anual' ? pl.anos : pl.meses;
   const headers = vista === 'anual' ? YEAR_HEADERS : MONTH_HEADERS;
   const colSpan = headers.length + 1;
+
+  const chartData: ChartDataItem[] = pl.anos.map((ano) => ({
+    name: `Año ${ano.periodo}`,
+    ingresos: ano.ingresos.netos,
+    opex: ano.opex.total,
+    ebitda: ano.ebitda,
+    utilidadNeta: ano.utilidadNeta,
+    margenEbitda: ano.ebitdaPorcentaje,
+    margenNeto: ano.utilidadNetaPorcentaje,
+  }));
 
   return (
     <div className="space-y-6">
@@ -376,6 +501,46 @@ export function EstadoResultados({
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── GRÁFICO EVOLUCIÓN 5 AÑOS ── */}
+      {vista === 'anual' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">📈 Evolución Financiera 5 Años</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2 mb-4">
+              {[
+                { key: 'ingresos-ebitda', label: 'Ingresos vs EBITDA' },
+                { key: 'margenes', label: 'Márgenes %' },
+                { key: 'waterfall', label: 'Cascada P&L' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setChartView(opt.key)}
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                    chartView === opt.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <ResponsiveContainer width="100%" height={280}>
+              {chartView === 'margenes' ? (
+                <GraficoMargenes data={chartData} />
+              ) : chartView === 'waterfall' ? (
+                <GraficoCascada data={chartData} />
+              ) : (
+                <GraficoIngresosEbitda data={chartData} />
+              )}
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
