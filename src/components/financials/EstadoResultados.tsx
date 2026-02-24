@@ -532,15 +532,17 @@ export function EstadoResultados({
               ))}
             </div>
 
-            <ResponsiveContainer width="100%" height={280}>
-              {chartView === 'margenes' ? (
-                <GraficoMargenes data={chartData} />
-              ) : chartView === 'waterfall' ? (
-                <GraficoCascada data={chartData} />
-              ) : (
-                <GraficoIngresosEbitda data={chartData} />
-              )}
-            </ResponsiveContainer>
+            <div style={{ width: '100%', height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                {chartView === 'margenes' ? (
+                  <GraficoMargenes data={chartData} />
+                ) : chartView === 'waterfall' ? (
+                  <GraficoCascada data={chartData} />
+                ) : (
+                  <GraficoIngresosEbitda data={chartData} />
+                )}
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       )}
