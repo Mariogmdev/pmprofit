@@ -395,8 +395,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexSinWorkingCapital);
       const opexMensual = opexMensualCaja; // Display OPEX Caja (without depreciation) in table
       const opexAnual = opexMensual * 12;
-      // COGS ratio from maturity: scale proportionally to income
-      const cogsMensual = ingresosMadurez > 0 ? cogsMadurez * (ingresosMensuales / ingresosMadurez) : 0;
+      // COGS: Year 1 uses actual sum of 12 months; Years 2-5 scale from Year 1 total proportionally to income
+      const year1IngresosAnuales = yearlyProjection[0].ingresoAnual;
+      const cogsAnual = year === 1
+        ? cogsYear1Total
+        : (year1IngresosAnuales > 0 ? cogsYear1Total * (ingresosAnuales / year1IngresosAnuales) : 0);
+      const cogsMensual = cogsAnual / 12;
       const ebitdaMensual = ingresosMensuales - cogsMensual - opexMensualCaja; // EBITDA = Ingresos - COGS - OPEX Caja
       const ebitdaAnual = ebitdaMensual * 12;
       const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
