@@ -14,7 +14,7 @@ import { ActivityConfig } from '@/types/activity';
 import { formatPLCurrency, formatPLPercentage } from '@/lib/plFormatters';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
 
-const YEAR_HEADERS = ['Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'];
+// YEAR_HEADERS generated dynamically from balance data
 
 // ── Auxiliary row components ──────────────────────────
 
@@ -175,6 +175,8 @@ export function BalanceGeneral({
 
   const inflationRate = currentProject?.inflation_rate || 3;
 
+  const projectionYears = currentProject?.projection_years || 5;
+
   // Calculate P&L first
   const pl = useMemo(() => {
     if (!opex || activities.length === 0) return null;
@@ -188,8 +190,9 @@ export function BalanceGeneral({
       opex.depreciacion_anos || 10,
       daysPerMonth,
       inflationRate,
+      projectionYears,
     );
-  }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate]);
+  }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate, projectionYears]);
 
   // Calculate Balance General
   const balance = useMemo(() => {
@@ -215,8 +218,9 @@ export function BalanceGeneral({
   const periodos = vista === 'comparativo'
     ? balance.periodos
     : [balance.periodos[periodoDetalle - 1]];
+  const yearHeaders = balance.periodos.map(p => `Año ${p.periodo}`);
   const headers = vista === 'comparativo'
-    ? YEAR_HEADERS
+    ? yearHeaders
     : [`Año ${periodoDetalle}`];
   const colSpan = headers.length + 1;
 

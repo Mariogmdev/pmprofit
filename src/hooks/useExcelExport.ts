@@ -67,6 +67,7 @@ export function useExcelExport() {
 
     setIsExporting(true);
     try {
+      const projectionYears = currentProject?.projection_years || 5;
       const pl = calculateEstadoResultados(
         projectId,
         activities,
@@ -77,6 +78,7 @@ export function useExcelExport() {
         depreciacionAnos,
         daysPerMonth,
         inflationRate,
+        projectionYears,
       );
 
       const balance = calculateBalanceGeneral(
@@ -92,7 +94,7 @@ export function useExcelExport() {
     } finally {
       setIsExporting(false);
     }
-  }, [canExport, projectId, projectName, activities, opex, capexData, daysPerMonth, inflationRate, depreciacionAnos, metrics]);
+  }, [canExport, projectId, projectName, activities, opex, capexData, daysPerMonth, inflationRate, depreciacionAnos, metrics, currentProject]);
 
   return { exportExcel, isExporting, canExport };
 }

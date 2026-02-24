@@ -55,7 +55,7 @@ function agregarHojaResumen(
     ['EBITDA Mensual (madurez)', currencyCell(metrics.ebitdaMensualBase), 'COP', null],
     ['Margen EBITDA', pctCell(metrics.margenEbitdaBase), '%', null],
     [null],
-    ['PROYECCIÓN 5 AÑOS', null, null, null, null, null, null],
+    [`PROYECCIÓN ${metrics.proyeccion.length} AÑOS`, null, null, null, null, null, null],
     ['Año', 'Ingresos', 'OPEX', 'EBITDA', 'Margen %', 'Flujo Caja', 'ROI Acum.'],
     ...metrics.proyeccion.map(y => [
       `Año ${y.year}`,
@@ -82,12 +82,16 @@ function agregarHojaPL(
   wb: XLSX.WorkBook,
   pl: EstadoResultados,
 ): void {
+  const numAnos = pl.anos.length;
+  const yearHeaders = pl.anos.map(a => `Año ${a.periodo}`);
+  const nullCols = Array(numAnos).fill(null);
+
   const data: (string | number | null)[][] = [
-    ['ESTADO DE RESULTADOS (P&L)', null, null, null, null, null],
-    ['Formato NIIF/GAAP — Proyección 5 años', null, null, null, null, null],
+    ['ESTADO DE RESULTADOS (P&L)', ...nullCols],
+    [`Formato NIIF/GAAP — Proyección ${numAnos} años`, ...nullCols],
     [null],
-    ['Concepto', 'Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'],
-    ['INGRESOS', null, null, null, null, null],
+    ['Concepto', ...yearHeaders],
+    ['INGRESOS', ...nullCols],
     ['Reservas', ...pl.anos.map(a => currencyCell(a.ingresos.reservas))],
     ['Membresías', ...pl.anos.map(a => currencyCell(a.ingresos.membresias))],
     ['Pases Diarios', ...pl.anos.map(a => currencyCell(a.ingresos.pasesDiarios))],
@@ -98,14 +102,14 @@ function agregarHojaPL(
     ['- Descuentos', ...pl.anos.map(a => currencyCell(a.ingresos.descuentos))],
     ['INGRESOS NETOS', ...pl.anos.map(a => currencyCell(a.ingresos.netos))],
     [null],
-    ['COSTO DE VENTAS', null, null, null, null, null],
+    ['COSTO DE VENTAS', ...nullCols],
     ['Costo Directo', ...pl.anos.map(a => currencyCell(a.cogs.costoDirecto))],
     ['Instructores', ...pl.anos.map(a => currencyCell(a.cogs.instructores))],
     ['TOTAL COGS', ...pl.anos.map(a => currencyCell(a.cogs.total))],
     ['MARGEN BRUTO', ...pl.anos.map(a => currencyCell(a.margenBruto))],
     ['Margen Bruto %', ...pl.anos.map(a => pctCell(a.margenBrutoPorcentaje))],
     [null],
-    ['GASTOS OPERACIONALES', null, null, null, null, null],
+    ['GASTOS OPERACIONALES', ...nullCols],
     ['Arriendo', ...pl.anos.map(a => currencyCell(a.opex.arriendo))],
     ['Nómina', ...pl.anos.map(a => currencyCell(a.opex.nomina))],
     ['Servicios Públicos', ...pl.anos.map(a => currencyCell(a.opex.serviciosPublicos))],
@@ -131,7 +135,7 @@ function agregarHojaPL(
 
   const ws = XLSX.utils.aoa_to_sheet(data);
   ws['!cols'] = [
-    { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
+    { wch: 30 }, ...Array(numAnos).fill({ wch: 18 }),
   ];
   XLSX.utils.book_append_sheet(wb, ws, 'P&L');
 }
@@ -142,17 +146,21 @@ function agregarHojaBalance(
   wb: XLSX.WorkBook,
   balance: BalanceGeneral,
 ): void {
+  const numPeriodos = balance.periodos.length;
+  const yearHeaders = balance.periodos.map(p => `Año ${p.periodo}`);
+  const nullCols = Array(numPeriodos).fill(null);
+
   const data: (string | number | null)[][] = [
-    ['BALANCE GENERAL', null, null, null, null, null],
-    ['Posición financiera proyectada — 5 años', null, null, null, null, null],
+    ['BALANCE GENERAL', ...nullCols],
+    [`Posición financiera proyectada — ${numPeriodos} años`, ...nullCols],
     [null],
-    ['Concepto', 'Año 1', 'Año 2', 'Año 3', 'Año 4', 'Año 5'],
-    ['ACTIVOS FIJOS', null, null, null, null, null],
+    ['Concepto', ...yearHeaders],
+    ['ACTIVOS FIJOS', ...nullCols],
     ['CAPEX Bruto', ...balance.periodos.map(p => currencyCell(p.activos.fijos.capexBruto))],
     ['- Depreciación Acumulada', ...balance.periodos.map(p => currencyCell(-p.activos.fijos.depreciacionAcumulada))],
     ['Activo Fijo Neto', ...balance.periodos.map(p => currencyCell(p.activos.fijos.activoFijoNeto))],
     [null],
-    ['ACTIVOS CIRCULANTES', null, null, null, null, null],
+    ['ACTIVOS CIRCULANTES', ...nullCols],
     ['Efectivo / Caja', ...balance.periodos.map(p => currencyCell(p.activos.circulantes.efectivo))],
     ['Cuentas x Cobrar', ...balance.periodos.map(p => currencyCell(p.activos.circulantes.cuentasPorCobrar))],
     ['Inventarios', ...balance.periodos.map(p => currencyCell(p.activos.circulantes.inventarios))],
@@ -160,13 +168,13 @@ function agregarHojaBalance(
     [null],
     ['TOTAL ACTIVOS', ...balance.periodos.map(p => currencyCell(p.activos.total))],
     [null],
-    ['PASIVOS CIRCULANTES', null, null, null, null, null],
+    ['PASIVOS CIRCULANTES', ...nullCols],
     ['Cuentas x Pagar', ...balance.periodos.map(p => currencyCell(p.pasivos.circulantes.cuentasPorPagar))],
     ['Impuestos x Pagar', ...balance.periodos.map(p => currencyCell(p.pasivos.circulantes.impuestosPorPagar))],
     ['Otros Pasivos', ...balance.periodos.map(p => currencyCell(p.pasivos.circulantes.otrosPasivos))],
     ['TOTAL PASIVOS', ...balance.periodos.map(p => currencyCell(p.pasivos.total))],
     [null],
-    ['PATRIMONIO', null, null, null, null, null],
+    ['PATRIMONIO', ...nullCols],
     ['Capital Invertido', ...balance.periodos.map(p => currencyCell(p.patrimonio.capitalInvertido))],
     ['Utilidad Retenida', ...balance.periodos.map(p => currencyCell(p.patrimonio.utilidadRetenida))],
     ['Utilidad del Ejercicio', ...balance.periodos.map(p => currencyCell(p.patrimonio.utilidadEjercicio))],
@@ -174,17 +182,17 @@ function agregarHojaBalance(
     [null],
     ['PASIVOS + PATRIMONIO', ...balance.periodos.map(p => currencyCell(p.pasivos.total + p.patrimonio.total))],
     [null],
-    ['RATIOS FINANCIEROS (Año 3)', null, null, null, null, null],
-    ['Liquidez', balance.ratios.liquidez, null, null, null, null],
-    ['Endeudamiento', pctCell(balance.ratios.endeudamiento * 100), null, null, null, null],
-    ['ROE', pctCell(balance.ratios.roe), null, null, null, null],
-    ['ROA', pctCell(balance.ratios.roa), null, null, null, null],
-    ['Multiplicador Capital', balance.ratios.multiplicadorCapital, null, null, null, null],
+    [`RATIOS FINANCIEROS (Año ${Math.min(3, numPeriodos)})`, ...nullCols],
+    ['Liquidez', balance.ratios.liquidez, ...Array(numPeriodos - 1).fill(null)],
+    ['Endeudamiento', pctCell(balance.ratios.endeudamiento * 100), ...Array(numPeriodos - 1).fill(null)],
+    ['ROE', pctCell(balance.ratios.roe), ...Array(numPeriodos - 1).fill(null)],
+    ['ROA', pctCell(balance.ratios.roa), ...Array(numPeriodos - 1).fill(null)],
+    ['Multiplicador Capital', balance.ratios.multiplicadorCapital, ...Array(numPeriodos - 1).fill(null)],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(data);
   ws['!cols'] = [
-    { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
+    { wch: 30 }, ...Array(numPeriodos).fill({ wch: 18 }),
   ];
   XLSX.utils.book_append_sheet(wb, ws, 'Balance');
 }
@@ -196,7 +204,7 @@ function agregarHojaProyeccion(
   metrics: DashboardMetrics,
 ): void {
   const data: (string | number | null)[][] = [
-    ['PROYECCIÓN FINANCIERA — 5 AÑOS', null, null, null, null, null, null, null],
+    [`PROYECCIÓN FINANCIERA — ${metrics.proyeccion.length} AÑOS`, null, null, null, null, null, null, null],
     [null],
     [
       'Año', 'Ingresos Mensuales', 'Ingresos Anuales',
@@ -219,7 +227,7 @@ function agregarHojaProyeccion(
       y.paybackAlcanzado ? 'Sí' : 'No',
     ]),
     [null],
-    ['CAPEX BREAKDOWN', null, null, null, null, null],
+    ['CAPEX BREAKDOWN'],
     ['Actividades', currencyCell(metrics.capexBreakdown.actividades)],
     ['Infraestructura', currencyCell(metrics.capexBreakdown.infraestructura)],
     ['Obra Civil', currencyCell(metrics.capexBreakdown.obraCivil)],

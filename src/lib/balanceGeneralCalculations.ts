@@ -133,25 +133,26 @@ export function calculateBalanceGeneral(
     };
   });
 
-  // ── RATIOS (año 3 = madurez) ──
-  const ano3 = periodos[2];
-  const utilidadNeta3 = pl.anos[2]?.utilidadNeta ?? 0;
+  // ── RATIOS (año de madurez = mín(3, último)) ──
+  const indiceRatios = Math.min(2, periodos.length - 1);
+  const anoRatios = periodos[indiceRatios];
+  const utilidadNetaRatios = pl.anos[indiceRatios]?.utilidadNeta ?? 0;
 
   const ratios = {
-    liquidez: ano3.pasivos.circulantes.total > 0
-      ? ano3.activos.circulantes.total / ano3.pasivos.circulantes.total
+    liquidez: anoRatios.pasivos.circulantes.total > 0
+      ? anoRatios.activos.circulantes.total / anoRatios.pasivos.circulantes.total
       : 0,
-    endeudamiento: ano3.activos.total > 0
-      ? ano3.pasivos.total / ano3.activos.total
+    endeudamiento: anoRatios.activos.total > 0
+      ? anoRatios.pasivos.total / anoRatios.activos.total
       : 0,
-    roe: ano3.patrimonio.total > 0
-      ? (utilidadNeta3 / ano3.patrimonio.total) * 100
+    roe: anoRatios.patrimonio.total > 0
+      ? (utilidadNetaRatios / anoRatios.patrimonio.total) * 100
       : 0,
-    roa: ano3.activos.total > 0
-      ? (utilidadNeta3 / ano3.activos.total) * 100
+    roa: anoRatios.activos.total > 0
+      ? (utilidadNetaRatios / anoRatios.activos.total) * 100
       : 0,
-    multiplicadorCapital: ano3.patrimonio.total > 0
-      ? ano3.activos.total / ano3.patrimonio.total
+    multiplicadorCapital: anoRatios.patrimonio.total > 0
+      ? anoRatios.activos.total / anoRatios.patrimonio.total
       : 0,
   };
 
