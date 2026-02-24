@@ -486,7 +486,7 @@ function agregarPLAnual(wb: XLSX.WorkBook, p: ExcelExportParams): void {
     buildRow('Instructores', pl.anos.map(a => a.cogs.instructores)),
     buildRow('TOTAL COGS', pl.anos.map(a => a.cogs.total), 'totalGris'),
     buildRow('MARGEN BRUTO', pl.anos.map(a => a.margenBruto), 'bold'),
-    buildRow('Margen Bruto %', pl.anos.map(a => pct(a.margenBrutoPorcentaje)), 'pct'),
+    buildRow('Margen Bruto %', pl.anos.map(a => a.ingresos.netos > 0 ? a.margenBruto / a.ingresos.netos : 0), 'pct'),
     null,
     // GASTOS OPERACIONALES
     buildRow('GASTOS OPERACIONALES', [], 'section'),
@@ -503,15 +503,15 @@ function agregarPLAnual(wb: XLSX.WorkBook, p: ExcelExportParams): void {
     null,
     // EBITDA
     buildRow('EBITDA', pl.anos.map(a => a.ebitda), 'totalVerde'),
-    buildRow('Margen EBITDA %', pl.anos.map(a => pct(a.ebitdaPorcentaje)), 'pct'),
+    buildRow('Margen EBITDA %', pl.anos.map(a => a.ingresos.netos > 0 ? a.ebitda / a.ingresos.netos : 0), 'pct'),
     null,
     buildRow('Depreciación y Amortización', pl.anos.map(a => a.depreciacion.total)),
     buildRow('EBIT', pl.anos.map(a => a.ebit), 'bold'),
-    buildRow('Margen EBIT %', pl.anos.map(a => pct(a.ebitPorcentaje)), 'pct'),
+    buildRow('Margen EBIT %', pl.anos.map(a => a.ingresos.netos > 0 ? a.ebit / a.ingresos.netos : 0), 'pct'),
     null,
     buildRow('Impuesto renta (35%)', pl.anos.map(a => a.impuestos.valor)),
     buildRow('UTILIDAD NETA', pl.anos.map(a => a.utilidadNeta), 'verdeClaro'),
-    buildRow('Margen Neto %', pl.anos.map(a => pct(a.utilidadNetaPorcentaje)), 'pct'),
+    buildRow('Margen Neto %', pl.anos.map(a => a.ingresos.netos > 0 ? a.utilidadNeta / a.ingresos.netos : 0), 'pct'),
   ];
 
   const data: (string | number | null)[][] = [
@@ -527,7 +527,7 @@ function agregarPLAnual(wb: XLSX.WorkBook, p: ExcelExportParams): void {
     } else if (s.values.length === 0) {
       data.push([s.label, ...NC]);
     } else {
-      data.push([s.label, ...s.values.map(v => c(v))]);
+      data.push([s.label, ...s.values.map(v => s.style === 'pct' ? v : c(v))]);
     }
   });
 
@@ -641,8 +641,8 @@ function agregarBalanceGeneral(wb: XLSX.WorkBook, p: ExcelExportParams): void {
   const ratios: [string, number, string][] = [
     ['Liquidez corriente', balance.ratios.liquidez, '>1.5 = bueno'],
     ['Endeudamiento', balance.ratios.endeudamiento, '<40% = bueno'],
-    ['ROE', balance.ratios.roe / 100, '>20% = bueno'],
-    ['ROA', balance.ratios.roa / 100, '>15% = bueno'],
+    ['ROE', balance.ratios.roe > 1 ? balance.ratios.roe / 100 : balance.ratios.roe, '>20% = bueno'],
+    ['ROA', balance.ratios.roa > 1 ? balance.ratios.roa / 100 : balance.ratios.roa, '>15% = bueno'],
     ['Multiplicador capital', balance.ratios.multiplicadorCapital, 'informativo'],
   ];
 
@@ -789,7 +789,7 @@ function agregarCashFlowVanTir(wb: XLSX.WorkBook, p: ExcelExportParams): void {
   data.push(['MÉTRICAS DE RETORNO', null, null]);
 
   const metricRows: [string, number | string, string][] = [
-    ['TIR (IRR)', pct(metrics.tir), metrics.tir > 15 ? '✓ Atractiva' : '⚠ Revisar'],
+    ['TIR (IRR)', metrics.tir > 1 ? metrics.tir / 100 : metrics.tir, metrics.tir > 15 ? '✓ Atractiva' : '⚠ Revisar'],
     ['VAN (tasa ' + (p.discountRate * 100).toFixed(0) + '%)', c(metrics.van), metrics.van > 0 ? '✓ Positivo' : '⚠ Negativo'],
     ['Payback', `${metrics.paybackMesesReal || metrics.paybackMeses} meses`, `${((metrics.paybackMesesReal || metrics.paybackMeses) / 12).toFixed(1)} años`],
     ['CAPEX Total', c(metrics.capexTotal), ''],
