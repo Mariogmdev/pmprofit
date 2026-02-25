@@ -15,7 +15,7 @@ import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useObraCivil } from '@/hooks/useObraCivil';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { ActivityConfig } from '@/types/activity';
-import { formatPLCurrency } from '@/lib/plFormatters';
+
 
 interface FlujoCajaProps {
   projectId: string;
@@ -108,10 +108,13 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
   const fmtM = (v: number) => {
     const abs = Math.abs(v);
     const sign = v < 0 ? '-' : '';
-    if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(1)}B`;
-    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(0)}M`;
-    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
-    return `${sign}$${abs.toFixed(0)}`;
+    if (abs >= 1_000_000_000)
+      return `${sign}$${(abs / 1_000_000_000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}B`;
+    if (abs >= 1_000_000)
+      return `${sign}$${(abs / 1_000_000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}M`;
+    if (abs >= 1_000)
+      return `${sign}$${(abs / 1_000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}K`;
+    return `${sign}$${abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   // ── Chart data ──
@@ -155,7 +158,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
             <p className={`text-2xl font-bold mt-1 ${cf.paybackMeses <= 36 ? 'text-green-600' : 'text-yellow-600'}`}>
               {cf.paybackMeses} meses
             </p>
-            <p className="text-xs text-muted-foreground mt-1">{cf.paybackAnos.toFixed(1)} años</p>
+            <p className="text-xs text-muted-foreground mt-1">{cf.paybackAnos.toFixed(1)} años · interpolado mensual</p>
           </CardContent>
         </Card>
 
@@ -196,7 +199,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5 text-muted-foreground">EBITDA Anual</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className="px-3 py-1.5 text-right tabular-nums">
-                      {f.ebitdaAnual !== 0 ? formatPLCurrency(f.ebitdaAnual) : '—'}
+                      {f.ebitdaAnual !== 0 ? fmtM(f.ebitdaAnual) : '—'}
                     </td>
                   ))}
                 </tr>
@@ -206,7 +209,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5 text-muted-foreground">Depreciación & Amort.</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className="px-3 py-1.5 text-right tabular-nums">
-                      {f.depreciacionAnual !== 0 ? `(${formatPLCurrency(f.depreciacionAnual)})` : '—'}
+                      {f.depreciacionAnual !== 0 ? `(${fmtM(f.depreciacionAnual)})` : '—'}
                     </td>
                   ))}
                 </tr>
@@ -216,7 +219,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5">EBIT</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className="px-3 py-1.5 text-right tabular-nums">
-                      {f.ebitAnual !== 0 ? formatPLCurrency(f.ebitAnual) : '—'}
+                      {f.ebitAnual !== 0 ? fmtM(f.ebitAnual) : '—'}
                     </td>
                   ))}
                 </tr>
@@ -226,7 +229,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5 text-muted-foreground">Impuesto renta (35%)</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className="px-3 py-1.5 text-right tabular-nums">
-                      {f.impuestoAnual !== 0 ? `(${formatPLCurrency(f.impuestoAnual)})` : '—'}
+                      {f.impuestoAnual !== 0 ? `(${fmtM(f.impuestoAnual)})` : '—'}
                     </td>
                   ))}
                 </tr>
@@ -236,7 +239,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-2">Flujo Caja Operativo</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className={`px-3 py-2 text-right tabular-nums ${f.flujoOperativo > 0 ? 'text-blue-700 dark:text-blue-400' : ''}`}>
-                      {f.flujoOperativo !== 0 ? formatPLCurrency(f.flujoOperativo) : '—'}
+                      {f.flujoOperativo !== 0 ? fmtM(f.flujoOperativo) : '—'}
                     </td>
                   ))}
                 </tr>
@@ -249,7 +252,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5 text-muted-foreground">CAPEX + Working Capital</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className={`px-3 py-1.5 text-right tabular-nums ${f.capexInversion < 0 ? 'text-destructive font-medium' : ''}`}>
-                      {f.capexInversion !== 0 ? formatPLCurrency(f.capexInversion) : '—'}
+                      {f.capexInversion !== 0 ? fmtM(f.capexInversion) : '—'}
                     </td>
                   ))}
                 </tr>
@@ -259,7 +262,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5 text-muted-foreground">Valor Residual (40%)</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className={`px-3 py-1.5 text-right tabular-nums ${f.valorResidual > 0 ? 'text-green-600 font-medium' : ''}`}>
-                      {f.valorResidual !== 0 ? formatPLCurrency(f.valorResidual) : '—'}
+                      {f.valorResidual !== 0 ? fmtM(f.valorResidual) : '—'}
                     </td>
                   ))}
                 </tr>
@@ -269,7 +272,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-2">Flujo Caja Libre</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className={`px-3 py-2 text-right tabular-nums ${f.flujoCajaLibre >= 0 ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}>
-                      {formatPLCurrency(f.flujoCajaLibre)}
+                      {fmtM(f.flujoCajaLibre)}
                     </td>
                   ))}
                 </tr>
@@ -279,7 +282,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
                   <td className="px-3 py-1.5">Flujo Acumulado</td>
                   {cf.filas.map(f => (
                     <td key={f.year} className={`px-3 py-1.5 text-right tabular-nums ${f.flujoAcumulado >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      {formatPLCurrency(f.flujoAcumulado)}
+                      {fmtM(f.flujoAcumulado)}
                     </td>
                   ))}
                 </tr>
