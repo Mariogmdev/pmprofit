@@ -220,7 +220,7 @@ function slide2(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
 
   const viable = metrics.tir >= discountRate && metrics.van > 0;
   rect(doc, col2X, colY + 70, colW, 10, viable ? '#22C55E' : '#EF4444');
-  txt(doc, viable ? '✓  Proyecto VIABLE para inversión' : '⚠  Revisar supuestos',
+  txt(doc, viable ? 'PROYECTO VIABLE PARA INVERSION' : 'REVISAR SUPUESTOS',
     col2X + colW / 2, colY + 77, { size: 9, color: COLORS.blanco, bold: true, align: 'center' });
 }
 
@@ -334,7 +334,7 @@ function slide4(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
     { label: 'MOIC', value: moic.toFixed(2) + 'x', sub: 'Multiple on Invested Capital' },
     { label: 'Spread vs WACC',
       value: (spread >= 0 ? '+' : '') + spread.toFixed(1) + 'pp',
-      sub: `TIR ${metrics.tir.toFixed(1)}% − WACC ${discountRate}%` },
+      sub: `TIR ${metrics.tir.toFixed(1)}% - WACC ${discountRate}%` },
   ];
 
   kpis.forEach((kpi, i) => {
@@ -345,8 +345,8 @@ function slide4(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
   // DCF table
   const tableY = y0 + kpiH + 10;
   const years = ['Año 0', ...metrics.proyeccion.map(p => `Año ${p.year}`)];
-  const capexRow = [formatM(-metrics.capexTotal), ...metrics.proyeccion.map(() => '—')];
-  const fclRow = ['—', ...metrics.proyeccion.map(p => formatM(p.flujoCajaLibre))];
+  const capexRow = [formatM(-metrics.capexTotal), ...metrics.proyeccion.map(() => '-')];
+  const fclRow = ['-', ...metrics.proyeccion.map(p => formatM(p.flujoCajaLibre))];
   const acumRow = [formatM(-metrics.capexTotal), ...metrics.proyeccion.map(p => formatM(p.flujoAcumulado))];
 
   const labelColW = 35;
@@ -380,9 +380,9 @@ function slide4(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
       rect(doc, x, ry, dataW, 11, bg);
       let color: string;
       if (row.conditional) {
-        color = val.startsWith('-') ? '#EF4444' : val === '—' ? '#999' : '#22C55E';
+        color = val.startsWith('-') ? '#EF4444' : val === '-' ? '#999' : '#22C55E';
       } else {
-        color = val === '—' ? '#999' : row.defaultColor;
+        color = val === '-' ? '#999' : row.defaultColor;
       }
       txt(doc, val, x + dataW / 2, ry + 7.5, { size: 8, color, align: 'center' });
       x += dataW;
@@ -435,13 +435,17 @@ function slide5(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
     x = MARGIN;
     const bg = ri % 2 === 0 ? COLORS.grisClaro : COLORS.blanco;
 
+    const marginSuspect = act.margenEbitda > 99 || Math.abs(act.ebitdaMensual - act.ingresosMensuales) < 1000;
+    const margenDisplay = marginSuspect ? '--' : formatPct(act.margenEbitda);
+    const ebitdaDisplay = marginSuspect ? '--' : formatM(act.ebitdaMensual);
+
     const cells = [
       act.nombre,
       formatM(act.ingresosMensuales),
-      formatM(act.ebitdaMensual),
-      formatPct(act.margenEbitda),
-      act.capex ? formatM(act.capex) : '—',
-      act.paybackMeses ? `${act.paybackMeses}m` : '—',
+      ebitdaDisplay,
+      margenDisplay,
+      act.capex ? formatM(act.capex) : '--',
+      act.paybackMeses ? `${act.paybackMeses}m` : '--',
     ];
 
     cells.forEach((cell, ci) => {
@@ -544,7 +548,7 @@ function slide6(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
     { label: 'CAPEX / m²', value: metrics.areaTotal > 0 ? formatM(metrics.capexTotal / metrics.areaTotal) + '/m²' : 'N/A' },
     { label: 'CAPEX sin WC', value: formatM(capexSinWC) },
     { label: 'Working Capital', value: formatM(breakdown.workingCapital || 0) },
-    { label: 'WC / CAPEX Total', value: metrics.capexTotal > 0 ? formatPct((breakdown.workingCapital || 0) / metrics.capexTotal * 100) : '—' },
+    { label: 'WC / CAPEX Total', value: metrics.capexTotal > 0 ? formatPct((breakdown.workingCapital || 0) / metrics.capexTotal * 100) : '--' },
     { label: 'Años depreciación', value: '10 años' },
     { label: 'Valor residual (40%)', value: formatM(capexSinWC * 0.40) },
   ];

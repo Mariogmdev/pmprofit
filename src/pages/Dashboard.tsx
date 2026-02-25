@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { AppTab } from '@/types';
 import { useProject } from '@/contexts/ProjectContext';
 import { useExcelExport } from '@/hooks/useExcelExport';
@@ -24,23 +24,23 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
 
-  const handleExportPDF = () => {
+  const handleExportPDF = useCallback(() => {
     if (!currentProject || !metrics) {
       toast({ title: 'Error', description: 'No hay proyecto activo o métricas disponibles.', variant: 'destructive' });
       return;
     }
+    console.log('PDF export: project =', currentProject.name, 'TIR =', metrics.tir);
     toast({ title: 'Generando PDF...', description: 'Esto puede tomar unos segundos.' });
     try {
       generatePitchDeckPDF(currentProject, metrics);
       setTimeout(() => {
-        toast({ title: '✅ PDF generado', description: 'El pitch deck se descargó correctamente.' });
+        toast({ title: 'PDF generado', description: 'El pitch deck se descargo correctamente.' });
       }, 1500);
     } catch (error) {
       console.error('PDF generation error:', error);
       toast({ title: 'Error al generar PDF', description: String(error), variant: 'destructive' });
     }
-  };
-
+  }, [currentProject, metrics, toast]);
   const renderTabContent = () => {
     switch (activeTab) {
       case 'config':
