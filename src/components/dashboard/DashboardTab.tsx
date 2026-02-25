@@ -3,22 +3,22 @@ import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { ProjectionViewMode } from '@/types/dashboard';
-import { CurrencyCode } from '@/types';
+import { CurrencyCode, AppTab } from '@/types';
 import { HeroMetrics } from './HeroMetrics';
+import { ViabilityBanner } from './ViabilityBanner';
 import { AutoInsights } from './AutoInsights';
 import { ActivityInsightsSection } from './ActivityInsightsSection';
 import { SpaceInsightsSection } from './SpaceInsightsSection';
 import { TrafficBreakdownSection } from './TrafficBreakdownSection';
 import { ChartsGrid } from './ChartsGrid';
 import { ProjectionTable } from './ProjectionTable';
-import { DetailedMetrics } from './DetailedMetrics';
 import { DashboardSkeleton } from './DashboardSkeleton';
 import { formatCurrency } from '@/lib/currency';
 import { FileDown, FileSpreadsheet, Share2, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DashboardTabProps {
-  onTabChange?: (tab: 'config' | 'constructor' | 'modules') => void;
+  onTabChange?: (tab: AppTab) => void;
 }
 
 export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
@@ -28,6 +28,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   const [viewMode, setViewMode] = useState<ProjectionViewMode>('anual');
   
   const currency = (currentProject?.currency || 'COP') as CurrencyCode;
+  const discountRate = currentProject?.discount_rate ?? 10;
 
   const handleExportPDF = () => {
     toast({
@@ -37,7 +38,6 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   };
 
   const handleExportExcel = () => {
-    // Generate CSV data
     const headers = ['Año', 'Ingresos Anuales', 'OPEX Anual', 'EBITDA Anual', 'Margen %', 'Flujo Caja', 'ROI Acumulado'];
     const rows = metrics.proyeccion.map(p => [
       `Año ${p.year}`,
@@ -67,7 +67,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   };
 
   const handleShare = () => {
-    // Copy summary to clipboard
+    const moic = metrics.capexTotal > 0 ? (metrics.van + metrics.capexTotal) / metrics.capexTotal : 0;
     const summary = `
 📊 Resumen Ejecutivo - ${currentProject?.name || 'Proyecto'}
 
@@ -77,6 +77,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
 ⏱️ Payback: ${metrics.paybackMesesReal} meses (${(metrics.paybackMesesReal / 12).toFixed(1)} años)
 📊 TIR: ${metrics.tir.toFixed(1)}%
 💵 VAN: ${formatCurrency(metrics.van, currency)}
+🔄 MOIC: ${moic.toFixed(2)}x
     `.trim();
 
     navigator.clipboard.writeText(summary);
@@ -88,7 +89,6 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   };
 
   const handleEditActivity = (activityId: string) => {
-    // Navigate to constructor tab - in a real implementation this would scroll to the specific activity
     if (onTabChange) {
       onTabChange('constructor');
     }
@@ -129,12 +129,20 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
       </div>
       
       {/* Section 1: Hero Metrics */}
-      <HeroMetrics metrics={metrics} currency={currency} />
+      <HeroMetrics metrics={metrics} currency={currency} discountRate={discountRate} />
       
-      {/* Section 2: Insights Automáticos */}
-      <AutoInsights insights={metrics.insights} onNavigate={onTabChange} />
+      {/* Section 2: Viability Banner */}
+      <ViabilityBanner 
+        metrics={metrics} 
+        currency={currency} 
+        discountRate={discountRate}
+        onNavigate={onTabChange}
+      />
       
-      {/* Section 3: Activity Insights - NEW */}
+      {/* Section 3: Insights Automáticos */}
+      <AutoInsights insights={metrics.insights} onNavigate={onTabChange ? (tab) => onTabChange(tab) : undefined} />
+      
+      {/* Section 4: Activity Insights */}
       <ActivityInsightsSection 
         activities={metrics.activityInsights}
         topByRevenue={metrics.topActivitiesByRevenue}
@@ -144,7 +152,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
         onEditActivity={handleEditActivity}
       />
       
-      {/* Section 4: Traffic Breakdown - NEW */}
+      {/* Section 5: Traffic Breakdown */}
       {metrics.trafficActivities.length > 0 && (
         <TrafficBreakdownSection 
           trafficActivities={metrics.trafficActivities}
@@ -154,26 +162,23 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
         />
       )}
       
-      {/* Section 5: Space Insights */}
+      {/* Section 6: Space Insights */}
       <SpaceInsightsSection 
         spaces={metrics.spaceInsights}
         currency={currency}
       />
       
-      {/* Section 5: Visualizaciones */}
+      {/* Section 7: Visualizaciones (Composición ingresos, EBITDA evolución, CAPEX breakdown, Year 1 breakdown) */}
       <ChartsGrid metrics={metrics} currency={currency} />
       
-      {/* Section 6: Proyección 5 Años */}
+      {/* Section 8: Proyección 5 Años */}
       <ProjectionTable 
         proyeccion={metrics.proyeccion}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         currency={currency}
-         year1Monthly={metrics.year1Monthly}
+        year1Monthly={metrics.year1Monthly}
       />
-      
-      {/* Section 7: Métricas Detalladas */}
-      <DetailedMetrics metrics={metrics} currency={currency} />
     </div>
   );
 };

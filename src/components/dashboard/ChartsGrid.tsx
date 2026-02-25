@@ -340,56 +340,6 @@ export const ChartsGrid = ({ metrics, currency }: ChartsGridProps) => {
         </CardContent>
       </Card>
 
-      {/* Cash Flow Chart */}
-      <Card className="border-2">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Droplets className="w-5 h-5 text-orange-600" />
-            Flujo de Caja Acumulado
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cashFlowData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis 
-                  tickFormatter={formatMillions} 
-                  tick={{ fontSize: 12 }}
-                  stroke="hsl(var(--muted-foreground))"
-                />
-                <Tooltip 
-                  formatter={(value: number) => formatTooltipValue(value)}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="flujo" 
-                  name="Flujo Anual"
-                  stroke="#f97316" 
-                  strokeWidth={2}
-                  dot={{ fill: '#f97316', r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="acumulado" 
-                  name="Acumulado"
-                  stroke="#22c55e" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ fill: '#22c55e', r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

@@ -13,7 +13,7 @@ import {
   DollarSign, 
   TrendingUp, 
   Building2, 
-  Clock, 
+  Target,
   CheckCircle2, 
   AlertTriangle,
   AlertCircle,
@@ -28,9 +28,10 @@ import {
 interface HeroMetricsProps {
   metrics: DashboardMetrics;
   currency: CurrencyCode;
+  discountRate: number;
 }
 
-export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
+export const HeroMetrics = ({ metrics, currency, discountRate }: HeroMetricsProps) => {
   const [calculationModal, setCalculationModal] = useState<{
     isOpen: boolean;
     type: CalculationType;
@@ -48,7 +49,13 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
     ? ((metrics.proyeccion[metrics.proyeccion.length - 1].ingresosAnuales / metrics.proyeccion[0].ingresosAnuales - 1) * 100 / (metrics.proyeccion.length - 1))
     : 0;
 
-  const CalculationButton = ({ type, label }: { type: CalculationType; label?: string }) => (
+  const moic = metrics.capexTotal > 0
+    ? (metrics.van + metrics.capexTotal) / metrics.capexTotal
+    : 0;
+
+  const spread = metrics.tir - discountRate;
+
+  const CalculationButton = ({ type }: { type: CalculationType }) => (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -69,7 +76,7 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: Ingresos */}
+        {/* Card 1: Ingresos — SIN CAMBIOS */}
         <Card className="relative overflow-hidden border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <CardContent className="pt-6 relative">
             <CalculationButton type="monthly_revenue" />
@@ -119,7 +126,7 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-green-200 dark:bg-green-800/30 rounded-full opacity-20" />
         </Card>
         
-        {/* Card 2: EBITDA & EBIT */}
+        {/* Card 2: EBITDA & EBIT — SIN CAMBIOS */}
         <Card className="relative overflow-hidden border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <CardContent className="pt-6 relative">
             <CalculationButton type="monthly_ebitda" />
@@ -174,7 +181,6 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
             
             <Separator className="my-4" />
             
-            {/* EBIT breakdown */}
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>− Depreciación:</span>
@@ -196,7 +202,7 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-200 dark:bg-blue-800/30 rounded-full opacity-20" />
         </Card>
         
-        {/* Card 3: CAPEX & TIR */}
+        {/* Card 3: INVERSIÓN (nueva) */}
         <Card className="relative overflow-hidden border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <CardContent className="pt-6 relative">
             <CalculationButton type="capex_total" />
@@ -205,16 +211,6 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               <div className="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
                 <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
-              <Badge 
-                variant="outline"
-                className={cn(
-                  "bg-background cursor-pointer hover:bg-muted",
-                  metrics.tir >= 15 ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"
-                )}
-                onClick={() => openCalculation('tir')}
-              >
-                TIR {formatPercent(metrics.tir)}
-              </Badge>
             </div>
             
             <div className="space-y-2">
@@ -224,46 +220,24 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               <p className="text-2xl lg:text-3xl font-bold text-purple-700 dark:text-purple-400">
                 {formatCurrency(metrics.capexTotal, currency)}
               </p>
-              <div className="flex items-center gap-2 text-sm">
-                {metrics.tir >= 15 ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <span className="text-green-600 dark:text-green-400 font-medium">TIR atractiva</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                    <span className="text-orange-600 dark:text-orange-400 font-medium">TIR moderada</span>
-                  </>
-                )}
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Capital requerido
+              </p>
             </div>
             
             <Separator className="my-4" />
             
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div 
-                className="cursor-pointer hover:bg-muted/50 rounded p-1 -m-1 transition-colors"
-                onClick={() => openCalculation('van')}
-              >
-                <p className="text-muted-foreground">VAN</p>
-                <p className={cn(
-                  "font-semibold",
-                  metrics.van >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                )}>
-                  {formatCurrency(metrics.van, currency)}
+              <div>
+                <p className="text-muted-foreground">CAPEX activos</p>
+                <p className="font-semibold">
+                  {formatCurrency(metrics.capexTotal - metrics.workingCapitalValue, currency)}
                 </p>
               </div>
-              <div 
-                className="cursor-pointer hover:bg-muted/50 rounded p-1 -m-1 transition-colors"
-                onClick={() => openCalculation('revenue_per_m2')}
-              >
-                <p className="text-muted-foreground">CAPEX/m²</p>
+              <div>
+                <p className="text-muted-foreground">Capital trabajo</p>
                 <p className="font-semibold">
-                  {metrics.areaTotal > 0 
-                    ? formatCurrency(metrics.capexTotal / metrics.areaTotal, currency)
-                    : '-'
-                  }
+                  {formatCurrency(metrics.workingCapitalValue, currency)}
                 </p>
               </div>
             </div>
@@ -272,63 +246,82 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-purple-200 dark:bg-purple-800/30 rounded-full opacity-20" />
         </Card>
         
-        {/* Card 4: Payback */}
+        {/* Card 4: RETORNO (nueva) */}
         <Card className="relative overflow-hidden border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950/30 dark:to-yellow-950/30 animate-fade-in" style={{ animationDelay: '0.4s' }}>
           <CardContent className="pt-6 relative">
-            <CalculationButton type="payback_months" />
+            <CalculationButton type="tir" />
             
             <div className="flex items-start justify-between mb-4">
               <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
-                <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                <Target className="w-6 h-6 text-orange-600 dark:text-orange-400" />
               </div>
               <Badge 
                 variant="outline"
                 className={cn(
                   "bg-background",
-                  metrics.paybackMesesReal <= 36 ? "text-green-600 dark:text-green-400" : 
-                  metrics.paybackMesesReal <= 60 ? "text-orange-600 dark:text-orange-400" : 
+                  metrics.tir >= discountRate + 5 ? "text-green-600 dark:text-green-400" : 
+                  metrics.tir >= discountRate ? "text-orange-600 dark:text-orange-400" : 
                   "text-red-600 dark:text-red-400"
                 )}
               >
-                {metrics.paybackMesesReal <= 60 ? "Bueno" : "Lento"}
+                {metrics.tir >= discountRate + 5 ? "Atractiva" : 
+                 metrics.tir >= discountRate ? "Aceptable" : "Revisar"}
               </Badge>
             </div>
             
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">
-                Periodo de Recuperación
+                Retorno de Inversión
               </p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-2xl lg:text-3xl font-bold text-orange-700 dark:text-orange-400">
-                  {metrics.paybackMesesReal}
-                </p>
-                <p className="text-lg text-muted-foreground">meses</p>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                ≈ {(metrics.paybackMesesReal / 12).toFixed(1)} años
+              <p className={cn(
+                "text-2xl lg:text-3xl font-bold",
+                metrics.tir >= 20 ? "text-green-700 dark:text-green-400" :
+                metrics.tir >= 12 ? "text-orange-700 dark:text-orange-400" :
+                "text-red-700 dark:text-red-400"
+              )}>
+                {metrics.tir.toFixed(1)}%
               </p>
+              <p className="text-xs text-muted-foreground">TIR del proyecto</p>
             </div>
             
             <Separator className="my-4" />
             
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">ROI Año 1</span>
-                <span className={cn(
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div 
+                className="cursor-pointer hover:bg-muted/50 rounded p-1 -m-1 transition-colors"
+                onClick={() => openCalculation('van')}
+              >
+                <p className="text-muted-foreground text-xs">VAN (@{discountRate}%)</p>
+                <p className={cn(
                   "font-semibold",
-                  metrics.proyeccion[0]?.roiAcumulado >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                  metrics.van >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                 )}>
-                  {formatPercent(metrics.proyeccion[0]?.roiAcumulado || 0)}
-                </span>
+                  {formatCurrency(metrics.van, currency)}
+                </p>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">ROI Año {metrics.proyeccion.length}</span>
-                <span className={cn(
+              <div
+                className="cursor-pointer hover:bg-muted/50 rounded p-1 -m-1 transition-colors"
+                onClick={() => openCalculation('payback_months')}
+              >
+                <p className="text-muted-foreground text-xs">Payback</p>
+                <p className="font-semibold">
+                  {metrics.paybackMesesReal}m
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">MOIC</p>
+                <p className="font-semibold">
+                  {moic.toFixed(2)}x
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">vs WACC {discountRate}%</p>
+                <p className={cn(
                   "font-semibold",
-                  metrics.proyeccion[metrics.proyeccion.length - 1]?.roiAcumulado >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                  spread >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                 )}>
-                  {formatPercent(metrics.proyeccion[metrics.proyeccion.length - 1]?.roiAcumulado || 0)}
-                </span>
+                  {spread >= 0 ? "+" : ""}{spread.toFixed(1)}pp
+                </p>
               </div>
             </div>
           </CardContent>
