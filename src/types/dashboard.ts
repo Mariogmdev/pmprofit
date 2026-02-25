@@ -14,6 +14,16 @@ export interface ProjectionYear {
   flujoAcumulado: number;
   roiAcumulado: number;
   paybackAlcanzado: boolean;
+  // ── Cash Flow fields ──
+  depreciacionAnual: number;
+  ebitAnual: number;
+  impuestoAnual: number;
+  flujoOperativo: number;
+  capexInversion: number;
+  valorResidual: number;
+  flujoCajaLibre: number;
+  flujoAcumulado2: number;
+  paybackMes: number;
 }
 
 // New: Activity-level insight

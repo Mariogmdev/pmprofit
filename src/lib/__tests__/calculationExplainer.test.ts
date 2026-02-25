@@ -34,6 +34,8 @@ const createMockMetrics = (overrides: Partial<DashboardMetrics> = {}): Dashboard
       flujoAcumulado: -68_000_000,
       roiAcumulado: -13.6,
       paybackAlcanzado: false,
+      depreciacionAnual: 0, ebitAnual: 0, impuestoAnual: 0, flujoOperativo: 0,
+      capexInversion: 0, valorResidual: 0, flujoCajaLibre: 0, flujoAcumulado2: 0, paybackMes: 0,
     },
     {
       year: 2,
@@ -49,6 +51,8 @@ const createMockMetrics = (overrides: Partial<DashboardMetrics> = {}): Dashboard
       flujoAcumulado: 412_000_000,
       roiAcumulado: 82.4,
       paybackAlcanzado: true,
+      depreciacionAnual: 0, ebitAnual: 0, impuestoAnual: 0, flujoOperativo: 0,
+      capexInversion: 0, valorResidual: 0, flujoCajaLibre: 0, flujoAcumulado2: 0, paybackMes: 0,
     },
   ],
   ingresosPorActividad: [
