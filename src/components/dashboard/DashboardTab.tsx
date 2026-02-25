@@ -30,11 +30,17 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   const currency = (currentProject?.currency || 'COP') as CurrencyCode;
   const discountRate = currentProject?.discount_rate ?? 10;
 
-  const handleExportPDF = () => {
-    toast({
-      title: 'Exportar PDF',
-      description: 'Esta funcionalidad estará disponible próximamente.',
-    });
+  const handleExportPDF = async () => {
+    if (!currentProject || !metrics) return;
+    try {
+      toast({ title: 'Generando PDF...', description: 'Esto puede tomar unos segundos.' });
+      const { generatePitchDeckPDF } = await import('@/lib/pdfGenerator');
+      await generatePitchDeckPDF(currentProject, metrics);
+      toast({ title: '✅ PDF generado', description: 'El pitch deck se descargó correctamente.' });
+    } catch (error) {
+      console.error('PDF error:', error);
+      toast({ title: 'Error al generar PDF', description: 'Intenta de nuevo.', variant: 'destructive' });
+    }
   };
 
   const handleExportExcel = () => {
