@@ -11,6 +11,7 @@ import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
 import { DashboardTab } from '@/components/dashboard/DashboardTab';
 import { EstadoResultados } from '@/components/financials/EstadoResultados';
 import { BalanceGeneral } from '@/components/financials/BalanceGeneral';
+import { FlujoCaja } from '@/components/financials/FlujoCaja';
 
 export default function Dashboard() {
   const { saveStatus, currentProject } = useProject();
@@ -38,6 +39,12 @@ export default function Dashboard() {
         return currentProject ? (
           <div className="p-4 lg:p-6">
             <BalanceGeneral projectId={currentProject.id} />
+          </div>
+        ) : null;
+      case 'flujo-caja':
+        return currentProject ? (
+          <div className="p-4 lg:p-6">
+            <FlujoCaja projectId={currentProject.id} />
           </div>
         ) : null;
       default:
