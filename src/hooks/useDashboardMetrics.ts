@@ -394,8 +394,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       // Use OPEX CAJA (without depreciation) for EBITDA calculations
       const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexSinWorkingCapital);
       // Apply accumulated inflation to OPEX (Año 1 = base, Año 2+ grows with inflation)
+      // Solo aplicar inflación a la parte fija del OPEX (~60%).
+      // La parte variable (~40%) ya crece con los ingresos.
       const inflationFactor = Math.pow(1 + inflationRate / 100, year - 1);
-      const opexMensual = opexMensualCaja * inflationFactor;
+      const opexFijo = opexMensualCaja * 0.60;
+      const opexVariable = opexMensualCaja * 0.40;
+      const opexMensual = (opexFijo * inflationFactor) + opexVariable;
       const opexAnual = opexMensual * 12;
       // COGS: Year 1 uses actual sum of 12 months; Years 2-5 scale from Year 1 total proportionally to income
       const year1IngresosAnuales = yearlyProjection[0].ingresoAnual;
