@@ -852,12 +852,27 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    if (tir >= 15) {
+    const spread = tir - discountRate;
+    if (spread >= 5) {
       insights.push({
         id: generateId(),
         type: 'success',
         title: 'TIR atractiva',
-        description: `La TIR del ${tir.toFixed(1)}% supera el costo de capital esperado.`,
+        description: `La TIR del ${tir.toFixed(1)}% supera el costo de capital en ${spread.toFixed(1)}pp.`,
+      });
+    } else if (spread >= 0) {
+      insights.push({
+        id: generateId(),
+        type: 'info',
+        title: 'TIR aceptable',
+        description: `La TIR del ${tir.toFixed(1)}% supera el WACC por ${spread.toFixed(1)}pp.`,
+      });
+    } else {
+      insights.push({
+        id: generateId(),
+        type: 'warning',
+        title: 'TIR por debajo del WACC',
+        description: `La TIR del ${tir.toFixed(1)}% está ${Math.abs(spread).toFixed(1)}pp por debajo del costo de capital.`,
       });
     }
 
