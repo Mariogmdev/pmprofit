@@ -285,12 +285,12 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
                 variant="outline"
                 className={cn(
                   "bg-background",
-                  metrics.paybackMeses <= 36 ? "text-green-600 dark:text-green-400" : 
-                  metrics.paybackMeses <= 60 ? "text-orange-600 dark:text-orange-400" : 
+                  metrics.paybackMesesReal <= 36 ? "text-green-600 dark:text-green-400" : 
+                  metrics.paybackMesesReal <= 60 ? "text-orange-600 dark:text-orange-400" : 
                   "text-red-600 dark:text-red-400"
                 )}
               >
-                {metrics.paybackMeses <= 60 ? "Bueno" : "Lento"}
+                {metrics.paybackMesesReal <= 60 ? "Bueno" : "Lento"}
               </Badge>
             </div>
             
@@ -300,12 +300,12 @@ export const HeroMetrics = ({ metrics, currency }: HeroMetricsProps) => {
               </p>
               <div className="flex items-baseline gap-2">
                 <p className="text-2xl lg:text-3xl font-bold text-orange-700 dark:text-orange-400">
-                  {metrics.paybackMeses}
+                  {metrics.paybackMesesReal}
                 </p>
                 <p className="text-lg text-muted-foreground">meses</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                ≈ {(metrics.paybackMeses / 12).toFixed(1)} años
+                ≈ {(metrics.paybackMesesReal / 12).toFixed(1)} años
               </p>
             </div>
             

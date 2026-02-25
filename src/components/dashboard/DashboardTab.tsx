@@ -74,7 +74,7 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
 💰 Ingresos Mensuales (Base): ${formatCurrency(metrics.ingresosMensualesBase, currency)}
 📈 EBITDA Mensual: ${formatCurrency(metrics.ebitdaMensualBase, currency)} (${metrics.margenEbitdaBase.toFixed(1)}%)
 🏗️ CAPEX Total: ${formatCurrency(metrics.capexTotal, currency)}
-⏱️ Payback: ${metrics.paybackMeses} meses (${(metrics.paybackMeses / 12).toFixed(1)} años)
+⏱️ Payback: ${metrics.paybackMesesReal} meses (${(metrics.paybackMesesReal / 12).toFixed(1)} años)
 📊 TIR: ${metrics.tir.toFixed(1)}%
 💵 VAN: ${formatCurrency(metrics.van, currency)}
     `.trim();
