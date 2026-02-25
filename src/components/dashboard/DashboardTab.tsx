@@ -16,6 +16,7 @@ import { DashboardSkeleton } from './DashboardSkeleton';
 import { formatCurrency } from '@/lib/currency';
 import { FileDown, FileSpreadsheet, Share2, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { generatePitchDeckPDF } from '@/lib/pdfGenerator';
 
 interface DashboardTabProps {
   onTabChange?: (tab: AppTab) => void;
@@ -30,16 +31,20 @@ export const DashboardTab = ({ onTabChange }: DashboardTabProps) => {
   const currency = (currentProject?.currency || 'COP') as CurrencyCode;
   const discountRate = currentProject?.discount_rate ?? 10;
 
-  const handleExportPDF = async () => {
-    if (!currentProject || !metrics) return;
+  const handleExportPDF = () => {
+    if (!currentProject || !metrics) {
+      toast({ title: 'Error', description: 'No hay proyecto activo.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Generando PDF...', description: 'Esto puede tomar unos segundos.' });
     try {
-      toast({ title: 'Generando PDF...', description: 'Esto puede tomar unos segundos.' });
-      const { generatePitchDeckPDF } = await import('@/lib/pdfGenerator');
-      await generatePitchDeckPDF(currentProject, metrics);
-      toast({ title: '✅ PDF generado', description: 'El pitch deck se descargó correctamente.' });
+      generatePitchDeckPDF(currentProject, metrics);
+      setTimeout(() => {
+        toast({ title: '✅ PDF generado', description: 'El pitch deck se descargó correctamente.' });
+      }, 1500);
     } catch (error) {
-      console.error('PDF error:', error);
-      toast({ title: 'Error al generar PDF', description: 'Intenta de nuevo.', variant: 'destructive' });
+      console.error('PDF generation error:', error);
+      toast({ title: 'Error al generar PDF', description: String(error), variant: 'destructive' });
     }
   };
 
