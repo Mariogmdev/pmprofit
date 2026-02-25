@@ -876,12 +876,19 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    if (paybackSimple <= 36) {
+    if (paybackMesesReal <= 36) {
       insights.push({
         id: generateId(),
         type: 'success',
         title: 'Recuperación rápida',
-        description: `La inversión se recupera en ${Math.round(paybackSimple)} meses (${(paybackSimple / 12).toFixed(1)} años).`,
+        description: `La inversión se recupera en ${paybackMesesReal} meses (${(paybackMesesReal / 12).toFixed(1)} años).`,
+      });
+    } else if (paybackMesesReal <= 60) {
+      insights.push({
+        id: generateId(),
+        type: 'info',
+        title: 'Recuperación moderada',
+        description: `La inversión se recupera en ${paybackMesesReal} meses (${(paybackMesesReal / 12).toFixed(1)} años).`,
       });
     }
 
@@ -906,12 +913,12 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       });
     }
 
-    if (paybackSimple > 60) {
+    if (paybackMesesReal > 60) {
       insights.push({
         id: generateId(),
         type: 'warning',
         title: 'Payback largo',
-        description: `La recuperación de la inversión tomará más de 5 años.`,
+        description: `La recuperación de la inversión tomará ${paybackMesesReal} meses (${(paybackMesesReal / 12).toFixed(1)} años).`,
       });
     }
 
