@@ -1,4 +1,4 @@
-import { Settings, Hammer, Package, BarChart2, LineChart, Scale } from 'lucide-react';
+import { Settings, Hammer, Package, BarChart2, LineChart, Scale, TrendingUp } from 'lucide-react';
 import { AppTab } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,7 @@ const tabs: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'summary', label: 'Resumen', icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'estados-financieros', label: 'Estados Financieros', icon: <LineChart className="w-4 h-4" /> },
   { id: 'balance-general', label: 'Balance General', icon: <Scale className="w-4 h-4" /> },
+  { id: 'flujo-caja', label: 'Flujo de Caja', icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
 export default function AppTabs({ activeTab, onTabChange }: AppTabsProps) {
