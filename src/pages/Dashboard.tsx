@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { AppTab } from '@/types';
 import { useProject } from '@/contexts/ProjectContext';
 import { useExcelExport } from '@/hooks/useExcelExport';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { generatePitchDeckPDF } from '@/lib/pdfGenerator';
+import { useToast } from '@/hooks/use-toast';
 import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AppTabs from '@/components/layout/AppTabs';
@@ -16,8 +19,27 @@ import { FlujoCaja } from '@/components/financials/FlujoCaja';
 export default function Dashboard() {
   const { saveStatus, currentProject } = useProject();
   const { exportExcel, isExporting } = useExcelExport();
+  const metrics = useDashboardMetrics();
+  const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
+
+  const handleExportPDF = () => {
+    if (!currentProject || !metrics) {
+      toast({ title: 'Error', description: 'No hay proyecto activo o métricas disponibles.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Generando PDF...', description: 'Esto puede tomar unos segundos.' });
+    try {
+      generatePitchDeckPDF(currentProject, metrics);
+      setTimeout(() => {
+        toast({ title: '✅ PDF generado', description: 'El pitch deck se descargó correctamente.' });
+      }, 1500);
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({ title: 'Error al generar PDF', description: String(error), variant: 'destructive' });
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -54,7 +76,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader saveStatus={saveStatus} onExportExcel={exportExcel} isExporting={isExporting} />
+      <AppHeader saveStatus={saveStatus} onExportExcel={exportExcel} onExportPDF={handleExportPDF} isExporting={isExporting} />
 
       <div className="flex w-full">
         <AppSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
