@@ -26,10 +26,11 @@ import { SaveStatus } from '@/types';
 interface AppHeaderProps {
   saveStatus: SaveStatus;
   onExportExcel?: () => void;
+  onExportPDF?: () => void;
   isExporting?: boolean;
 }
 
-export default function AppHeader({ saveStatus, onExportExcel, isExporting }: AppHeaderProps) {
+export default function AppHeader({ saveStatus, onExportExcel, onExportPDF, isExporting }: AppHeaderProps) {
   const { profile, signOut } = useAuth();
   const { currentProject, projects, selectProject } = useProject();
   const navigate = useNavigate();
@@ -140,7 +141,7 @@ export default function AppHeader({ saveStatus, onExportExcel, isExporting }: Ap
               <Download className="w-4 h-4" />
               {isExporting ? 'Exportando...' : 'Excel'}
             </Button>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={onExportPDF} disabled={!onExportPDF}>
               <FileText className="w-4 h-4" />
               PDF
             </Button>
