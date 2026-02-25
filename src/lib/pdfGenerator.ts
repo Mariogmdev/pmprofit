@@ -41,10 +41,10 @@ function txt(doc: jsPDF, str: string, x: number, y: number, opts: TextOpts = {})
 }
 
 function formatM(value: number): string {
-  if (Math.abs(value) >= 1_000_000_000)
-    return '$' + (value / 1_000_000_000).toFixed(1) + 'B';
-  if (Math.abs(value) >= 1_000_000)
-    return '$' + Math.round(value / 1_000_000) + 'M';
+  if (Math.abs(value) >= 1_000_000) {
+    const millions = value / 1_000_000;
+    return '$' + millions.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + 'M';
+  }
   return '$' + Math.round(value / 1_000).toLocaleString() + 'K';
 }
 
