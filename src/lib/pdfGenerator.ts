@@ -617,7 +617,8 @@ function slide7(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
 }
 
 // ── MAIN EXPORT ──────────────────────────────────────
-export async function generatePitchDeckPDF(project: Project, metrics: DashboardMetrics) {
+export function generatePitchDeckPDF(project: Project, metrics: DashboardMetrics) {
+  console.log('PDF generation started', project.name);
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -650,5 +651,7 @@ export async function generatePitchDeckPDF(project: Project, metrics: DashboardM
     .replace(/[^a-z0-9-]/g, '');
   const date = new Date().toISOString().split('T')[0];
 
+  console.log('PDF saving...');
   doc.save(`profit-${projectName}-${date}.pdf`);
+  console.log('PDF saved');
 }
