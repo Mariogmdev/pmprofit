@@ -40,6 +40,9 @@ export function calculateEstadoResultados(
   inflationRate: number = 3,
   projectionYears: number = 5,
 ): EstadoResultados {
+  // WC is not a depreciable asset — use capexSinWC for depreciation base
+  const capexSinWorkingCapital = capexTotal - workingCapital;
+
   // ── Step 1: Calculate Year 1 monthly data (same as dashboard) ──
   const year1Data = calculateYear1Monthly(activities, daysPerMonth);
 
@@ -68,10 +71,10 @@ export function calculateEstadoResultados(
     : 0;
 
   // ── Step 5: Build P&L periods ──
-  const meses = buildYear1Months(year1Data, projectOpex, activities, capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth);
+  const meses = buildYear1Months(year1Data, projectOpex, activities, capexSinWorkingCapital, depreciacionAnos, tasaImpuestos, daysPerMonth);
   const anos = buildAnnualPeriods(
     year1Data, yearlyProjection, projectOpex, activities,
-    capexTotal, depreciacionAnos, tasaImpuestos, daysPerMonth,
+    capexSinWorkingCapital, depreciacionAnos, tasaImpuestos, daysPerMonth,
     cogsRatio, profesoresRatio, costoVentasRatio,
   );
 

@@ -365,7 +365,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const RESIDUAL_ASSET_RATE = 0.40; // 40% del CAPEX activos recuperable
     
     const proyeccion: ProjectionYear[] = [];
-    let flujoAcumulado = 0; // Starts at 0; CAPEX is included in Year 1's flujoCaja
+    let flujoAcumulado = -capexTotal; // Año 0: inversión inicial
     let paybackMesesReal = 0;
     let paybackAlcanzado = false;
     
@@ -393,7 +393,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const ingresosAnuales = ingresosMensuales * 12;
       // Use OPEX CAJA (without depreciation) for EBITDA calculations
       const { opexTotal: opexMensualTotal, opexCaja: opexMensualCaja } = calculateOpexMensual(ingresosMensuales, capexSinWorkingCapital);
-      const opexMensual = opexMensualCaja; // Display OPEX Caja (without depreciation) in table
+      // Apply accumulated inflation to OPEX (Año 1 = base, Año 2+ grows with inflation)
+      const inflationFactor = Math.pow(1 + inflationRate / 100, year - 1);
+      const opexMensual = opexMensualCaja * inflationFactor;
       const opexAnual = opexMensual * 12;
       // COGS: Year 1 uses actual sum of 12 months; Years 2-5 scale from Year 1 total proportionally to income
       const year1IngresosAnuales = yearlyProjection[0].ingresoAnual;
@@ -401,7 +403,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         ? cogsYear1Total
         : (year1IngresosAnuales > 0 ? cogsYear1Total * (ingresosAnuales / year1IngresosAnuales) : 0);
       const cogsMensual = cogsAnual / 12;
-      const ebitdaMensual = ingresosMensuales - cogsMensual - opexMensualCaja; // EBITDA = Ingresos - COGS - OPEX Caja
+      const ebitdaMensual = ingresosMensuales - cogsMensual - opexMensual; // EBITDA = Ingresos - COGS - OPEX (with inflation)
       const ebitdaAnual = ebitdaMensual * 12;
       const margenEbitda = ingresosMensuales > 0 ? (ebitdaMensual / ingresosMensuales) * 100 : 0;
       
@@ -414,13 +416,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       // Flujo de caja operativo post-tax
       let flujoCajaOperativo = ebitdaAnual - impuestosAnual;
       
-      // CAPEX solo en año 1
-      const capex = year === 1 ? capexTotal : 0;
-      
-      // Flujo de caja = Operativo - CAPEX + Valor Residual (último año)
-      let flujoCaja = flujoCajaOperativo - capex;
-      
-      // Agregar valor residual en el último año
+      // CAPEX ya está en flujoAcumulado inicial (-capexTotal en t=0)
+      // flujoCaja es solo operativo + valor residual último año
+      let flujoCaja = flujoCajaOperativo;
       if (year === projectionYears) {
         flujoCaja += valorResidualTotal;
       }
@@ -429,9 +427,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       
       if (!paybackAlcanzado && flujoAcumulado >= 0) {
         paybackAlcanzado = true;
-        // Calculate exact month within the year
         const flujoAnterior = flujoAcumulado - flujoCaja;
-        const mesesEnAno = Math.ceil((-flujoAnterior / flujoCaja) * 12);
+        const fclMensual = flujoCaja / 12;
+        const mesesEnAno = fclMensual > 0
+          ? Math.ceil(Math.abs(flujoAnterior) / fclMensual)
+          : 12;
         paybackMesesReal = (year - 1) * 12 + Math.min(mesesEnAno, 12);
       }
       
@@ -446,7 +446,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         ebitdaMensual,
         ebitdaAnual,
         margenEbitda,
-        capex,
+        capex: 0, // CAPEX is at t=0, not in yearly flows
         flujoCaja,
         flujoAcumulado,
         roiAcumulado,
@@ -455,11 +455,11 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         ebitAnual,
         impuestoAnual: impuestosAnual,
         flujoOperativo: flujoCajaOperativo,
-        capexInversion: year === 1 ? -capex : 0,
+        capexInversion: 0, // CAPEX at t=0 only
         valorResidual: year === projectionYears ? valorResidualTotal : 0,
         flujoCajaLibre: flujoCaja,
         flujoAcumulado2: flujoAcumulado,
-        paybackMes: paybackAlcanzado ? 0 : (flujoAcumulado >= 0 ? (year - 1) * 12 + Math.min(Math.ceil((-((flujoAcumulado - flujoCaja)) / flujoCaja) * 12), 12) : 0),
+        paybackMes: paybackAlcanzado ? 0 : (flujoAcumulado >= 0 ? paybackMesesReal : 0),
       });
     }
 
@@ -648,34 +648,33 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     }
 
     // === CALCULATE TIR (Newton-Raphson) ===
-    // CRITICAL FIX: projection.flujoCaja already includes -CAPEX in Year 1,
-    // so we do NOT prepend another -CAPEX. The flows are:
-    // [Year1 (operating - CAPEX), Year2, Year3, Year4, Year5 (+ residual)]
+    // Año 0 = -capexTotal (inversión), Años 1..N = FCL operativo
     const calculateTIR = () => {
-      const cashFlows = proyeccion.map(p => p.flujoCaja);
-      
-      // Simple IRR approximation using iterative method
+      const cashFlows = [-capexTotal, ...proyeccion.map(p => p.flujoCaja)];
       let irr = 0.1;
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 200; i++) {
         let npv = 0;
         let npvDerivative = 0;
-        cashFlows.forEach((cf, year) => {
-          npv += cf / Math.pow(1 + irr, year);
-          npvDerivative -= year * cf / Math.pow(1 + irr, year + 1);
+        cashFlows.forEach((cf, t) => {
+          npv += cf / Math.pow(1 + irr, t);
+          npvDerivative -= t * cf / Math.pow(1 + irr, t + 1);
         });
-        if (Math.abs(npv) < 0.01) break;
-        irr = irr - npv / npvDerivative;
-        if (irr < -1 || irr > 10) irr = 0.1;
+        if (Math.abs(npv) < 1) break;
+        if (Math.abs(npvDerivative) < 1e-10) break;
+        const newIrr = irr - npv / npvDerivative;
+        if (Math.abs(newIrr - irr) < 1e-9) { irr = newIrr; break; }
+        irr = newIrr;
+        if (irr < -0.999 || irr > 100) irr = 0.1;
       }
       return Math.max(0, Math.min(irr * 100, 100));
     };
 
     // === CALCULATE VAN ===
-    // Same fix: flows already include CAPEX in Year 1
+    // Año 0 = -capexTotal (t=0, sin descuento), Años 1..N descontados
     const calculateVAN = () => {
-      const cashFlows = proyeccion.map(p => p.flujoCaja);
-      return cashFlows.reduce((npv, cf, year) => {
-        return npv + cf / Math.pow(1 + discountRate / 100, year);
+      const cashFlows = [-capexTotal, ...proyeccion.map(p => p.flujoCaja)];
+      return cashFlows.reduce((van, cf, t) => {
+        return van + cf / Math.pow(1 + discountRate / 100, t);
       }, 0);
     };
 
