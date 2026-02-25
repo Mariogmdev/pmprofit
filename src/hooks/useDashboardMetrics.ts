@@ -451,6 +451,15 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         flujoAcumulado,
         roiAcumulado,
         paybackAlcanzado: flujoAcumulado >= 0,
+        depreciacionAnual,
+        ebitAnual,
+        impuestoAnual: impuestosAnual,
+        flujoOperativo: flujoCajaOperativo,
+        capexInversion: year === 1 ? -capex : 0,
+        valorResidual: year === projectionYears ? valorResidualTotal : 0,
+        flujoCajaLibre: flujoCaja,
+        flujoAcumulado2: flujoAcumulado,
+        paybackMes: paybackAlcanzado ? 0 : (flujoAcumulado >= 0 ? (year - 1) * 12 + Math.min(Math.ceil((-((flujoAcumulado - flujoCaja)) / flujoCaja) * 12), 12) : 0),
       });
     }
 
