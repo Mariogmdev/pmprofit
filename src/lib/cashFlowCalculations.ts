@@ -48,7 +48,8 @@ export function calculateCashFlow(
     const impuesto = Math.max(0, ebit) * taxRate;
     const flujoOp = ebitda - impuesto;
     const residual = isLast ? valorResidualTotal : 0;
-    const fcl = flujoOp + residual;
+    // Usar flujoCaja del motor principal para consistencia
+    const fcl = year.flujoCaja;
     acumulado += fcl;
 
     filas.push({
@@ -103,24 +104,19 @@ export function calculateCashFlow(
     ) + fclArray[0];
 
   // ── Payback — interpolación mensual ──
-  let paybackMeses = 0;
+  let paybackMeses = numAnos * 12; // default: no recupera
   const filasSinAnio0 = filas.slice(1);
   const idxCruce = filasSinAnio0.findIndex(f => f.flujoAcumulado >= 0);
 
-  if (idxCruce === 0) {
-    const fclMensual = filasSinAnio0[0].flujoCajaLibre / 12;
-    paybackMeses = fclMensual > 0
-      ? Math.ceil(Math.abs(fila0.flujoAcumulado) / fclMensual)
-      : 0;
-  } else if (idxCruce > 0) {
-    const acumAnterior = filasSinAnio0[idxCruce - 1].flujoAcumulado;
+  if (idxCruce >= 0) {
+    const acumAnterior = idxCruce === 0
+      ? fila0.flujoAcumulado
+      : filasSinAnio0[idxCruce - 1].flujoAcumulado;
     const fclMensual = filasSinAnio0[idxCruce].flujoCajaLibre / 12;
-    const mesesExtra = fclMensual > 0
+    const mesesAdicionales = fclMensual > 0
       ? Math.ceil(Math.abs(acumAnterior) / fclMensual)
-      : 0;
-    paybackMeses = idxCruce * 12 + mesesExtra;
-  } else {
-    paybackMeses = numAnos * 12;
+      : 12;
+    paybackMeses = idxCruce * 12 + mesesAdicionales;
   }
 
   // ── CAPEX Breakdown (mapear desde DashboardMetrics) ──
