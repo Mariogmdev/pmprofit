@@ -108,8 +108,6 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
   const fmtM = (v: number) => {
     const abs = Math.abs(v);
     const sign = v < 0 ? '-' : '';
-    if (abs >= 1_000_000_000)
-      return `${sign}$${(abs / 1_000_000_000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}B`;
     if (abs >= 1_000_000)
       return `${sign}$${(abs / 1_000_000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}M`;
     if (abs >= 1_000)
