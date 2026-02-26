@@ -550,7 +550,7 @@ function slide6(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
     { label: 'Working Capital', value: formatM(breakdown.workingCapital || 0) },
     { label: 'WC / CAPEX Total', value: metrics.capexTotal > 0 ? formatPct((breakdown.workingCapital || 0) / metrics.capexTotal * 100) : '--' },
     { label: 'Años depreciación', value: '10 años' },
-    { label: 'Valor residual (40%)', value: formatM(capexSinWC * 0.40) },
+    { label: `Valor residual (${project.residual_asset_rate ?? 40}%)`, value: formatM(capexSinWC * (project.residual_asset_rate ?? 40) / 100) },
   ];
 
   effMetrics.forEach((m, i) => {
@@ -578,9 +578,9 @@ function slide7(doc: jsPDF, project: Project, metrics: DashboardMetrics) {
     { label: 'Inflación', value: `${project.inflation_rate ?? 5}% anual` },
     { label: 'Tasa de descuento', value: `${discountRate}%` },
     { label: 'Horizonte', value: `${project.projection_years ?? 5} años` },
-    { label: 'Impuesto renta', value: '35% (Colombia)' },
-    { label: 'Depreciación', value: '10 años lineal' },
-    { label: 'Valor residual', value: '40% activos + 100% WC' },
+    { label: 'Impuesto renta', value: `${project.tax_rate ?? 35}% (renta)` },
+    { label: 'Depreciacion', value: '10 anos lineal' },
+    { label: 'Valor residual', value: `${project.residual_asset_rate ?? 40}% activos + 100% WC` },
   ];
 
   const supW = (PAGE_W - 2 * MARGIN - 8) / 2;

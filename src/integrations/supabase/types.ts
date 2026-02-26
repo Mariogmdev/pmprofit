@@ -397,10 +397,13 @@ export type Database = {
           last_saved_at: string | null
           location: string | null
           name: string
+          occupancy_growth_rate: number | null
           opening_date: string | null
           opening_hour: number | null
           opening_minute: number | null
           projection_years: number | null
+          residual_asset_rate: number | null
+          tax_rate: number | null
           updated_at: string | null
           user_id: string
           weekend_closing_hour: number | null
@@ -423,10 +426,13 @@ export type Database = {
           last_saved_at?: string | null
           location?: string | null
           name: string
+          occupancy_growth_rate?: number | null
           opening_date?: string | null
           opening_hour?: number | null
           opening_minute?: number | null
           projection_years?: number | null
+          residual_asset_rate?: number | null
+          tax_rate?: number | null
           updated_at?: string | null
           user_id: string
           weekend_closing_hour?: number | null
@@ -449,10 +455,13 @@ export type Database = {
           last_saved_at?: string | null
           location?: string | null
           name?: string
+          occupancy_growth_rate?: number | null
           opening_date?: string | null
           opening_hour?: number | null
           opening_minute?: number | null
           projection_years?: number | null
+          residual_asset_rate?: number | null
+          tax_rate?: number | null
           updated_at?: string | null
           user_id?: string
           weekend_closing_hour?: number | null

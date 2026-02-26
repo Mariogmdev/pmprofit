@@ -361,8 +361,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
      *    - Activos remanentes: ~40% del CAPEX (50% vida útil restante, menos descuento)
      *    - Working Capital: 100% recuperable
      */
-    const TAX_RATE = 0.35; // Tasa impositiva Colombia (35%)
-    const RESIDUAL_ASSET_RATE = 0.40; // 40% del CAPEX activos recuperable
+    const TAX_RATE = (currentProject?.tax_rate ?? 35) / 100;
+    const RESIDUAL_ASSET_RATE = (currentProject?.residual_asset_rate ?? 40) / 100;
     
     const proyeccion: ProjectionYear[] = [];
     let flujoAcumulado = -capexTotal; // Año 0: inversión inicial
@@ -381,7 +381,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
     const yearlyProjection = calculateYearlyProjection(
       ingresosBrutosAno1 * 12,  // Annual Year 1 income (from maturity curve)
       ocupacionPromedio,         // Year 1 average occupancy
-      5,                         // tasaCrecimientoOcupacion (5% annual)
+      currentProject?.occupancy_growth_rate ?? 5,  // tasaCrecimientoOcupacion
       inflationRate,             // From project config
       projectionYears
     );

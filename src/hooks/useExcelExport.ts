@@ -79,7 +79,7 @@ export function useExcelExport() {
         opex,
         capexData.capexSinWC,
         capexData.workingCapital,
-        0.35,
+        (currentProject?.tax_rate ?? 35) / 100,
         depreciacionAnos,
         daysPerMonth,
         inflationRate,

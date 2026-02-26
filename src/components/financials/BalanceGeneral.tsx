@@ -186,7 +186,7 @@ export function BalanceGeneral({
       opex,
       capexData.capexSinWC,
       capexData.workingCapital,
-      0.35,
+      (currentProject?.tax_rate ?? 35) / 100,
       opex.depreciacion_anos || 10,
       daysPerMonth,
       inflationRate,
