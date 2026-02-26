@@ -39,6 +39,11 @@ export interface Project {
   
   holidays_different: boolean;
   
+  // Supuestos del modelo
+  occupancy_growth_rate: number;  // default 5
+  tax_rate: number;               // default 35
+  residual_asset_rate: number;    // default 40
+  
   // Metadata
   created_at: string;
   updated_at: string;

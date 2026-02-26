@@ -80,7 +80,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
       opex,
       capexData.capexSinWC,
       capexData.workingCapital,
-      0.35,
+      (currentProject?.tax_rate ?? 35) / 100,
       opex.depreciacion_anos || 10,
       daysPerMonth,
       inflationRate,
@@ -91,7 +91,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
   // Calculate Cash Flow
   const cf = useMemo(() => {
     if (!pl) return null;
-    return calculateCashFlow(metrics, pl, discountRate, 0.35, 0.40);
+    return calculateCashFlow(metrics, pl, discountRate, (currentProject?.tax_rate ?? 35) / 100, (currentProject?.residual_asset_rate ?? 40) / 100);
   }, [metrics, pl, discountRate]);
 
   if (loading || !cf) {

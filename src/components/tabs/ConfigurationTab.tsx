@@ -52,6 +52,9 @@ const configSchema = z.object({
   inflation_rate: z.number().min(-10).max(50, 'Debe ser entre -10% y 50%'),
   projection_years: z.number(),
   working_capital_months: z.number().min(0).max(12, 'Debe ser entre 0 y 12 meses'),
+  occupancy_growth_rate: z.number().min(0).max(20),
+  tax_rate: z.number().min(0).max(50),
+  residual_asset_rate: z.number().min(0).max(80),
   opening_hour: z.number().min(0).max(23),
   opening_minute: z.number(),
   closing_hour: z.number().min(0).max(23),
@@ -84,6 +87,9 @@ export default function ConfigurationTab() {
     inflation_rate: project?.inflation_rate || 3.5,
     projection_years: project?.projection_years || 5,
     working_capital_months: project?.working_capital_months ?? 3,
+    occupancy_growth_rate: project?.occupancy_growth_rate ?? 5,
+    tax_rate: project?.tax_rate ?? 35,
+    residual_asset_rate: project?.residual_asset_rate ?? 40,
     opening_hour: project?.opening_hour || 6,
     opening_minute: project?.opening_minute || 0,
     closing_hour: project?.closing_hour || 22,
@@ -145,6 +151,9 @@ export default function ConfigurationTab() {
       inflation_rate: data.inflation_rate,
       projection_years: data.projection_years,
       working_capital_months: data.working_capital_months,
+      occupancy_growth_rate: data.occupancy_growth_rate,
+      tax_rate: data.tax_rate,
+      residual_asset_rate: data.residual_asset_rate,
       opening_hour: data.opening_hour,
       opening_minute: data.opening_minute,
       closing_hour: data.closing_hour,
@@ -472,6 +481,85 @@ export default function ConfigurationTab() {
                 {errors.working_capital_months && (
                   <p className="input-error">{errors.working_capital_months.message}</p>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Supuestos del Modelo */}
+          <div className="mt-6 pt-6 border-t border-border">
+            <Label className="text-base font-medium mb-4 block">
+              <Calculator className="w-4 h-4 inline mr-2" />
+              Supuestos del Modelo
+            </Label>
+
+            <div className="form-row-3">
+              <div className="space-y-2">
+                <Label htmlFor="occupancy_growth_rate">
+                  Crecimiento Ocupación Anual
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="occupancy_growth_rate"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="20"
+                    {...register('occupancy_growth_rate', { valueAsNumber: true })}
+                    className="pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    %/año
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Incremento en ocupación cada año hasta alcanzar el máximo (95%)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tax_rate">
+                  Impuesto a la Renta
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="tax_rate"
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="50"
+                    {...register('tax_rate', { valueAsNumber: true })}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    %
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Colombia: 35% | Zona franca: 20% | Ajustar según régimen
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="residual_asset_rate">
+                  Valor Residual de Activos
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="residual_asset_rate"
+                    type="number"
+                    step="5"
+                    min="0"
+                    max="80"
+                    {...register('residual_asset_rate', { valueAsNumber: true })}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    %
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  % del CAPEX (sin WC) recuperable al final. 40% es conservador.
+                </p>
               </div>
             </div>
           </div>
