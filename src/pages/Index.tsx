@@ -286,7 +286,7 @@ function NavBar({ t, lang, setLang, user }: { t: Translations; lang: Lang; setLa
     <nav
       className="fixed top-0 inset-x-0 z-50 transition-all duration-500"
       style={{
-        background: scrolled ? 'rgba(3,3,3,0.85)' : 'transparent',
+        background: scrolled ? 'rgba(13, 31, 45, 0.92)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
         borderBottom: scrolled ? '1px solid rgba(200,246,0,0.08)' : '1px solid transparent',
       }}
@@ -351,7 +351,7 @@ function NavBar({ t, lang, setLang, user }: { t: Translations; lang: Lang; setLa
 
           {user ? (
             <Link to="/dashboard">
-              <Button size="sm" className="bg-[#c8f600] text-[#030303] hover:bg-[#b8e600] font-semibold text-xs">
+              <Button size="sm" className="bg-[#c8f600] text-[#0d1f2d] hover:bg-[#b8e600] font-semibold text-xs">
                 {t.nav.dashboard}
               </Button>
             </Link>
@@ -363,7 +363,7 @@ function NavBar({ t, lang, setLang, user }: { t: Translations; lang: Lang; setLa
                 </Button>
               </Link>
               <Link to="/register">
-                <Button size="sm" className="bg-[#c8f600] text-[#030303] hover:bg-[#b8e600] font-semibold text-xs">
+                <Button size="sm" className="bg-[#c8f600] text-[#0d1f2d] hover:bg-[#b8e600] font-semibold text-xs">
                   {t.nav.cta}
                 </Button>
               </Link>
@@ -382,7 +382,7 @@ function HeroSection({ t, user, mouse, scrollY }: { t: Translations; user: unkno
   const { displayed: typeText, ref: typeRef } = useTypewriter(t.hero.subtitle, 25, 1200);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: '#030303' }}>
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: '#0d1f2d' }}>
       <ParticleField />
       <DiagonalLine scrollY={scrollY} />
 
@@ -469,7 +469,7 @@ function HeroSection({ t, user, mouse, scrollY }: { t: Translations; user: unkno
               className="text-base px-8 py-6 font-semibold transition-all duration-300"
               style={{
                 background: '#c8f600',
-                color: '#030303',
+                color: '#0d1f2d',
                 boxShadow: '0 0 30px rgba(200,246,0,0.35)',
                 animation: 'glowPulse 3s ease infinite',
                 fontFamily: "'DM Sans', sans-serif",
@@ -549,9 +549,9 @@ function MetricsSection({ t }: { t: Translations }) {
   const van = useCountUp(946, 3000, 0);
 
   return (
-    <section id="metrics" className="relative py-24 overflow-hidden" style={{ background: '#0a0a0a' }}>
+    <section id="metrics" className="relative py-24 overflow-hidden" style={{ background: '#071520' }}>
       {/* Línea decorativa horizontal */}
-      <div className="absolute top-0 left-0 right-0 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(200,246,0,0.2), transparent)' }} />
+      <div className="absolute top-0 left-0 right-0 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(200,246,0,0.25), transparent)' }} />
 
       <div className="max-w-5xl mx-auto px-6">
         <p
@@ -615,7 +615,7 @@ function MetricsSection({ t }: { t: Translations }) {
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(200,246,0,0.2), transparent)' }} />
+      <div className="absolute bottom-0 left-0 right-0 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(200,246,0,0.25), transparent)' }} />
     </section>
   );
 }
@@ -625,7 +625,7 @@ function MetricsSection({ t }: { t: Translations }) {
 // ============================================================
 function HowItWorksSection({ t }: { t: Translations }) {
   return (
-    <section className="py-24" style={{ background: '#030303' }}>
+    <section className="py-24" style={{ background: '#0d1f2d' }}>
       <div className="max-w-5xl mx-auto px-6">
         <div className="mb-16">
           <h2
@@ -663,16 +663,16 @@ function HowItWorksSection({ t }: { t: Translations }) {
               key={step.num}
               className="group relative p-8 rounded-none transition-all duration-300"
               style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(61,127,163,0.2)',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'rgba(200,246,0,0.25)';
-                e.currentTarget.style.background = 'rgba(200,246,0,0.04)';
+                e.currentTarget.style.background = 'rgba(200,246,0,0.06)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                e.currentTarget.style.borderColor = 'rgba(61,127,163,0.2)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
               }}
             >
               <span
@@ -715,7 +715,7 @@ function FeaturesSection({ t }: { t: Translations }) {
   ];
 
   return (
-    <section id="features" className="py-24" style={{ background: '#0a0a0a' }}>
+    <section id="features" className="py-24" style={{ background: '#071520' }}>
       <div className="max-w-5xl mx-auto px-6">
         <div className="flex items-end justify-between mb-14">
           <h2
@@ -736,19 +736,19 @@ function FeaturesSection({ t }: { t: Translations }) {
           </span>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-[1px]" style={{ background: 'rgba(255,255,255,0.05)' }}>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-[1px]" style={{ background: 'rgba(61,127,163,0.15)' }}>
           {features.map((f, i) => (
             <div
               key={i}
               className="p-8 transition-all duration-300"
-              style={{ background: 'rgba(255,255,255,0.025)' }}
+              style={{ background: 'rgba(255,255,255,0.04)' }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(200,246,0,0.05)';
+                e.currentTarget.style.background = 'rgba(200,246,0,0.06)';
                 e.currentTarget.style.transform = 'translateY(-4px)';
                 e.currentTarget.style.boxShadow = '0 20px 60px rgba(200,246,0,0.08)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = 'none';
               }}
@@ -784,12 +784,12 @@ function FeaturesSection({ t }: { t: Translations }) {
 // ============================================================
 function CTASection({ t, user }: { t: Translations; user: unknown }) {
   return (
-    <section className="relative py-32 overflow-hidden" style={{ background: '#030303' }}>
+    <section className="relative py-32 overflow-hidden" style={{ background: 'linear-gradient(135deg, #3d7fa3 0%, #2d6085 50%, #1a3a52 100%)' }}>
       {/* Glow */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div
           className="w-[500px] h-[500px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(200,246,0,0.08), transparent 70%)' }}
+          style={{ background: 'radial-gradient(ellipse, rgba(200,246,0,0.15) 0%, transparent 70%)' }}
         />
       </div>
 
@@ -827,7 +827,7 @@ function CTASection({ t, user }: { t: Translations; user: unknown }) {
             className="text-base px-10 py-6 font-semibold transition-all duration-300"
             style={{
               background: '#c8f600',
-              color: '#030303',
+              color: '#0d1f2d',
               boxShadow: '0 0 60px rgba(200,246,0,0.4)',
               fontFamily: "'DM Sans', sans-serif",
             }}
@@ -852,7 +852,7 @@ function CTASection({ t, user }: { t: Translations; user: unknown }) {
 // ============================================================
 function FooterSection({ t }: { t: Translations }) {
   return (
-    <footer style={{ background: '#030303', borderTop: '1px solid rgba(255,255,255,0.05)' }} className="py-8">
+    <footer style={{ background: '#071520', borderTop: '1px solid rgba(61,127,163,0.15)' }} className="py-8">
       <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <img src="/profit-icon.svg" alt="ProFit" className="h-5 w-auto" />
@@ -913,7 +913,7 @@ export default function LandingPage() {
   const scrollY = useScrollY();
 
   return (
-    <div className="landing-page min-h-screen" style={{ background: '#030303', fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="landing-page min-h-screen" style={{ background: '#0d1f2d', fontFamily: "'DM Sans', sans-serif" }}>
       {/* Grain overlay */}
       <div className="grain-overlay" />
 
