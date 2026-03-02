@@ -1,154 +1,315 @@
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, ArrowRight, BarChart3, Users, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { translations, type Lang, type Translations } from '@/lib/i18n';
+import { Button } from '@/components/ui/button';
+import {
+  BarChart3, ArrowRight, Zap, Shield,
+  FileSpreadsheet, TrendingUp, Building2, Globe,
+} from 'lucide-react';
 
-export default function LandingPage() {
-  const { user } = useAuth();
+/* ───────── count-up hook ───────── */
+function useCountUp(target: number, duration = 2000) {
+  const [count, setCount] = useState(0);
+  const [started, setStarted] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setStarted(true); },
+      { threshold: 0.5 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+    let frame = 0;
+    const total = Math.round(duration / 16);
+    const id = setInterval(() => {
+      frame++;
+      const p = 1 - Math.pow(1 - frame / total, 3);
+      setCount(Math.floor(p * target));
+      if (frame >= total) { setCount(target); clearInterval(id); }
+    }, 16);
+    return () => clearInterval(id);
+  }, [started, target, duration]);
+
+  return { count, ref };
+}
+
+/* ───────── NAV ───────── */
+function NavBar({
+  t, lang, setLang, user,
+}: {
+  t: Translations;
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  user: unknown;
+}) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-muted/30 to-background">
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
-              <Calculator className="w-5 h-5 text-primary" />
-            </div>
-            <span className="text-xl font-bold text-foreground">Padel Mundial</span>
+    <nav className="fixed top-0 inset-x-0 z-40 backdrop-blur-md bg-[#0f172a]/80 border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        {/* logo */}
+        <div className="flex items-center gap-3">
+          <img src="/profit-logo.jpg" alt="ProFit" className="h-10 w-auto rounded-lg" />
+          <div className="hidden sm:flex flex-col leading-none">
+            <span className="text-[10px] text-white/50">{t.poweredBy}</span>
+            <img src="/padel-mundial-logo.svg" alt="Pádel Mundial" className="h-4 w-auto" />
           </div>
+        </div>
 
-          <div className="flex items-center gap-4">
-            {user ? (
-              <Button asChild>
-                <Link to="/dashboard">Ir al Dashboard</Link>
+        {/* centre links */}
+        <div className="hidden md:flex items-center gap-6">
+          <a href="#features" className="text-sm text-white/70 hover:text-white transition-colors">{t.nav.features}</a>
+          <a href="#metrics" className="text-sm text-white/70 hover:text-white transition-colors">{t.nav.pricing}</a>
+        </div>
+
+        {/* right */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setLang(lang === 'es' ? 'en' : 'es')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 text-white/80 hover:text-white hover:border-white/40 text-xs font-medium transition-all"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {lang === 'es' ? 'EN' : 'ES'}
+          </button>
+
+          {user ? (
+            <Button asChild size="sm" className="bg-[#c8f600] text-[#0f172a] hover:bg-[#b8e600] font-semibold">
+              <Link to="/dashboard">{t.nav.dashboard}</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild className="text-white/80 hover:text-white hidden sm:inline-flex">
+                <Link to="/login">{t.nav.login}</Link>
               </Button>
-            ) : (
-              <>
-                <Button variant="ghost" asChild>
-                  <Link to="/login">Iniciar Sesión</Link>
-                </Button>
-                <Button asChild>
-                  <Link to="/register">Registrarse</Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </nav>
-      </header>
-
-      {/* Hero */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-3xl mx-auto animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Zap className="w-4 h-4" />
-            Modelado Financiero Profesional
-          </div>
-
-          <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
-            Modela tu negocio deportivo con{' '}
-            <span className="text-primary">precisión</span>
-          </h1>
-
-          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            La plataforma más completa para crear modelos financieros de clubes
-            deportivos, canchas de pádel, gimnasios y más. Proyecta ingresos,
-            analiza costos y toma decisiones informadas.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" asChild className="gap-2">
-              <Link to={user ? '/dashboard' : '/register'}>
-                Comenzar Gratis
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg">
-              Ver Demo
-            </Button>
-          </div>
+              <Button asChild size="sm" className="bg-[#c8f600] text-[#0f172a] hover:bg-[#b8e600] font-semibold">
+                <Link to="/register">{t.nav.cta}</Link>
+              </Button>
+            </>
+          )}
         </div>
-      </section>
+      </div>
+    </nav>
+  );
+}
 
-      {/* Features */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="bg-card rounded-2xl p-8 border border-border shadow-sm hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-              <BarChart3 className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Análisis Financiero</h3>
-            <p className="text-muted-foreground">
-              Calcula VAN, TIR, payback y más métricas clave para evaluar la
-              viabilidad de tu proyecto.
-            </p>
-          </div>
+/* ───────── HERO ───────── */
+function HeroSection({ t, user }: { t: Translations; user: unknown }) {
+  return (
+    <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden bg-gradient-to-b from-[#0f172a] via-[#1a3a52] to-[#3d7fa3]">
+      {/* decorative circles */}
+      <div className="absolute top-20 -left-40 w-[500px] h-[500px] rounded-full bg-[#c8f600]/5 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 -right-40 w-[600px] h-[600px] rounded-full bg-[#3d7fa3]/30 blur-3xl pointer-events-none" />
 
-          <div className="bg-card rounded-2xl p-8 border border-border shadow-sm hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center mb-4">
-              <Users className="w-6 h-6 text-secondary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Múltiples Actividades</h3>
-            <p className="text-muted-foreground">
-              Modela pádel, tenis, fútbol, gimnasios, restaurantes y todos los
-              servicios de tu club.
-            </p>
-          </div>
+      <div className="relative max-w-4xl mx-auto px-4 text-center">
+        {/* badge */}
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-[#c8f600] text-sm font-medium backdrop-blur-sm border border-white/10 mb-8">
+          {t.hero.badge}
+        </span>
 
-          <div className="bg-card rounded-2xl p-8 border border-border shadow-sm hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
-              <Zap className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Proyecciones Precisas</h3>
-            <p className="text-muted-foreground">
-              Genera proyecciones a 3, 5, 7 o 10 años con ajustes por inflación
-              y estacionalidad.
-            </p>
-          </div>
-        </div>
-      </section>
+        <h1 className="font-['DM_Serif_Display',serif] text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white leading-[1.1] mb-6">
+          {t.hero.h1_line1}
+          <br />
+          <span className="text-[#c8f600]">{t.hero.h1_line2}</span>
+        </h1>
 
-      {/* CTA */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-3xl p-12 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            ¿Listo para modelar tu negocio?
-          </h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Únete a cientos de empresarios que ya confían en Padel Mundial para
-            planificar sus inversiones deportivas.
-          </p>
-          <Button size="lg" asChild className="gap-2">
-            <Link to={user ? '/dashboard' : '/register'}>
-              Crear Mi Primer Proyecto
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+        <p className="text-base sm:text-lg text-white/70 max-w-2xl mx-auto mb-10 font-['DM_Sans',sans-serif]">
+          {t.hero.subtitle}
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          <Button asChild size="lg" className="bg-[#c8f600] text-[#0f172a] hover:bg-[#b8e600] font-semibold text-base px-8 h-12">
+            <Link to={user ? '/dashboard' : '/register'}>{t.hero.cta_primary}</Link>
+          </Button>
+          <Button variant="outline" size="lg" className="border-white/20 text-white hover:bg-white/10 h-12">
+            {t.hero.cta_secondary}
           </Button>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="container mx-auto px-4 py-8 border-t border-border">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calculator className="w-4 h-4" />
-            <span className="text-sm">
-              © 2024 Padel Mundial. Todos los derechos reservados.
+        <div className="flex flex-wrap justify-center gap-3">
+          {[t.hero.proof1, t.hero.proof2, t.hero.proof3].map((p, i) => (
+            <span key={i} className="text-xs text-white/60 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+              {p}
             </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ───────── METRICS ───────── */
+function MetricsSection({ t }: { t: Translations }) {
+  const tir = useCountUp(199, 2000);
+  const van = useCountUp(946, 2500);
+
+  return (
+    <section id="metrics" className="py-20 bg-[#0f172a]">
+      <div className="max-w-5xl mx-auto px-4">
+        <p className="text-center text-white/60 text-sm mb-10 font-['DM_Sans',sans-serif]">
+          {t.metrics.title}{' '}
+          <span className="text-[#c8f600]">{t.metrics.subtitle}</span>
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {/* TIR */}
+          <div ref={tir.ref} className="text-center bg-white/5 rounded-2xl p-8 border border-white/10">
+            <p className="text-4xl sm:text-5xl font-bold text-[#c8f600] font-['DM_Serif_Display',serif]">
+              {(tir.count / 10).toFixed(1)}%
+            </p>
+            <p className="text-white/80 font-medium mt-2">{t.metrics.m1_label}</p>
+            <p className="text-white/50 text-xs mt-1">{t.metrics.m1_sub}</p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="/terms" className="hover:text-foreground transition-colors">
-              Términos
-            </Link>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">
-              Privacidad
-            </Link>
-            <Link to="/contact" className="hover:text-foreground transition-colors">
-              Contacto
-            </Link>
+
+          {/* VAN */}
+          <div ref={van.ref} className="text-center bg-white/5 rounded-2xl p-8 border border-white/10">
+            <p className="text-4xl sm:text-5xl font-bold text-[#c8f600] font-['DM_Serif_Display',serif]">
+              ${van.count}M
+            </p>
+            <p className="text-white/80 font-medium mt-2">{t.metrics.m2_label}</p>
+            <p className="text-white/50 text-xs mt-1">{t.metrics.m2_sub}</p>
+          </div>
+
+          {/* Tiempo */}
+          <div className="text-center bg-white/5 rounded-2xl p-8 border border-white/10">
+            <p className="text-4xl sm:text-5xl font-bold text-[#c8f600] font-['DM_Serif_Display',serif]">
+              {t.metrics.m3_value}
+            </p>
+            <p className="text-white/80 font-medium mt-2">{t.metrics.m3_label}</p>
+            <p className="text-white/50 text-xs mt-1">{t.metrics.m3_sub}</p>
           </div>
         </div>
-      </footer>
+      </div>
+    </section>
+  );
+}
+
+/* ───────── HOW IT WORKS ───────── */
+function HowItWorksSection({ t }: { t: Translations }) {
+  const steps = [
+    { num: '01', title: t.how.step1_title, desc: t.how.step1_desc, icon: Building2 },
+    { num: '02', title: t.how.step2_title, desc: t.how.step2_desc, icon: TrendingUp },
+    { num: '03', title: t.how.step3_title, desc: t.how.step3_desc, icon: FileSpreadsheet },
+  ];
+
+  return (
+    <section className="py-20 bg-[#1a3a52]">
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl sm:text-4xl font-['DM_Serif_Display',serif] text-white mb-3">{t.how.title}</h2>
+          <p className="text-white/60 font-['DM_Sans',sans-serif]">{t.how.subtitle}</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          {steps.map((s) => (
+            <div key={s.num} className="relative bg-white/5 rounded-2xl p-8 border border-white/10 hover:border-[#c8f600]/30 transition-colors group">
+              <span className="text-[#c8f600]/30 text-6xl font-bold absolute top-4 right-6 font-['DM_Serif_Display',serif] group-hover:text-[#c8f600]/50 transition-colors">
+                {s.num}
+              </span>
+              <div className="w-12 h-12 rounded-xl bg-[#c8f600]/10 flex items-center justify-center mb-5">
+                <s.icon className="w-6 h-6 text-[#c8f600]" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2 font-['DM_Sans',sans-serif]">{s.title}</h3>
+              <p className="text-white/60 text-sm leading-relaxed font-['DM_Sans',sans-serif]">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ───────── FEATURES ───────── */
+function FeaturesSection({ t }: { t: Translations }) {
+  const features = [
+    { icon: TrendingUp, title: t.features.f1_title, desc: t.features.f1_desc },
+    { icon: Building2, title: t.features.f2_title, desc: t.features.f2_desc },
+    { icon: BarChart3, title: t.features.f3_title, desc: t.features.f3_desc },
+    { icon: FileSpreadsheet, title: t.features.f4_title, desc: t.features.f4_desc },
+    { icon: Zap, title: t.features.f5_title, desc: t.features.f5_desc },
+    { icon: Shield, title: t.features.f6_title, desc: t.features.f6_desc },
+  ];
+
+  return (
+    <section id="features" className="py-20 bg-[#0f172a]">
+      <div className="max-w-5xl mx-auto px-4">
+        <h2 className="text-3xl sm:text-4xl font-['DM_Serif_Display',serif] text-white text-center mb-14">
+          {t.features.title}
+        </h2>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f, i) => (
+            <div key={i} className="bg-white/5 rounded-2xl p-6 border border-white/10 hover:border-[#c8f600]/30 transition-colors">
+              <div className="w-10 h-10 rounded-lg bg-[#c8f600]/10 flex items-center justify-center mb-4">
+                <f.icon className="w-5 h-5 text-[#c8f600]" />
+              </div>
+              <h3 className="text-white font-semibold mb-1 font-['DM_Sans',sans-serif]">{f.title}</h3>
+              <p className="text-white/60 text-sm font-['DM_Sans',sans-serif]">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ───────── CTA ───────── */
+function CTASection({ t, user }: { t: Translations; user: unknown }) {
+  return (
+    <section className="py-20 bg-gradient-to-b from-[#3d7fa3] to-[#1a3a52]">
+      <div className="max-w-3xl mx-auto px-4 text-center">
+        <h2 className="text-3xl sm:text-4xl font-['DM_Serif_Display',serif] text-white mb-4">
+          {t.cta.title}
+        </h2>
+        <p className="text-white/70 mb-8 font-['DM_Sans',sans-serif]">{t.cta.subtitle}</p>
+        <Button asChild size="lg" className="bg-[#c8f600] text-[#0f172a] hover:bg-[#b8e600] font-semibold text-base px-8 h-12">
+          <Link to={user ? '/dashboard' : '/register'}>{t.cta.button}</Link>
+        </Button>
+        <p className="text-white/50 text-xs mt-4 font-['DM_Sans',sans-serif]">{t.cta.note}</p>
+      </div>
+    </section>
+  );
+}
+
+/* ───────── FOOTER ───────── */
+function FooterSection({ t }: { t: Translations }) {
+  return (
+    <footer className="bg-[#0f172a] border-t border-white/10 py-8">
+      <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 text-white/50 text-sm">
+          <img src="/profit-logo.jpg" alt="ProFit" className="h-6 w-auto rounded" />
+          {t.footer.rights}
+        </div>
+        <div className="flex items-center gap-6 text-sm text-white/50">
+          <a href="#" className="hover:text-white transition-colors">{t.footer.terms}</a>
+          <a href="#" className="hover:text-white transition-colors">{t.footer.privacy}</a>
+          <a href="#" className="hover:text-white transition-colors">{t.footer.contact}</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ───────── PAGE ───────── */
+export default function LandingPage() {
+  const { user } = useAuth();
+  const [lang, setLang] = useState<Lang>('es');
+  const t = translations[lang];
+
+  return (
+    <div className="min-h-screen bg-[#0f172a] font-['DM_Sans',sans-serif]">
+      <NavBar t={t} lang={lang} setLang={setLang} user={user} />
+      <HeroSection t={t} user={user} />
+      <MetricsSection t={t} />
+      <HowItWorksSection t={t} />
+      <FeaturesSection t={t} />
+      <CTASection t={t} user={user} />
+      <FooterSection t={t} />
     </div>
   );
 }
