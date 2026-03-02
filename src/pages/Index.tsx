@@ -56,10 +56,7 @@ function NavBar({
         {/* logo */}
         <div className="flex flex-col items-start gap-0.5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg"
-                 style={{ background: '#c8f600', color: '#1a1a1a' }}>
-              P
-            </div>
+            <img src="/profit-icon.svg" alt="ProFit" className="h-8 w-auto" />
             <span className="text-xl font-black tracking-tight"
                   style={{ color: '#c8f600' }}>
               ProFit
