@@ -472,7 +472,7 @@ export default function CreateModuleWizard({
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
+                  <SelectContent>
                     {Array.from({ length: 24 }, (_, i) => (
                       <SelectItem key={i} value={i.toString()}>
                         {i.toString().padStart(2, '0')}:00
@@ -490,7 +490,7 @@ export default function CreateModuleWizard({
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
+                  <SelectContent>
                     {Array.from({ length: 24 }, (_, i) => (
                       <SelectItem key={i} value={i.toString()}>
                         {i.toString().padStart(2, '0')}:00
