@@ -54,11 +54,22 @@ function NavBar({
     <nav className="fixed top-0 inset-x-0 z-40 backdrop-blur-md bg-[#0f172a]/80 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* logo */}
-        <div className="flex items-center gap-3">
-          <img src="/profit-logo.jpg" alt="ProFit" className="h-10 w-auto rounded-lg" />
-          <div className="hidden sm:flex flex-col leading-none">
-            <span className="text-[10px] text-white/50">{t.poweredBy}</span>
-            <img src="/padel-mundial-logo.svg" alt="Pádel Mundial" className="h-4 w-auto" />
+        <div className="flex flex-col items-start gap-0.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg"
+                 style={{ background: '#c8f600', color: '#1a1a1a' }}>
+              P
+            </div>
+            <span className="text-xl font-black tracking-tight"
+                  style={{ color: '#c8f600' }}>
+              ProFit
+            </span>
+          </div>
+          <div className="flex items-center gap-1 ml-10">
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px' }}>powered by</span>
+            <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '10px', fontWeight: 600 }}>
+              Pádel Mundial
+            </span>
           </div>
         </div>
 
@@ -126,7 +137,9 @@ function HeroSection({ t, user }: { t: Translations; user: unknown }) {
           <Button asChild size="lg" className="bg-[#c8f600] text-[#0f172a] hover:bg-[#b8e600] font-semibold text-base px-8 h-12">
             <Link to={user ? '/dashboard' : '/register'}>{t.hero.cta_primary}</Link>
           </Button>
-          <Button variant="outline" size="lg" className="border-white/20 text-white hover:bg-white/10 h-12">
+          <Button variant="outline" size="lg"
+            style={{ borderColor: '#c8f600', color: '#c8f600', background: 'transparent' }}
+            className="text-base px-8 h-12 hover:opacity-80 font-semibold">
             {t.hero.cta_secondary}
           </Button>
         </div>
@@ -281,9 +294,18 @@ function FooterSection({ t }: { t: Translations }) {
   return (
     <footer className="bg-[#0f172a] border-t border-white/10 py-8">
       <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 text-white/50 text-sm">
-          <img src="/profit-logo.jpg" alt="ProFit" className="h-6 w-auto rounded" />
-          {t.footer.rights}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded flex items-center justify-center font-black text-sm"
+                 style={{ background: '#c8f600', color: '#1a1a1a' }}>
+              P
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-sm" style={{ color: '#c8f600' }}>ProFit</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '9px' }}>by Pádel Mundial</span>
+            </div>
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.4)' }} className="text-xs">{t.footer.rights}</span>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/50">
           <a href="#" className="hover:text-white transition-colors">{t.footer.terms}</a>
