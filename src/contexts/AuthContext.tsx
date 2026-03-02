@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  sessionExpiresAt: number | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
 
   // Fetch user profile
   const fetchProfile = async (userId: string) => {
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        setSessionExpiresAt(session?.expires_at ?? null);
         
         // Defer profile fetching with setTimeout to avoid deadlock
         if (session?.user) {
@@ -66,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setSessionExpiresAt(session?.expires_at ?? null);
       
       if (session?.user) {
         fetchProfile(session.user.id).then((profile) => {
@@ -159,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     profile,
     loading,
+    sessionExpiresAt,
     signIn,
     signUp,
     signOut,
