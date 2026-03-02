@@ -216,14 +216,8 @@
   }
 
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .animate-slide-in-right {
@@ -231,14 +225,8 @@
   }
 
   @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
   }
 
   /* Scrollbar styling */
@@ -247,16 +235,101 @@
     scrollbar-color: hsl(var(--muted)) transparent;
   }
 
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--muted-foreground) / 0.3);
     border-radius: 3px;
   }
 }
+
+/* ═══════════════════════════════════════════
+   LANDING PAGE — Athletic Precision Effects
+   ═══════════════════════════════════════════ */
+
+:root {
+  --lime: #c8f600;
+  --lime-dim: rgba(200, 246, 0, 0.15);
+  --lime-glow: rgba(200, 246, 0, 0.4);
+  --landing-black: #030303;
+  --landing-dark: #0a0a0a;
+  --landing-dark-2: #111111;
+  --landing-white: #f5f5f5;
+  --landing-white-dim: rgba(245, 245, 245, 0.6);
+  --landing-blue: #3d7fa3;
+}
+
+/* Cursor personalizado */
+.landing-page { cursor: none; }
+
+.custom-cursor {
+  width: 12px; height: 12px;
+  background: var(--lime);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  transition: transform 0.1s ease;
+  mix-blend-mode: difference;
+}
+
+.custom-cursor-follower {
+  width: 36px; height: 36px;
+  border: 1px solid var(--lime-glow);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 9998;
+  transition: all 0.15s ease;
+}
+
+/* Grain overlay */
+.grain-overlay {
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 1;
+  animation: grain 0.5s steps(1) infinite;
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2%, -3%); }
+  20% { transform: translate(3%, 1%); }
+  30% { transform: translate(-1%, 4%); }
+  40% { transform: translate(4%, -2%); }
+  50% { transform: translate(-3%, 3%); }
+  60% { transform: translate(2%, -4%); }
+  70% { transform: translate(-4%, 1%); }
+  80% { transform: translate(1%, -1%); }
+  90% { transform: translate(-2%, 4%); }
+}
+
+/* Reveal animations */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px var(--lime-glow); }
+  50% { box-shadow: 0 0 40px var(--lime-glow), 0 0 80px var(--lime-dim); }
+}
+
+@keyframes scrollDrop {
+  0% { top: -50%; opacity: 1; }
+  100% { top: 150%; opacity: 0; }
+}
+
+.reveal-up {
+  opacity: 0;
+  animation: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.reveal-up-delay-1 { animation-delay: 0.1s; }
+.reveal-up-delay-2 { animation-delay: 0.25s; }
+.reveal-up-delay-3 { animation-delay: 0.4s; }
+.reveal-up-delay-4 { animation-delay: 0.6s; }
+.reveal-up-delay-5 { animation-delay: 0.8s; }
