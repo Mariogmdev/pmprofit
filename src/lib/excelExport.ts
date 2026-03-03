@@ -209,7 +209,7 @@ function agregarReadme(wb: XLSX.WorkBook, p: ExcelExportParams): void {
   ];
 
   const data: (string | null)[][] = [
-    [`${p.projectName} — Modelo Financiero | Pádel Mundial`],
+    [`${p.projectName} — Modelo Financiero | ProFit by Pádel Mundial`],
     [null],
     ['Cómo usar'],
     ['1) Cambia valores en celdas con fondo AZUL (Inputs) para escenarios.'],
@@ -220,7 +220,7 @@ function agregarReadme(wb: XLSX.WorkBook, p: ExcelExportParams): void {
     ['Hoja', 'Descripción'],
     ...hojas.map(h => [h[0], h[1]]),
     [null],
-    [`Generado por Pádel Mundial Financial Model`],
+    [`Generado por ProFit Financial Modeler | pmprofit.lovable.app`],
     [`Fecha de exportación: ${new Date().toLocaleDateString('es-CO')}`],
   ];
 
