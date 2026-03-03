@@ -416,8 +416,8 @@ function HeroSection({ t, user, mouse, scrollY }: { t: Translations; user: unkno
           🏟 {t.hero.badge}
         </div>
 
-        {/* H1 — Bebas Neue */}
-        <h1 className="reveal-up reveal-up-delay-1" style={{ fontFamily: "'Bebas Neue', sans-serif", lineHeight: 0.9, marginBottom: '32px' }}>
+        {/* H1 — DM Serif Display */}
+        <h1 className="reveal-up reveal-up-delay-1" style={{ fontFamily: "'DM Serif Display', serif", lineHeight: 0.95, marginBottom: '32px' }}>
           <span
             className="block"
             style={{
@@ -630,7 +630,7 @@ function HowItWorksSection({ t }: { t: Translations }) {
         <div className="mb-16">
           <h2
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: "'DM Serif Display', serif",
               fontSize: 'clamp(36px, 5vw, 56px)',
               color: '#f5f5f5',
               letterSpacing: '2px',
@@ -720,7 +720,7 @@ function FeaturesSection({ t }: { t: Translations }) {
         <div className="flex items-end justify-between mb-14">
           <h2
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: "'DM Serif Display', serif",
               fontSize: 'clamp(36px, 5vw, 56px)',
               color: '#f5f5f5',
               letterSpacing: '2px',
@@ -805,7 +805,7 @@ function CTASection({ t, user }: { t: Translations; user: unknown }) {
         <h2
           className="mb-6"
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: "'DM Serif Display', serif",
             fontSize: 'clamp(36px, 6vw, 64px)',
             color: '#f5f5f5',
             letterSpacing: '2px',
