@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { FeedbackWidget } from '@/components/FeedbackWidget';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -82,6 +83,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     <>
       <SessionExpiryBanner />
       {children}
+      <FeedbackWidget />
     </>
   );
 }
