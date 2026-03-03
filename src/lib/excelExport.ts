@@ -209,7 +209,7 @@ function agregarReadme(wb: XLSX.WorkBook, p: ExcelExportParams): void {
   ];
 
   const data: (string | null)[][] = [
-    [`${p.projectName} — Modelo Financiero | ProFit by Pádel Mundial`],
+    [`${p.projectName} — Modelo Financiero | ProFit`],
     [null],
     ['Cómo usar'],
     ['1) Cambia valores en celdas con fondo AZUL (Inputs) para escenarios.'],
