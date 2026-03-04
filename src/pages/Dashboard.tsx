@@ -115,7 +115,10 @@ export default function Dashboard() {
       <AppHeader saveStatus={saveStatus} onExportExcel={exportExcel} onExportPDF={handleExportPDF} isExporting={isExporting} />
 
       {showEmptyState ? (
-        <WelcomeEmptyState onCreateProject={() => setActiveTab('config')} />
+        <>
+          <WelcomeEmptyState onCreateProject={() => setShowCreateModal(true)} />
+          <CreateProjectModal open={showCreateModal} onOpenChange={setShowCreateModal} />
+        </>
       ) : (
         <div className="flex w-full">
           <AppSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
