@@ -169,7 +169,7 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         setProjectToDuplicate({ id: project.id, name: project.name });
                         setShowDuplicateModal(true);
                       }}
-                      className="shrink-0 p-1.5 rounded-md hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="shrink-0 p-1.5 rounded-md hover:bg-accent text-muted-foreground transition-opacity"
                       title="Duplicar proyecto"
                     >
                       <Copy className="h-3.5 w-3.5" />
