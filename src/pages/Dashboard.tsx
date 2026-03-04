@@ -56,6 +56,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleExportPDF = useCallback(() => {
     if (!currentProject || !metrics) {
