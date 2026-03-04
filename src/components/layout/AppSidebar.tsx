@@ -135,11 +135,11 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 </div>
               ) : (
                 projects.map((project) => (
-                  <div key={project.id} className="group relative">
+                  <div key={project.id} className="group flex items-center">
                     <button
                       onClick={() => selectProject(project.id)}
                       className={`
-                        w-full text-left p-3 pr-9 rounded-lg transition-all
+                        flex-1 min-w-0 text-left p-3 rounded-lg transition-all
                         ${
                           currentProject?.id === project.id
                             ? 'bg-sidebar-accent border-l-4 border-primary'
@@ -157,7 +157,7 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                       >
                         {project.name}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
                         {formatRelativeTime(project.updated_at)}
                       </p>
                     </button>
@@ -169,10 +169,10 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         setProjectToDuplicate({ id: project.id, name: project.name });
                         setShowDuplicateModal(true);
                       }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-accent opacity-40 group-hover:opacity-100 transition-opacity"
+                      className="shrink-0 p-1.5 rounded-md hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Duplicar proyecto"
                     >
-                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Copy className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))
