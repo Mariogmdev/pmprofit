@@ -11,6 +11,7 @@ import { ArrowRight, ChevronRight, Rocket } from 'lucide-react';
 import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AppTabs from '@/components/layout/AppTabs';
+import CreateProjectModal from '@/components/modals/CreateProjectModal';
 import ConfigurationTab from '@/components/tabs/ConfigurationTab';
 import ConstructorTab from '@/components/tabs/ConstructorTab';
 import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
@@ -55,6 +56,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleExportPDF = useCallback(() => {
     if (!currentProject || !metrics) {
@@ -113,7 +115,10 @@ export default function Dashboard() {
       <AppHeader saveStatus={saveStatus} onExportExcel={exportExcel} onExportPDF={handleExportPDF} isExporting={isExporting} />
 
       {showEmptyState ? (
-        <WelcomeEmptyState onCreateProject={() => setActiveTab('config')} />
+        <>
+          <WelcomeEmptyState onCreateProject={() => setShowCreateModal(true)} />
+          <CreateProjectModal open={showCreateModal} onOpenChange={setShowCreateModal} />
+        </>
       ) : (
         <div className="flex w-full">
           <AppSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
