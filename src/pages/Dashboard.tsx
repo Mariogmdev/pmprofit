@@ -11,6 +11,7 @@ import { ArrowRight, ChevronRight, Rocket } from 'lucide-react';
 import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AppTabs from '@/components/layout/AppTabs';
+import CreateProjectModal from '@/components/modals/CreateProjectModal';
 import ConfigurationTab from '@/components/tabs/ConfigurationTab';
 import ConstructorTab from '@/components/tabs/ConstructorTab';
 import ModuleCenterTab from '@/components/tabs/ModuleCenterTab';
