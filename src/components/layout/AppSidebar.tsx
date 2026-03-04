@@ -135,45 +135,46 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 </div>
               ) : (
                 projects.map((project) => (
-                  <div key={project.id} className="group flex items-center">
-                    <button
-                      onClick={() => selectProject(project.id)}
-                      className={`
-                        flex-1 min-w-0 text-left p-3 rounded-lg transition-all
-                        ${
-                          currentProject?.id === project.id
-                            ? 'bg-sidebar-accent border-l-4 border-primary'
-                            : 'hover:bg-muted'
-                        }
-                      `}
-                      title={project.name}
+                  <div
+                    key={project.id}
+                    className={`
+                      group relative p-3 rounded-lg transition-all cursor-pointer
+                      ${
+                        currentProject?.id === project.id
+                          ? 'bg-sidebar-accent border-l-4 border-primary'
+                          : 'hover:bg-muted'
+                      }
+                    `}
+                    onClick={() => selectProject(project.id)}
+                    title={project.name}
+                  >
+                    <p
+                      className={`text-sm font-medium truncate pr-6 ${
+                        currentProject?.id === project.id
+                          ? 'text-primary'
+                          : 'text-sidebar-foreground'
+                      }`}
                     >
-                      <p
-                        className={`text-sm font-medium truncate ${
-                          currentProject?.id === project.id
-                            ? 'text-primary'
-                            : 'text-sidebar-foreground'
-                        }`}
-                      >
-                        {project.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {formatRelativeTime(project.updated_at)}
-                      </p>
-                    </button>
+                      {project.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatRelativeTime(project.updated_at)}
+                    </p>
 
                     {/* Duplicate button */}
-                    <button
+                    <span
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         setProjectToDuplicate({ id: project.id, name: project.name });
                         setShowDuplicateModal(true);
                       }}
-                      className="shrink-0 p-1.5 rounded-md hover:bg-accent text-muted-foreground transition-opacity"
+                      className="absolute right-2 top-3 p-1 rounded-md hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Duplicar proyecto"
                     >
                       <Copy className="h-3.5 w-3.5" />
-                    </button>
+                    </span>
                   </div>
                 ))
               )}
