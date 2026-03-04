@@ -157,24 +157,24 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     >
                       {project.name}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatRelativeTime(project.updated_at)}
-                    </p>
-
-                    {/* Duplicate button */}
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setProjectToDuplicate({ id: project.id, name: project.name });
-                        setShowDuplicateModal(true);
-                      }}
-                      className="absolute right-2 top-3 p-1 rounded-md bg-destructive text-destructive-foreground"
-                      title="Duplicar proyecto"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </span>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className="text-xs text-muted-foreground">
+                        {formatRelativeTime(project.updated_at)}
+                      </p>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProjectToDuplicate({ id: project.id, name: project.name });
+                          setShowDuplicateModal(true);
+                        }}
+                        className="p-0.5 rounded hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Duplicar proyecto"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </span>
+                    </div>
                   </div>
                 ))
               )}
