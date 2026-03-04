@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   FolderOpen,
+  Copy,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -15,7 +16,17 @@ import { useNavigate } from 'react-router-dom';
 import { formatRelativeTime } from '@/lib/time';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import CreateProjectModal from '@/components/modals/CreateProjectModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AppSidebarProps {
   isOpen: boolean;
@@ -24,13 +35,50 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { signOut } = useAuth();
-  const { currentProject, projects, selectProject } = useProject();
+  const { currentProject, projects, selectProject, refreshProjects } = useProject();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [projectToDuplicate, setProjectToDuplicate] = useState<{ id: string; name: string } | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+  };
+
+  const handleDuplicate = async () => {
+    if (!projectToDuplicate) return;
+    setDuplicating(true);
+
+    try {
+      const { data, error } = await supabase.rpc('duplicate_project', {
+        original_project_id: projectToDuplicate.id,
+        new_project_name: `${projectToDuplicate.name} (Copia)`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Proyecto duplicado',
+        description: `"${projectToDuplicate.name} (Copia)" creado exitosamente.`,
+      });
+
+      await refreshProjects();
+      if (data) selectProject(data as string);
+      setShowDuplicateModal(false);
+      setProjectToDuplicate(null);
+    } catch (error) {
+      console.error('Error duplicating project:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo duplicar el proyecto. Intenta nuevamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDuplicating(false);
+    }
   };
 
   return (
@@ -87,31 +135,45 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 </div>
               ) : (
                 projects.map((project) => (
-                  <button
-                    key={project.id}
-                    onClick={() => selectProject(project.id)}
-                    className={`
-                      w-full text-left p-3 rounded-lg transition-all
-                      ${
-                        currentProject?.id === project.id
-                          ? 'bg-sidebar-accent border-l-4 border-primary'
-                          : 'hover:bg-muted'
-                      }
-                    `}
-                  >
-                    <p
-                      className={`text-sm font-medium truncate ${
-                        currentProject?.id === project.id
-                          ? 'text-primary'
-                          : 'text-sidebar-foreground'
-                      }`}
+                  <div key={project.id} className="group relative">
+                    <button
+                      onClick={() => selectProject(project.id)}
+                      className={`
+                        w-full text-left p-3 pr-10 rounded-lg transition-all
+                        ${
+                          currentProject?.id === project.id
+                            ? 'bg-sidebar-accent border-l-4 border-primary'
+                            : 'hover:bg-muted'
+                        }
+                      `}
                     >
-                      {project.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatRelativeTime(project.updated_at)}
-                    </p>
-                  </button>
+                      <p
+                        className={`text-sm font-medium truncate ${
+                          currentProject?.id === project.id
+                            ? 'text-primary'
+                            : 'text-sidebar-foreground'
+                        }`}
+                      >
+                        {project.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatRelativeTime(project.updated_at)}
+                      </p>
+                    </button>
+
+                    {/* Duplicate button - visible on hover */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProjectToDuplicate({ id: project.id, name: project.name });
+                        setShowDuplicateModal(true);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-accent"
+                      title="Duplicar proyecto"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
                 ))
               )}
             </div>
@@ -164,6 +226,31 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
       />
+
+      {/* Duplicate project modal */}
+      <Dialog open={showDuplicateModal} onOpenChange={setShowDuplicateModal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Duplicar Proyecto</DialogTitle>
+            <DialogDescription>
+              Se creará una copia exacta de "{projectToDuplicate?.name}" con todas
+              sus actividades, OPEX y configuraciones.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDuplicateModal(false)}
+              disabled={duplicating}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleDuplicate} disabled={duplicating}>
+              {duplicating ? 'Duplicando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
