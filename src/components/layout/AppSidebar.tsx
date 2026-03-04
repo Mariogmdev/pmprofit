@@ -138,7 +138,7 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                   <div
                     key={project.id}
                     className={`
-                      group relative p-3 rounded-lg transition-all cursor-pointer
+                      group p-3 rounded-lg transition-all cursor-pointer
                       ${
                         currentProject?.id === project.id
                           ? 'bg-sidebar-accent border-l-4 border-primary'
