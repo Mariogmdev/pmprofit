@@ -149,7 +149,7 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     title={project.name}
                   >
                     <p
-                      className={`text-sm font-medium truncate ${
+                      className={`text-sm font-medium truncate max-w-[200px] ${
                         currentProject?.id === project.id
                           ? 'text-primary'
                           : 'text-sidebar-foreground'
