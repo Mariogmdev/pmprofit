@@ -124,8 +124,8 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             </h3>
           </div>
 
-          <ScrollArea className="flex-1 px-4">
-            <div className="space-y-1 pb-4">
+          <ScrollArea className="flex-1 px-4 overflow-hidden">
+            <div className="space-y-1 pb-4 max-w-full overflow-hidden">
               {projects.length === 0 ? (
                 <div className="py-8 text-center">
                   <FolderOpen className="w-10 h-10 text-muted-foreground/50 mx-auto mb-2" />
