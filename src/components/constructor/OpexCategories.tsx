@@ -31,10 +31,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useProjectOpex } from '@/hooks/useProjectOpex';
 import { useProjectActivities } from '@/hooks/useProjectActivities';
+import { useProjectSpaces } from '@/hooks/useProjectSpaces';
+import { useObraCivil } from '@/hooks/useObraCivil';
+import { useProject } from '@/contexts/ProjectContext';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types/index';
 import { NominaItem, ServiceItem, ComisionItem, RentCalculationBase, ExpenseType, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { ActivityConfig } from '@/types/activity';
+import { calculateActivityFinancials } from '@/lib/activityCalculations';
+import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
 import {
   Users, Home, Zap, Megaphone, Monitor, Shield, Wrench,
   FileText, MoreHorizontal, TrendingDown, Plus, X, DollarSign, 
