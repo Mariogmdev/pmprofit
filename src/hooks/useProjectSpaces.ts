@@ -143,7 +143,7 @@ export const useProjectSpaces = (projectId: string) => {
 
     const { error } = await supabase
       .from('project_spaces')
-      .update(dbUpdates)
+      .update(dbUpdates as any)
       .eq('id', id);
 
     if (error) {

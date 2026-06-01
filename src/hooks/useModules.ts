@@ -204,7 +204,7 @@ export function useModules(): UseModulesReturn {
 
       const { error: updateError } = await supabase
         .from('modules')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', id);
 
       if (updateError) {
