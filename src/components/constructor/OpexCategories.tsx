@@ -144,33 +144,41 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
   }, [activities]);
 
   // Calculate different income bases for rent calculations
+  // USES CENTRALIZED ENGINE (same as OpexSummaryCard / Dashboard) for parity
   const ingresos = useMemo(() => {
-    let totalBruto = 0;
-    let soloActividades = 0;
+    const daysPerMonth = currentProject?.days_per_month || 30;
 
+    // First pass: total club users from non-traffic activities (for traffic activities)
+    const nonTrafficActivities = activities.filter(a => a.config.modeloIngreso !== 'trafico');
+    const totalClubUsersFromOtherActivities = nonTrafficActivities.reduce((sum, act) => {
+      const config: ActivityConfig = act.config;
+      const financials = calculateActivityFinancials(config, daysPerMonth, 0);
+      return sum + financials.totalUsuariosMes;
+    }, 0);
+
+    let totalBruto = 0;
     activities.forEach(act => {
       const config: ActivityConfig = act.config;
-      const cantidad = config.cantidad || 1;
-      const horarios = config.horarios || [];
-      const tarifaPromedio = horarios.length > 0 
-        ? horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length 
-        : 0;
-      const ocupacionPromedio = horarios.length > 0
-        ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
-        : 0.5;
-      const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-      const diasMes = 30;
-      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * ocupacionPromedio * diasMes / (config.duracionReserva || 1.5);
-      totalBruto += ingresoEstimado;
-      soloActividades += ingresoEstimado;
+      const financials = calculateActivityFinancials(
+        config,
+        daysPerMonth,
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
+      const year1Proj = calculateYear1MonthlyProjection(
+        config,
+        daysPerMonth,
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
+      const ingresoMadurez = year1Proj.months[11]?.ingresos.total ?? financials.ingresosMensuales;
+      totalBruto += ingresoMadurez;
     });
 
     return {
       totalBruto,
-      totalNeto: totalBruto * 0.85, // Simplified: 15% costs from third parties
-      soloActividades
+      totalNeto: totalBruto * 0.85, // 15% third-party costs (matches OpexSummaryCard)
+      soloActividades: totalBruto,
     };
-  }, [activities]);
+  }, [activities, currentProject?.days_per_month]);
 
   // Helper functions
   const calculateNominaBase = () => {
