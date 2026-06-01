@@ -266,10 +266,50 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
       }, 0);
     }
     
-    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad + 
-           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos + 
-           gastosFinancieros + impuestos + otrosGastos;
-  }, [opex, nominaActividades, mantenimientoActividades, activities, ingresos]);
+    // CAPEX (same calculation as OpexSummaryCard) to derive depreciation
+    const capexActividades = activities.reduce((sum, activity) => {
+      const config: ActivityConfig = activity.config;
+      const cantidad = config.cantidad || 1;
+      const tipoCubierta = config.tipoCubierta || 'cubierta';
+      let capexConstruccion = 0;
+      if (tipoCubierta === 'cubierta') {
+        capexConstruccion = (config.capexCubierta || 0) * cantidad;
+      } else if (tipoCubierta === 'semicubierta') {
+        capexConstruccion = (config.capexSemicubierta || 0) * cantidad;
+      } else {
+        capexConstruccion = (config.capexAireLibre || 0) * cantidad;
+      }
+      const equipamientoTotal = (config.equipamientoEspecifico || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const consumiblesTotal = (config.consumibles || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const mobiliarioTotal = (config.mobiliario || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      return sum + capexConstruccion + equipamientoTotal + consumiblesTotal + mobiliarioTotal;
+    }, 0);
+    const capexEspacios = spaces.reduce((sum, space) => {
+      const areaCapex = (space.area || 0) * ((space as any).capex_por_m2 || 0);
+      const breakdownTotal = (space.breakdown || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      return sum + areaCapex + breakdownTotal;
+    }, 0);
+    const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
+    const capexSubtotal = capexActividades + capexEspacios + capexObraCivil;
+    const imprevistosPorcentaje = obraCivil?.imprevistos_porcentaje ?? 10;
+    const capexSinWorkingCapital = capexSubtotal * (1 + imprevistosPorcentaje / 100);
+
+    const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
+    const incluirDepreciacion = opex?.incluir_depreciacion !== false;
+    const depreciacion = incluirDepreciacion ? (capexSinWorkingCapital / depreciacionAnos / 12) : 0;
+
+    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad +
+           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos +
+           gastosFinancieros + impuestos + otrosGastos + depreciacion;
+  }, [opex, nominaActividades, mantenimientoActividades, activities, spaces, obraCivil, ingresos]);
 
   // Calculate utilities before rent (for rent on utilities)
   const utilidadesAntesArriendo = useMemo(() => {
