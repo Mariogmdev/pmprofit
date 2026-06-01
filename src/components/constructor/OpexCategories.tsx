@@ -95,6 +95,9 @@ const OPEX_TEMPLATES: Record<string, ServiceItem[]> = {
 export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => {
   const { opex, loading, updateOpex } = useProjectOpex(projectId);
   const { activities } = useProjectActivities();
+  const { spaces } = useProjectSpaces(projectId);
+  const { obraCivil } = useObraCivil(projectId);
+  const { currentProject } = useProject();
 
   // Calculate payroll from activities
   const nominaActividades = useMemo(() => {
