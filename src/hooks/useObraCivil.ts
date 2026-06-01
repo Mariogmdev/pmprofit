@@ -118,7 +118,7 @@ export const useObraCivil = (projectId: string) => {
 
     const { error } = await supabase
       .from('obra_civil')
-      .update(dbUpdates)
+      .update(dbUpdates as any)
       .eq('project_id', projectId);
 
     if (error) {

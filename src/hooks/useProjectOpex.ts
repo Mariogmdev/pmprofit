@@ -198,7 +198,7 @@ export const useProjectOpex = (projectId: string) => {
     
     const { error } = await supabase
       .from('project_opex')
-      .update(dbUpdates)
+      .update(dbUpdates as any)
       .eq('project_id', projectId);
     
     if (error) {

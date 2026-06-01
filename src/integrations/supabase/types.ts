@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      feedback: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          page: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          page?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          page?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       modules: {
         Row: {
           category: string
@@ -484,7 +511,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      duplicate_project: {
+        Args: { new_project_name: string; original_project_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

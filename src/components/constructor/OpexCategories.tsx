@@ -31,10 +31,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useProjectOpex } from '@/hooks/useProjectOpex';
 import { useProjectActivities } from '@/hooks/useProjectActivities';
+import { useProjectSpaces } from '@/hooks/useProjectSpaces';
+import { useObraCivil } from '@/hooks/useObraCivil';
+import { useProject } from '@/contexts/ProjectContext';
 import { formatCurrency } from '@/lib/currency';
 import { CurrencyCode } from '@/types/index';
 import { NominaItem, ServiceItem, ComisionItem, RentCalculationBase, ExpenseType, BankCommissionItem, RetencionItem } from '@/types/opex';
 import { ActivityConfig } from '@/types/activity';
+import { calculateActivityFinancials } from '@/lib/activityCalculations';
+import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
 import {
   Users, Home, Zap, Megaphone, Monitor, Shield, Wrench,
   FileText, MoreHorizontal, TrendingDown, Plus, X, DollarSign, 
@@ -90,6 +95,9 @@ const OPEX_TEMPLATES: Record<string, ServiceItem[]> = {
 export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => {
   const { opex, loading, updateOpex } = useProjectOpex(projectId);
   const { activities } = useProjectActivities();
+  const { spaces } = useProjectSpaces(projectId);
+  const { obraCivil } = useObraCivil(projectId);
+  const { currentProject } = useProject();
 
   // Calculate payroll from activities
   const nominaActividades = useMemo(() => {
@@ -136,33 +144,41 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
   }, [activities]);
 
   // Calculate different income bases for rent calculations
+  // USES CENTRALIZED ENGINE (same as OpexSummaryCard / Dashboard) for parity
   const ingresos = useMemo(() => {
-    let totalBruto = 0;
-    let soloActividades = 0;
+    const daysPerMonth = currentProject?.days_per_month || 30;
 
+    // First pass: total club users from non-traffic activities (for traffic activities)
+    const nonTrafficActivities = activities.filter(a => a.config.modeloIngreso !== 'trafico');
+    const totalClubUsersFromOtherActivities = nonTrafficActivities.reduce((sum, act) => {
+      const config: ActivityConfig = act.config;
+      const financials = calculateActivityFinancials(config, daysPerMonth, 0);
+      return sum + financials.totalUsuariosMes;
+    }, 0);
+
+    let totalBruto = 0;
     activities.forEach(act => {
       const config: ActivityConfig = act.config;
-      const cantidad = config.cantidad || 1;
-      const horarios = config.horarios || [];
-      const tarifaPromedio = horarios.length > 0 
-        ? horarios.reduce((s, h) => s + (h.tarifa || 0), 0) / horarios.length 
-        : 0;
-      const ocupacionPromedio = horarios.length > 0
-        ? horarios.reduce((s, h) => s + (h.ocupacion || 0), 0) / horarios.length / 100
-        : 0.5;
-      const horasOperacion = horarios.reduce((s, h) => s + ((h.fin || 0) - (h.inicio || 0)), 0);
-      const diasMes = 30;
-      const ingresoEstimado = cantidad * tarifaPromedio * horasOperacion * ocupacionPromedio * diasMes / (config.duracionReserva || 1.5);
-      totalBruto += ingresoEstimado;
-      soloActividades += ingresoEstimado;
+      const financials = calculateActivityFinancials(
+        config,
+        daysPerMonth,
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
+      const year1Proj = calculateYear1MonthlyProjection(
+        config,
+        daysPerMonth,
+        config.modeloIngreso === 'trafico' ? totalClubUsersFromOtherActivities : 0
+      );
+      const ingresoMadurez = year1Proj.months[11]?.ingresos.total ?? financials.ingresosMensuales;
+      totalBruto += ingresoMadurez;
     });
 
     return {
       totalBruto,
-      totalNeto: totalBruto * 0.85, // Simplified: 15% costs from third parties
-      soloActividades
+      totalNeto: totalBruto * 0.85, // 15% third-party costs (matches OpexSummaryCard)
+      soloActividades: totalBruto,
     };
-  }, [activities]);
+  }, [activities, currentProject?.days_per_month]);
 
   // Helper functions
   const calculateNominaBase = () => {
@@ -250,10 +266,50 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
       }, 0);
     }
     
-    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad + 
-           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos + 
-           gastosFinancieros + impuestos + otrosGastos;
-  }, [opex, nominaActividades, mantenimientoActividades, activities, ingresos]);
+    // CAPEX (same calculation as OpexSummaryCard) to derive depreciation
+    const capexActividades = activities.reduce((sum, activity) => {
+      const config: ActivityConfig = activity.config;
+      const cantidad = config.cantidad || 1;
+      const tipoCubierta = config.tipoCubierta || 'cubierta';
+      let capexConstruccion = 0;
+      if (tipoCubierta === 'cubierta') {
+        capexConstruccion = (config.capexCubierta || 0) * cantidad;
+      } else if (tipoCubierta === 'semicubierta') {
+        capexConstruccion = (config.capexSemicubierta || 0) * cantidad;
+      } else {
+        capexConstruccion = (config.capexAireLibre || 0) * cantidad;
+      }
+      const equipamientoTotal = (config.equipamientoEspecifico || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const consumiblesTotal = (config.consumibles || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      const mobiliarioTotal = (config.mobiliario || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      return sum + capexConstruccion + equipamientoTotal + consumiblesTotal + mobiliarioTotal;
+    }, 0);
+    const capexEspacios = spaces.reduce((sum, space) => {
+      const areaCapex = (space.area || 0) * ((space as any).capex_por_m2 || 0);
+      const breakdownTotal = (space.breakdown || []).reduce(
+        (s, item) => s + ((item.cantidad || 0) * (item.precioUnitario || 0)), 0
+      );
+      return sum + areaCapex + breakdownTotal;
+    }, 0);
+    const capexObraCivil = obraCivil?.capex_obra_civil_total || 0;
+    const capexSubtotal = capexActividades + capexEspacios + capexObraCivil;
+    const imprevistosPorcentaje = obraCivil?.imprevistos_porcentaje ?? 10;
+    const capexSinWorkingCapital = capexSubtotal * (1 + imprevistosPorcentaje / 100);
+
+    const depreciacionAnos = Math.max(1, opex?.depreciacion_anos || 10);
+    const incluirDepreciacion = opex?.incluir_depreciacion !== false;
+    const depreciacion = incluirDepreciacion ? (capexSinWorkingCapital / depreciacionAnos / 12) : 0;
+
+    return totalNomina + serviciosPublicos + marketing + tecnologia + seguridad +
+           seguros + mantenimientoGeneral + mantenimientoActividades + administrativos +
+           gastosFinancieros + impuestos + otrosGastos + depreciacion;
+  }, [opex, nominaActividades, mantenimientoActividades, activities, spaces, obraCivil, ingresos]);
 
   // Calculate utilities before rent (for rent on utilities)
   const utilidadesAntesArriendo = useMemo(() => {
