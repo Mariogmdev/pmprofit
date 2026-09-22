@@ -37,13 +37,48 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const { signOut } = useAuth();
-  const { currentProject, projects, selectProject } = useProject();
+  const { currentProject, projects, selectProject, refreshProjects } = useProject();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [projectToDuplicate, setProjectToDuplicate] = useState<string | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+  };
+
+  const handleDuplicate = async () => {
+    if (!projectToDuplicate) return;
+    setIsDuplicating(true);
+    try {
+      const original = projects.find((p) => p.id === projectToDuplicate);
+      const { data: newId, error } = await supabase.rpc('duplicate_project', {
+        original_project_id: projectToDuplicate,
+        new_project_name: `Copia de ${original?.name || 'Proyecto'}`,
+      });
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: 'No se pudo duplicar el proyecto',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await refreshProjects();
+      if (newId) selectProject(newId);
+
+      toast({
+        title: 'Proyecto duplicado',
+        description: 'La copia se creó correctamente',
+      });
+    } finally {
+      setIsDuplicating(false);
+      setProjectToDuplicate(null);
+    }
   };
 
   return (
