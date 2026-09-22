@@ -227,6 +227,30 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
       />
+
+      {/* Duplicate confirmation */}
+      <AlertDialog
+        open={projectToDuplicate !== null}
+        onOpenChange={(open) => !open && setProjectToDuplicate(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicar proyecto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se creará una copia exacta con todas sus actividades, OPEX y
+              configuraciones.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDuplicating}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDuplicate} disabled={isDuplicating}>
+              {isDuplicating ? 'Duplicando...' : 'Duplicar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
