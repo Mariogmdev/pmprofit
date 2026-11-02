@@ -175,6 +175,10 @@ export interface ExcelExportParams {
   openingHour: number;
   closingHour: number;
   currency: string;
+  /** Project income tax rate as decimal (e.g. 0.35). */
+  taxRate?: number;
+  /** Residual value rate for fixed assets as decimal (e.g. 0.40). */
+  residualRate?: number;
 }
 
 export function exportarExcelCompleto(params: ExcelExportParams): void {
@@ -251,11 +255,11 @@ function agregarInputsGlobal(wb: XLSX.WorkBook, p: ExcelExportParams): IGRefs {
     ['Horizonte', p.projectionYears, 'años', 'export'],
     ['Inflación anual', p.inflationRate / 100, '%', 'export'],
     ['Tasa descuento', p.discountRate, '%', 'export'],
-    ['Impuesto renta', 0.35, '%', 'constante'],
+    ['Impuesto renta', p.taxRate ?? 0.35, '%', 'export'],
     ['Prestaciones soc.', (p.opex.prestaciones_porcentaje || 53.94) / 100, '%', 'constante'],
     ['Días por mes', p.daysPerMonth, 'días', 'export'],
     ['Capital de trabajo', p.workingCapitalMonths, 'meses', 'export'],
-    ['Residual activos', 0.40, '%', 'constante'],
+    ['Residual activos', p.residualRate ?? 0.40, '%', 'export'],
     ['Depreciación (años)', p.depreciacionAnos, 'años', 'export'],
     ['Hora apertura', p.openingHour, 'hora', 'export'],
     ['Hora cierre', p.closingHour, 'hora', 'export'],
@@ -1038,7 +1042,11 @@ function agregarCashFlowVanTir(wb: XLSX.WorkBook, p: ExcelExportParams, ig: IGRe
   const numAnos = p.projectionYears;
   const proy = metrics.proyeccion;
 
-  const valorResidual = metrics.capexTotal * 0.40;
+  const taxRate = p.taxRate ?? 0.35;
+  const residualRate = p.residualRate ?? 0.40;
+  // Same rule as the Dashboard: fixed assets × residual rate + 100% of working capital recovered
+  const wcValue = metrics.capexBreakdown.workingCapital;
+  const valorResidual = (metrics.capexTotal - wcValue) * residualRate + wcValue;
 
   // Layout (0-indexed r):
   // r=0: title
@@ -1062,7 +1070,7 @@ function agregarCashFlowVanTir(wb: XLSX.WorkBook, p: ExcelExportParams, ig: IGRe
 
   const depAnual = pl.anos.length > 0 ? pl.anos[0].depreciacion.total : 0;
   const ebitAnual = proy.map(y => y.ebitdaAnual - depAnual);
-  const flujoOperativo = proy.map((_, i) => proy[i].ebitdaAnual - Math.max(0, ebitAnual[i] * 0.35));
+  const flujoOperativo = proy.map((_, i) => proy[i].ebitdaAnual - Math.max(0, ebitAnual[i] * taxRate));
 
   const flujoCajaLibre = [
     -metrics.capexTotal,
@@ -1275,7 +1283,7 @@ function agregarCashFlowVanTir(wb: XLSX.WorkBook, p: ExcelExportParams, ig: IGRe
     // Impuesto (r=9) = MAX(0, EBIT) * impuesto
     wset(ws, 9, col,
       fnum(`MAX(0,${L}${er(8)})*${ig.impuesto}`,
-        c(Math.max(0, ((proy[yi]?.ebitdaAnual ?? 0) - depAnual) * 0.35)))
+        c(Math.max(0, ((proy[yi]?.ebitdaAnual ?? 0) - depAnual) * taxRate)))
     );
 
     // Flujo caja operativo (r=10) = EBITDA - impuesto
@@ -1293,7 +1301,7 @@ function agregarCashFlowVanTir(wb: XLSX.WorkBook, p: ExcelExportParams, ig: IGRe
       // CAPEX TOTAL is at capexTotalRow, col 1 (B)
       const capexTotalExcelRow = capexTotalRow + 1;
       wset(ws, 12, col,
-        fnum(`B${capexTotalExcelRow}*${ig.residual}`, c(valorResidual))
+        fnum(`(B${capexTotalExcelRow}-B${capexTotalExcelRow - 1})*${ig.residual}+B${capexTotalExcelRow - 1}`, c(valorResidual))
       );
     } else {
       wset(ws, 12, col, fnum('0', 0));

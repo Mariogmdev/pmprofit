@@ -109,6 +109,8 @@ export function useExcelExport() {
         openingHour,
         closingHour,
         currency,
+        taxRate: (currentProject?.tax_rate ?? 35) / 100,
+        residualRate: ((currentProject as any)?.residual_asset_rate ?? 40) / 100,
       });
     } catch (error) {
       console.error('Error exportando Excel:', error);
