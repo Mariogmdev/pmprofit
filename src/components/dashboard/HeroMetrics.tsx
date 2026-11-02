@@ -8,6 +8,7 @@ import { formatCurrency, formatPercent } from '@/lib/currency';
 import { CurrencyCode } from '@/types';
 import { cn } from '@/lib/utils';
 import { CalculationModal } from './CalculationModal';
+import { InfoHint } from '@/components/ui/info-hint';
 import { CalculationType } from '@/lib/calculationExplainer';
 import { 
   DollarSign, 
@@ -93,6 +94,10 @@ export const HeroMetrics = ({ metrics, currency, discountRate }: HeroMetricsProp
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">
                 Ingresos Mensuales
+                <InfoHint title="Ingresos mensuales (Base)" className="ml-1 align-middle">
+                  <p>Es el ingreso de un mes con el club ya maduro (mes 12 del primer año), sumando reservas, clases, membresías, pases, complementarios y tráfico (F&B / tienda).</p>
+                  <p>"Anual Base" es la suma real de los 12 meses del Año 1, incluyendo la rampa de ocupación. Por eso puede ser menor que el mensual × 12.</p>
+                </InfoHint>
               </p>
               <p className="text-2xl lg:text-3xl font-bold text-green-700 dark:text-green-400">
                 {formatCurrency(metrics.ingresosMensualesBase, currency)}
@@ -160,6 +165,10 @@ export const HeroMetrics = ({ metrics, currency, discountRate }: HeroMetricsProp
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">
                 EBITDA Mensual
+                <InfoHint title="EBITDA mensual" className="ml-1 align-middle">
+                  <p>EBITDA = Ingresos − OPEX en efectivo (nómina, arriendo, servicios, comisiones, costos variables). No incluye depreciación.</p>
+                  <p>EBIT = EBITDA − depreciación. La depreciación es el CAPEX + imprevistos dividido entre los años de vida útil.</p>
+                </InfoHint>
               </p>
               <p className="text-2xl lg:text-3xl font-bold text-blue-700 dark:text-blue-400">
                 {formatCurrency(metrics.ebitdaMensualBase, currency)}
@@ -216,6 +225,10 @@ export const HeroMetrics = ({ metrics, currency, discountRate }: HeroMetricsProp
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">
                 Inversión Total (CAPEX)
+                <InfoHint title="Inversión total" className="ml-1 align-middle">
+                  <p>Suma de construcción de actividades, espacios comunes, obra civil e imprevistos, más el capital de trabajo (meses de OPEX que se reservan para arrancar).</p>
+                  <p>El capital de trabajo no se deprecia.</p>
+                </InfoHint>
               </p>
               <p className="text-2xl lg:text-3xl font-bold text-purple-700 dark:text-purple-400">
                 {formatCurrency(metrics.capexTotal, currency)}
@@ -272,6 +285,10 @@ export const HeroMetrics = ({ metrics, currency, discountRate }: HeroMetricsProp
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">
                 Retorno de Inversión
+                <InfoHint title="Retorno (TIR, VAN, Payback)" className="ml-1 align-middle">
+                  <p>Se calcula sobre el flujo de caja libre: EBITDA − impuestos − inversión, más el valor residual al final del horizonte.</p>
+                  <p>TIR es la rentabilidad anual del proyecto; VAN descuenta los flujos a la tasa del proyecto; Payback es el mes en que el flujo acumulado pasa a positivo.</p>
+                </InfoHint>
               </p>
               <p className={cn(
                 "text-2xl lg:text-3xl font-bold",
