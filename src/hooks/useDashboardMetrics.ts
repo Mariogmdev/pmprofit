@@ -605,8 +605,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const ingresos = year1IncomeMonths[idx] || 0;
       const breakdown = year1BreakdownMonths[idx];
       
-      const opexVariableMes = ingresos * opexStructure.porcentajeVariable;
-      const opexMes = opexStructure.fijo + opexVariableMes;
+      // Same OPEX engine used by the annual projection and the P&L
+      const opexMes = calculateOpexMensual(ingresos, capexSinWorkingCapital).opexCaja;
       const cogsMes = year1CogsMonths[idx] || 0;
       const ebitda = ingresos - cogsMes - opexMes;
       
