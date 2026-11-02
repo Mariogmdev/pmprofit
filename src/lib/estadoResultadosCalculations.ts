@@ -76,7 +76,7 @@ export function calculateEstadoResultados(
   const anos = buildAnnualPeriods(
     year1Data, yearlyProjection, projectOpex, activities,
     capexSinWorkingCapital, depreciacionAnos, tasaImpuestos, daysPerMonth,
-    cogsRatio, profesoresRatio, costoVentasRatio,
+    cogsRatio, profesoresRatio, costoVentasRatio, inflationRate,
   );
 
   const metricas = calcularMetricas(anos);
@@ -251,6 +251,7 @@ function buildAnnualPeriods(
   cogsRatio: number,
   profesoresRatio: number,
   costoVentasRatio: number,
+  inflationRate: number = 3,
 ): PeriodoResultados[] {
   const depreciacionAnual = projectOpex.incluir_depreciacion === false ? 0 : capexTotal / Math.max(1, depreciacionAnos);
 
@@ -301,25 +302,28 @@ function buildAnnualPeriods(
       daysPerMonth,
     });
 
-    // Scale OPEX to annual
+    // Scale OPEX to annual. Same rule as the Dashboard: from Year 2 on, inflation applies
+    // to the fixed share of cash OPEX (60%); the variable share (40%) already moves with revenue.
+    const inflationFactor = Math.pow(1 + inflationRate / 100, ano - 1);
+    const f = 12 * (0.6 * inflationFactor + 0.4);
     const opexAnual: OpexBreakdown = {
       ...opexMensual,
-      nomina: opexMensual.nomina * 12,
-      arriendo: opexMensual.arriendo * 12,
-      seguros: opexMensual.seguros * 12,
-      serviciosPublicos: opexMensual.serviciosPublicos * 12,
-      marketing: opexMensual.marketing * 12,
-      mantenimiento: opexMensual.mantenimiento * 12,
-      seguridad: opexMensual.seguridad * 12,
-      tecnologia: opexMensual.tecnologia * 12,
-      administrativos: opexMensual.administrativos * 12,
-      gastosFinancieros: opexMensual.gastosFinancieros * 12,
-      impuestos: opexMensual.impuestos * 12,
-      comisiones: opexMensual.comisiones * 12,
-      otros: opexMensual.otros * 12,
+      nomina: opexMensual.nomina * f,
+      arriendo: opexMensual.arriendo * f,
+      seguros: opexMensual.seguros * f,
+      serviciosPublicos: opexMensual.serviciosPublicos * f,
+      marketing: opexMensual.marketing * f,
+      mantenimiento: opexMensual.mantenimiento * f,
+      seguridad: opexMensual.seguridad * f,
+      tecnologia: opexMensual.tecnologia * f,
+      administrativos: opexMensual.administrativos * f,
+      gastosFinancieros: opexMensual.gastosFinancieros * f,
+      impuestos: opexMensual.impuestos * f,
+      comisiones: opexMensual.comisiones * f,
+      otros: opexMensual.otros * f,
       depreciacion: opexMensual.depreciacion * 12,
-      opexCaja: opexMensual.opexCaja * 12,
-      opexTotal: opexMensual.opexTotal * 12,
+      opexCaja: opexMensual.opexCaja * f,
+      opexTotal: opexMensual.opexCaja * f + opexMensual.depreciacion * 12,
     };
 
     return buildPeriodo(annualMonth, ano, 'anual', opexAnual, depreciacionAnual, tasaImpuestos);
