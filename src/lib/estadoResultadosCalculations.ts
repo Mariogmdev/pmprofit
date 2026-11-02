@@ -39,6 +39,7 @@ export function calculateEstadoResultados(
   daysPerMonth: number = 30,
   inflationRate: number = 3,
   projectionYears: number = 5,
+  occupancyGrowthRate: number = 5,
 ): EstadoResultados {
   // WC is not a depreciable asset — use capexSinWC for depreciation base
   const capexSinWorkingCapital = capexTotal - workingCapital;
@@ -53,7 +54,7 @@ export function calculateEstadoResultados(
   const yearlyProjection = calculateYearlyProjection(
     year1Data.totalYear1Income, // Annual Year 1 income
     ocupacionPromedio,           // Year 1 average occupancy
-    5,                           // Crecimiento ocupación 5%/año (same as dashboard)
+    occupancyGrowthRate,         // Same project setting as dashboard
     inflationRate,               // From project config
     projectionYears,             // Dynamic from project config
   );
