@@ -8,6 +8,8 @@ export interface ProjectionYear {
   opexAnual: number;
   ebitdaMensual: number;
   ebitdaAnual: number;
+  /** Cost of goods sold (F&B/retail) for the year */
+  cogsAnual?: number;
   margenEbitda: number;
   capex: number;
   flujoCaja: number;
@@ -154,6 +156,7 @@ export interface DashboardMetrics {
     mes: string;
     ingresos: number;
     opex: number;
+    cogs?: number;
     ebitda: number;
     // Desglose por fuente de ingresos
     reservas: number;

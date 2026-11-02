@@ -449,6 +449,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         opexAnual,
         ebitdaMensual,
         ebitdaAnual,
+        cogsAnual,
         margenEbitda,
         capex: 0, // CAPEX is at t=0, not in yearly flows
         flujoCaja,
@@ -613,6 +614,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         mes,
         ingresos,
         opex: opexMes,
+        cogs: cogsMes,
         ebitda,
         reservas: breakdown.reservas,
         membresias: breakdown.membresias,

@@ -39,17 +39,18 @@ export function auditDashboardMetrics(m: DashboardMetrics): AuditCheck[] {
     months.forEach((x, i) => {
       const parts = x.reservas + x.membresias + x.pases + x.complementarios + x.clases + x.trafico;
       checks.push(check(`m${i + 1}_sources`, `Mes ${i + 1}: fuentes de ingreso = total`, parts, x.ingresos, 'Reservas + membresías + pases + complementarios + clases + tráfico'));
-      checks.push(check(`m${i + 1}_ebitda`, `Mes ${i + 1}: EBITDA = Ingresos − OPEX`, x.ingresos - x.opex, x.ebitda, 'Identidad mensual'));
+      checks.push(check(`m${i + 1}_ebitda`, `Mes ${i + 1}: EBITDA = Ingresos − COGS − OPEX`, x.ingresos - (x.cogs ?? 0) - x.opex, x.ebitda, 'Identidad mensual'));
     });
     checks.push(check('base_month12', 'Ingreso mensual base = mes 12', months[11].ingresos, m.ingresosMensualesBase, 'Tarjeta "Ingresos Mensuales" vs. mes 12 del Año 1'));
   }
 
-  checks.push(check('base_ebitda', 'EBITDA mensual base = Ingresos − OPEX', m.ingresosMensualesBase - m.opexMensualBase, m.ebitdaMensualBase, 'Tarjeta EBITDA'));
+  const cogsBase = months.length === 12 ? months[11].cogs ?? 0 : 0;
+  checks.push(check('base_ebitda', 'EBITDA mensual base = Ingresos − COGS − OPEX', m.ingresosMensualesBase - cogsBase - m.opexMensualBase, m.ebitdaMensualBase, 'Tarjeta EBITDA'));
   checks.push(check('base_ebit', 'EBIT mensual = EBITDA − depreciación', m.ebitdaMensualBase - m.depreciacionMensual, m.ebitMensualBase, 'Tarjeta EBITDA/EBIT'));
 
   let acumulado = -m.capexTotal; // Año 0: inversión inicial
   m.proyeccion.forEach((p) => {
-    checks.push(check(`y${p.year}_ebitda`, `Año ${p.year}: EBITDA = Ingresos − OPEX`, p.ingresosAnuales - p.opexAnual, p.ebitdaAnual, 'Proyección anual (Dashboard, PDF y Excel)'));
+    checks.push(check(`y${p.year}_ebitda`, `Año ${p.year}: EBITDA = Ingresos − COGS − OPEX`, p.ingresosAnuales - (p.cogsAnual ?? 0) - p.opexAnual, p.ebitdaAnual, 'Proyección anual (Dashboard, PDF y Excel)'));
     checks.push(check(`y${p.year}_ebit`, `Año ${p.year}: EBIT = EBITDA − depreciación`, p.ebitdaAnual - p.depreciacionAnual, p.ebitAnual, 'Estado de resultados'));
     const margin = p.ingresosAnuales > 0 ? (p.ebitdaAnual / p.ingresosAnuales) * 100 : 0;
     checks.push(check(`y${p.year}_margin`, `Año ${p.year}: margen EBITDA`, margin, p.margenEbitda, 'Porcentaje', 0.1));

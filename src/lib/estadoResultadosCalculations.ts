@@ -220,7 +220,7 @@ function buildYear1Months(
   tasaImpuestos: number,
   daysPerMonth: number,
 ): PeriodoResultados[] {
-  const depreciacionMensual = capexTotal / depreciacionAnos / 12;
+  const depreciacionMensual = projectOpex.incluir_depreciacion === false ? 0 : capexTotal / Math.max(1, depreciacionAnos) / 12;
 
   return year1Data.months.map((month, i) => {
     const opex = calculateOpexMensual({
@@ -252,7 +252,7 @@ function buildAnnualPeriods(
   profesoresRatio: number,
   costoVentasRatio: number,
 ): PeriodoResultados[] {
-  const depreciacionAnual = capexTotal / depreciacionAnos;
+  const depreciacionAnual = projectOpex.incluir_depreciacion === false ? 0 : capexTotal / Math.max(1, depreciacionAnos);
 
   return yearlyProjection.map((yearData, i) => {
     const ano = yearData.year;
