@@ -15,6 +15,7 @@ import { DashboardTab } from '@/components/dashboard/DashboardTab';
 import { EstadoResultados } from '@/components/financials/EstadoResultados';
 import { BalanceGeneral } from '@/components/financials/BalanceGeneral';
 import { FlujoCaja } from '@/components/financials/FlujoCaja';
+import { ConsistencyAuditPanel } from '@/components/audit/ConsistencyAuditPanel';
 
 export default function Dashboard() {
   const { saveStatus, currentProject } = useProject();
@@ -23,6 +24,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('config');
+  const showAudit = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('auditoria');
 
   const handleExportPDF = useCallback(() => {
     if (!currentProject || !metrics) {
@@ -76,6 +78,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {showAudit && currentProject && <ConsistencyAuditPanel />}
       <AppHeader saveStatus={saveStatus} onExportExcel={exportExcel} onExportPDF={handleExportPDF} isExporting={isExporting} />
 
       <div className="flex w-full">
