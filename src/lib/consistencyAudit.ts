@@ -4,6 +4,8 @@
  * satisfy the model's accounting identities. Pure function, no UI.
  */
 import type { DashboardMetrics } from '@/types/dashboard';
+import type { EstadoResultados } from '@/types/estadoResultados';
+import type { BalanceGeneral } from '@/types/balanceGeneral';
 
 export const AUDIT_TOLERANCE = 1000; // currency units
 
@@ -45,7 +47,7 @@ export function auditDashboardMetrics(m: DashboardMetrics): AuditCheck[] {
   checks.push(check('base_ebitda', 'EBITDA mensual base = Ingresos − OPEX', m.ingresosMensualesBase - m.opexMensualBase, m.ebitdaMensualBase, 'Tarjeta EBITDA'));
   checks.push(check('base_ebit', 'EBIT mensual = EBITDA − depreciación', m.ebitdaMensualBase - m.depreciacionMensual, m.ebitMensualBase, 'Tarjeta EBITDA/EBIT'));
 
-  let acumulado = 0;
+  let acumulado = -m.capexTotal; // Año 0: inversión inicial
   m.proyeccion.forEach((p) => {
     checks.push(check(`y${p.year}_ebitda`, `Año ${p.year}: EBITDA = Ingresos − OPEX`, p.ingresosAnuales - p.opexAnual, p.ebitdaAnual, 'Proyección anual (Dashboard, PDF y Excel)'));
     checks.push(check(`y${p.year}_ebit`, `Año ${p.year}: EBIT = EBITDA − depreciación`, p.ebitdaAnual - p.depreciacionAnual, p.ebitAnual, 'Estado de resultados'));
@@ -55,6 +57,28 @@ export function auditDashboardMetrics(m: DashboardMetrics): AuditCheck[] {
     checks.push(check(`y${p.year}_fcf_acc`, `Año ${p.year}: flujo libre acumulado`, acumulado, p.flujoAcumulado2, 'Flujo de caja'));
   });
 
+  return checks;
+}
+
+/** Checks between the Dashboard numbers and the financial statements (P&L, Balance). */
+export function auditStatements(m: DashboardMetrics, pl: EstadoResultados, balance: BalanceGeneral): AuditCheck[] {
+  const checks: AuditCheck[] = [];
+  const plY1Rev = pl.meses.reduce((s, x) => s + x.ingresos.netos, 0);
+  checks.push(check('pl_y1_rev', 'Ingresos Año 1: Resumen = Estado de Resultados', m.proyeccion[0]?.ingresosAnuales ?? NaN, plY1Rev, 'Suma de 12 meses del P&L'));
+  pl.anos.forEach((a, i) => {
+    const y = i + 1;
+    checks.push(check(`pl_y${y}_ebitda`, `P&L Año ${y}: EBITDA = Ingresos − COGS − OPEX`, a.ingresos.netos - a.cogs.total - a.opex.total, a.ebitda, 'Estado de Resultados'));
+    checks.push(check(`pl_y${y}_ebit`, `P&L Año ${y}: EBIT = EBITDA − depreciación`, a.ebitda - a.depreciacion.total, a.ebit, 'Estado de Resultados'));
+    const dash = m.proyeccion[i];
+    if (dash) {
+      checks.push(check(`pl_y${y}_rev_dash`, `Año ${y}: ingresos Resumen = P&L`, dash.ingresosAnuales, a.ingresos.netos, 'Resumen/PDF vs. Estado de Resultados/Excel'));
+      checks.push(check(`pl_y${y}_ebitda_dash`, `Año ${y}: EBITDA Resumen = P&L`, dash.ebitdaAnual, a.ebitda, 'Resumen/PDF vs. Estado de Resultados/Excel'));
+      checks.push(check(`pl_y${y}_dep_dash`, `Año ${y}: depreciación Resumen = P&L`, dash.depreciacionAnual, a.depreciacion.total, 'Flujo de caja vs. Estado de Resultados'));
+    }
+  });
+  balance.periodos.forEach((b) => {
+    checks.push(check(`bal_y${b.periodo}`, `Balance Año ${b.periodo}: Activos = Pasivos + Patrimonio`, b.activos.total, b.pasivos.total + b.patrimonio.total, 'Balance General'));
+  });
   return checks;
 }
 
