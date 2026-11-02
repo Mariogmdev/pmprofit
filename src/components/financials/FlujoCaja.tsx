@@ -15,6 +15,7 @@ import { useProjectSpaces } from '@/hooks/useProjectSpaces';
 import { useObraCivil } from '@/hooks/useObraCivil';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { ActivityConfig } from '@/types/activity';
+import { InfoHint } from '@/components/ui/info-hint';
 
 
 interface FlujoCajaProps {
@@ -85,6 +86,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
       daysPerMonth,
       inflationRate,
       projectionYears,
+      currentProject?.occupancy_growth_rate ?? 5,
     );
   }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate, projectionYears]);
 
@@ -176,6 +178,10 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             📋 Proyección Cash Flow — {projectionYears} años
+            <InfoHint title="Cómo se calcula el flujo de caja">
+              <p>Flujo libre = EBITDA − impuestos (sobre EBIT positivo). En el Año 0 se resta la inversión total.</p>
+              <p>En el último año se suma el valor residual: % de residual sobre los activos fijos + el capital de trabajo recuperado. TIR, VAN y Payback salen de estos flujos, igual que en el Excel y el PDF.</p>
+            </InfoHint>
           </CardTitle>
         </CardHeader>
         <CardContent>

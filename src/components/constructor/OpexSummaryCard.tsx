@@ -15,6 +15,7 @@ import { Receipt, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { calculateActivityFinancials } from '@/lib/activityCalculations';
 import { calculateYear1MonthlyProjection } from '@/lib/monthlyFinancials';
+import { InfoHint } from '@/components/ui/info-hint';
 
 interface OpexSummaryCardProps {
   projectId: string;
@@ -343,7 +344,10 @@ export const OpexSummaryCard = ({ projectId, currency }: OpexSummaryCardProps) =
             <span className="font-semibold">{formatCurrency(summary.totalNomina, currency)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Arrendamiento:</span>
+            <span className="text-muted-foreground">Arrendamiento:<InfoHint title="Cómo se calcula el arrendamiento" className="ml-1 align-middle">
+                <p>Fijo: el valor mensual que ingresaste. Variable: un % sobre la base elegida (ingresos brutos, netos o utilidad antes de arriendo). Mixto: fijo + variable.</p>
+                <p>La base se toma del mes 12 del Año 1 (club maduro). El resumen, el detalle de OPEX y los estados financieros usan este mismo valor.</p>
+              </InfoHint></span>
             <span className="font-semibold">{formatCurrency(summary.arrendamiento, currency)}</span>
           </div>
           <div className="flex justify-between">

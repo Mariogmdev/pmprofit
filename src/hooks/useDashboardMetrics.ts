@@ -305,8 +305,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         projectOpex: opex,
         activities,
         ingresosBrutos,
-        ingresosNetos,
-        ingresosOperacionales,
+        // Scale maturity bases to the revenue being evaluated (same behaviour as the P&L)
+        ingresosNetos: ingresosMadurez > 0 ? ingresosNetos * (ingresosBrutos / ingresosMadurez) : ingresosBrutos * 0.85,
+        ingresosOperacionales: ingresosMadurez > 0 ? ingresosOperacionales * (ingresosBrutos / ingresosMadurez) : ingresosBrutos,
         capexParaDepreciacion,
         daysPerMonth,
       });
@@ -449,6 +450,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         opexAnual,
         ebitdaMensual,
         ebitdaAnual,
+        cogsAnual,
         margenEbitda,
         capex: 0, // CAPEX is at t=0, not in yearly flows
         flujoCaja,
@@ -604,8 +606,8 @@ export const useDashboardMetrics = (): DashboardMetrics => {
       const ingresos = year1IncomeMonths[idx] || 0;
       const breakdown = year1BreakdownMonths[idx];
       
-      const opexVariableMes = ingresos * opexStructure.porcentajeVariable;
-      const opexMes = opexStructure.fijo + opexVariableMes;
+      // Same OPEX engine used by the annual projection and the P&L
+      const opexMes = calculateOpexMensual(ingresos, capexSinWorkingCapital).opexCaja;
       const cogsMes = year1CogsMonths[idx] || 0;
       const ebitda = ingresos - cogsMes - opexMes;
       
@@ -613,6 +615,7 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         mes,
         ingresos,
         opex: opexMes,
+        cogs: cogsMes,
         ebitda,
         reservas: breakdown.reservas,
         membresias: breakdown.membresias,

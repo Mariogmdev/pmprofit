@@ -68,30 +68,34 @@ export function useExcelExport() {
 
   const canExport = !metrics.loading && !!opex && activities.length > 0;
 
+  /** Builds the same P&L and Balance that the Excel export uses. */
+  const buildStatements = useCallback(() => {
+    if (!opex) return null;
+    const pl = calculateEstadoResultados(
+      projectId,
+      activities,
+      opex,
+      capexData.capexSinWC,
+      capexData.workingCapital,
+      (currentProject?.tax_rate ?? 35) / 100,
+      depreciacionAnos,
+      daysPerMonth,
+      inflationRate,
+      projectionYears,
+      currentProject?.occupancy_growth_rate ?? 5,
+    );
+    const balance = calculateBalanceGeneral(projectId, pl, capexData.capexSinWC, capexData.workingCapital);
+    return { pl, balance };
+  }, [projectId, activities, opex, capexData, currentProject, depreciacionAnos, daysPerMonth, inflationRate, projectionYears]);
+
   const exportExcel = useCallback(async () => {
     if (!canExport || !opex) return;
 
     setIsExporting(true);
     try {
-      const pl = calculateEstadoResultados(
-        projectId,
-        activities,
-        opex,
-        capexData.capexSinWC,
-        capexData.workingCapital,
-        (currentProject?.tax_rate ?? 35) / 100,
-        depreciacionAnos,
-        daysPerMonth,
-        inflationRate,
-        projectionYears,
-      );
-
-      const balance = calculateBalanceGeneral(
-        projectId,
-        pl,
-        capexData.capexSinWC,
-        capexData.workingCapital,
-      );
+      const statements = buildStatements();
+      if (!statements) return;
+      const { pl, balance } = statements;
 
       exportarExcelCompleto({
         projectName,
@@ -109,6 +113,8 @@ export function useExcelExport() {
         openingHour,
         closingHour,
         currency,
+        taxRate: (currentProject?.tax_rate ?? 35) / 100,
+        residualRate: ((currentProject as any)?.residual_asset_rate ?? 40) / 100,
       });
     } catch (error) {
       console.error('Error exportando Excel:', error);
@@ -116,10 +122,10 @@ export function useExcelExport() {
       setIsExporting(false);
     }
   }, [
-    canExport, projectId, projectName, activities, opex, capexData,
+    canExport, buildStatements, projectName, activities, opex, currentProject,
     daysPerMonth, inflationRate, depreciacionAnos, metrics, projectionYears,
     discountRate, workingCapitalMonths, openingHour, closingHour, currency,
   ]);
 
-  return { exportExcel, isExporting, canExport };
+  return { exportExcel, isExporting, canExport, buildStatements, metrics };
 }

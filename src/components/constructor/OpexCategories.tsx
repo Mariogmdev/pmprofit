@@ -47,6 +47,7 @@ import {
   CreditCard, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InfoHint } from '@/components/ui/info-hint';
 
 interface OpexCategoriesProps {
   projectId: string;
@@ -1018,6 +1019,10 @@ export const OpexCategories = ({ projectId, currency }: OpexCategoriesProps) => 
             <div className="flex items-center gap-3">
               <Home className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               <span className="font-semibold">2. Arrendamiento</span>
+              <InfoHint title="Cómo se calcula el arrendamiento" className="ml-1 align-middle">
+                <p>Fijo: el valor mensual que ingresaste. Variable: un % sobre la base elegida (ingresos brutos, netos o utilidad antes de arriendo). Mixto: fijo + variable.</p>
+                <p>La base se toma del mes 12 del Año 1 (club maduro). El resumen, el detalle de OPEX y los estados financieros usan este mismo valor.</p>
+              </InfoHint>
             </div>
             <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
               {formatCurrency(calculateArrendamiento(), currency)}/mes

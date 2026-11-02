@@ -1,1 +1,3 @@
 - AI calls run only in edge functions via @lovable.dev/ai-gateway (npm: import); the browser extracts PDF/Excel text and sends it, so files are never stored.
+- Financial identities are checked by `src/lib/consistencyAudit.ts` (hidden panel at `/dashboard?auditoria=1`); Dashboard, P&L and Excel must share OPEX, COGS, inflation and depreciation rules so every check passes — fix the engine, never the check.
+- Plain-language calculation explanations use the `InfoHint` (i) component next to the figure they explain.

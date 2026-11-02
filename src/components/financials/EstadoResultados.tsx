@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InfoHint } from '@/components/ui/info-hint';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { EstadoResultadosProps, PeriodoResultados } from '@/types/estadoResultados';
@@ -314,6 +315,7 @@ export function EstadoResultados({
       daysPerMonth,
       inflationRate,
       projectionYears,
+      currentProject?.occupancy_growth_rate ?? 5,
     );
   }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate, projectionYears]);
 
@@ -353,6 +355,10 @@ export function EstadoResultados({
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 📊 Estado de Resultados (P&L)
+                <InfoHint title="Cómo se calcula el estado de resultados">
+                  <p>Año 1 = suma real de los 12 meses con la rampa de ocupación. Años siguientes crecen por ocupación e inflación según la configuración del proyecto.</p>
+                  <p>EBITDA = Ingresos − costo de ventas − OPEX en efectivo. EBIT = EBITDA − depreciación. Utilidad neta = EBIT − impuestos.</p>
+                </InfoHint>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 Formato NIIF/GAAP — Proyección 5 años

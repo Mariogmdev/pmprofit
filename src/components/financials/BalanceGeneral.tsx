@@ -13,6 +13,7 @@ import { useObraCivil } from '@/hooks/useObraCivil';
 import { ActivityConfig } from '@/types/activity';
 import { formatPLCurrency, formatPLPercentage } from '@/lib/plFormatters';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
+import { InfoHint } from '@/components/ui/info-hint';
 
 // YEAR_HEADERS generated dynamically from balance data
 
@@ -191,6 +192,7 @@ export function BalanceGeneral({
       daysPerMonth,
       inflationRate,
       projectionYears,
+      currentProject?.occupancy_growth_rate ?? 5,
     );
   }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate, projectionYears]);
 
@@ -235,6 +237,11 @@ export function BalanceGeneral({
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 🏦 Balance General
+                <InfoHint title="Cómo se arma el balance">
+                  <p>Activos: caja acumulada, cuentas por cobrar (15 días), inventario y activos fijos netos de depreciación.</p>
+                  <p>Pasivos: cuentas por pagar (30 días) e impuestos por pagar. Patrimonio: aporte inicial + utilidades acumuladas.</p>
+                  <p>Siempre debe cumplirse Activos = Pasivos + Patrimonio.</p>
+                </InfoHint>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 Posición financiera proyectada — 5 años
