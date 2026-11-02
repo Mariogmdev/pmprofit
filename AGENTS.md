@@ -1,0 +1,1 @@
+- AI calls run only in edge functions via @lovable.dev/ai-gateway (npm: import); the browser extracts PDF/Excel text and sends it, so files are never stored.

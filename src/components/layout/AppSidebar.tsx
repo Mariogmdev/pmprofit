@@ -9,6 +9,7 @@ import {
   X,
   FolderOpen,
   Copy,
+  Sparkles,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +30,7 @@ import { formatRelativeTime } from '@/lib/time';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import CreateProjectModal from '@/components/modals/CreateProjectModal';
+import ImportBusinessPlanModal from '@/components/modals/ImportBusinessPlanModal';
 
 interface AppSidebarProps {
   isOpen: boolean;
@@ -41,6 +43,7 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [projectToDuplicate, setProjectToDuplicate] = useState<string | null>(null);
   const [isDuplicating, setIsDuplicating] = useState(false);
 
@@ -189,6 +192,14 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
               <Plus className="w-4 h-4" />
               Nuevo Proyecto
             </Button>
+            <Button
+              variant="outline"
+              className="w-full gap-2 mt-2"
+              onClick={() => setShowImportModal(true)}
+            >
+              <Sparkles className="w-4 h-4" />
+              Importar plan de negocio
+            </Button>
           </div>
         </div>
 
@@ -227,6 +238,8 @@ export default function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
       />
+
+      <ImportBusinessPlanModal open={showImportModal} onOpenChange={setShowImportModal} />
 
       {/* Duplicate confirmation */}
       <AlertDialog
