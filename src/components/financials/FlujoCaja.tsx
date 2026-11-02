@@ -85,6 +85,7 @@ export function FlujoCaja({ projectId }: FlujoCajaProps) {
       daysPerMonth,
       inflationRate,
       projectionYears,
+      currentProject?.occupancy_growth_rate ?? 5,
     );
   }, [projectId, activities, opex, capexData, daysPerMonth, inflationRate, projectionYears]);
 

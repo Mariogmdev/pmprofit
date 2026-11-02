@@ -84,6 +84,7 @@ export function useExcelExport() {
         daysPerMonth,
         inflationRate,
         projectionYears,
+        currentProject?.occupancy_growth_rate ?? 5,
       );
 
       const balance = calculateBalanceGeneral(
