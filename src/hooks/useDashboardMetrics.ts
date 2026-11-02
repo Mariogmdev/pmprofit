@@ -305,8 +305,9 @@ export const useDashboardMetrics = (): DashboardMetrics => {
         projectOpex: opex,
         activities,
         ingresosBrutos,
-        ingresosNetos,
-        ingresosOperacionales,
+        // Scale maturity bases to the revenue being evaluated (same behaviour as the P&L)
+        ingresosNetos: ingresosMadurez > 0 ? ingresosNetos * (ingresosBrutos / ingresosMadurez) : ingresosBrutos * 0.85,
+        ingresosOperacionales: ingresosMadurez > 0 ? ingresosOperacionales * (ingresosBrutos / ingresosMadurez) : ingresosBrutos,
         capexParaDepreciacion,
         daysPerMonth,
       });

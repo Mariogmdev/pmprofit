@@ -59,8 +59,14 @@ export function calculateEstadoResultados(
     projectionYears,             // Dynamic from project config
   );
 
-  // ── Step 4: Calculate COGS ratio from Year 1 (month 12 = maturity) ──
-  const year1Month12 = year1Data.months[11];
+  // ── Step 4: COGS ratios from Year 1 totals (same as dashboard: COGS scales with revenue) ──
+  const y1Income = year1Data.months.reduce((acc, m) => acc + m.totalIncome, 0);
+  const year1Month12 = {
+    totalIncome: y1Income,
+    totalCogs: year1Data.months.reduce((acc, m) => acc + m.totalCogs, 0),
+    profesores: year1Data.months.reduce((acc, m) => acc + m.profesores, 0),
+    costoVentas: year1Data.months.reduce((acc, m) => acc + m.costoVentas, 0),
+  };
   const cogsRatio = year1Month12.totalIncome > 0
     ? year1Month12.totalCogs / year1Month12.totalIncome
     : 0;
